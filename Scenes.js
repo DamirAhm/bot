@@ -1,11 +1,8 @@
-const c = require("config");
-
 const Scene = require("node-vk-bot-api/lib/scene"),
-  config = require("config"),
+  config = require("./config.json"),
   {
     renderAdminMenu,
     renderAdminMenuKeyboard,
-    renderAdminKeyboard,
     createDefaultMenu,
     createDefaultKeyboard,
     renderContributorMenu,
@@ -37,13 +34,18 @@ const Scene = require("node-vk-bot-api/lib/scene"),
   } = require("bot-database/Models/utils.js"),
   VK_API = require("bot-database/VkAPI/VK_API.js"),
   Markup = require("node-vk-bot-api/lib/markup"),
-  DataBase = new DB(config.get("MONGODB_URI")),
+  DataBase = new DB(config["MONGODB_URI"]),
   vk = new VK_API(
-    config.get("VK_API_KEY"),
-    config.get("GROUP_ID"),
-    config.get("ALBUM_ID")
+    config["VK_API_KEY"],
+    config["GROUP_ID"],
+    config["ALBUM_ID"]
   ),
-  { getTomorrowDate, isToday, findMaxPhotoResolution } = require("./utils.js");
+  {
+    getTomorrowDate,
+    isToday,
+    findMaxPhotoResolution,
+    notifyStudents,
+  } = require("./utils.js");
 
 const maxDatesPerMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
