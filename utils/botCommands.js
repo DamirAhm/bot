@@ -10,7 +10,6 @@ module.exports = {
     contributor: "Редактор",
     student: "Ученик",
     class: "Класс",
-    //banned: "Заблокирован",
     notificationsEnabled: "Уведомления включены",
     disableNotifications: "Выключить уведомления",
     enbleNotifications: "Включить уведомления",

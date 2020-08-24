@@ -15,79 +15,99 @@ const isToday = (date) =>
 
 const notifyStudents = async (botInstance) => {
     try {
-        console.log("Notifying");
         const Classes = await DataBase.getAllClasses();
 
         for (const Class of Classes) {
-            const tomorrowHomework = await DataBase.getHomeworkByDate(
-                Class,
-                getTomorrowDate()
-            );
-
-            const ids = [];
-
-            if (tomorrowHomework.length > 0) {
-                const { students } = await Class.populate(
-                    "students"
-                ).execPopulate();
-
-                for (const student of students) {
-                    if (student.settings.notificationsEnabled) {
-                        const [hours, mins] = student.settings.notificationTime
-                            .match(/([0-9]+):([0-9]+)/)
-                            .slice(1)
-                            .map(Number);
-
-                        const hoursNow = new Date().getHours();
-                        const minsNow = new Date().getMinutes();
-
-                        if (
-                            hours <= hoursNow &&
-                            mins <= minsNow &&
-                            !isToday(student.lastHomeworkCheck)
-                        ) {
-                            ids.push(student.vkId);
-                            student.lastHomeworkCheck = new Date();
-                            student.save();
-                        }
-                    }
-                }
-
-                const parsedHomework = mapHomeworkByLesson(tomorrowHomework);
-                let message = `Задание на завтра\n`;
-
-                botInstance.sendMessage(ids, message);
-
-                let c = 0;
-                for (const [lesson, homework] of parsedHomework) {
-                    let homeworkMsg = `${lesson}:\n`;
-                    let attachments = [];
-                    for (let i = 0; i < homework.length; i++) {
-                        const hw = homework[i];
-                        homeworkMsg += hw.text ? `${i + 1}: ${hw.text}\n` : "";
-                        attachments = attachments.concat(
-                            hw.attachments?.map(({ value }) => value)
-                        );
-                    }
-
-                    await setTimeout(
-                        () =>
-                            botInstance.sendMessage(
-                                ids,
-                                homeworkMsg,
-                                attachments
-                            ),
-                        ++c * 15
-                    );
-                }
-
-                return parsedHomework;
-            }
+            await sendHomeworkToClassStudents(Class, botInstance);
         }
     } catch (e) {
         console.error(e);
     }
 };
+
+async function sendHomeworkToClassStudents(Class, botInstance) {
+    const tomorrowHomework = await DataBase.getHomeworkByDate(
+        Class,
+        getTomorrowDate()
+    );
+
+    if (tomorrowHomework.length > 0) {
+        const { students } = await Class.populate("students").execPopulate();
+
+        const notifiableIds = getNotifiableIds(students);
+
+        const parsedHomework = mapHomeworkByLesson(tomorrowHomework);
+
+        let message = `Задание на завтра\n`;
+        botInstance.sendMessage(notifiableIds, message);
+
+        sendHomework(parsedHomework, botInstance, notifiableIds);
+    }
+}
+
+function getNotifiableIds(students) {
+    const ids = [];
+
+    for (const student of students) {
+        if (student.settings.notificationsEnabled) {
+            const [hours, mins] = student.settings.notificationTime
+                .match(/([0-9]+):([0-9]+)/)
+                .slice(1)
+                .map(Number);
+
+            if (isReadyToNotificate(hours, mins, student.lastHomeworkCheck)) {
+                ids.push(student.vkId);
+                updateLastHomeworkCheck(student);
+            }
+        }
+    }
+
+    return ids;
+}
+function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
+    const hoursNow = new Date().getHours();
+    const minsNow = new Date().getMinutes();
+
+    return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
+}
+function updateLastHomeworkCheck(student) {
+    student.lastHomeworkCheck = new Date();
+    student.save();
+}
+
+function sendHomework(parsedHomework, botInstance, notifiableIds) {
+    let index = 0;
+
+    for (const [lesson, homework] of parsedHomework) {
+        let { homeworkMessage, attachments } = getHomeworkPayload(
+            lesson,
+            homework
+        );
+
+        setTimeout(
+            () =>
+                botInstance.sendMessage(
+                    notifiableIds,
+                    homeworkMessage,
+                    attachments
+                ),
+            ++index * 15
+        );
+    }
+}
+function getHomeworkPayload(lesson, homework) {
+    let homeworkMessage = `${lesson}:\n`;
+    let attachments = [];
+
+    for (let i = 0; i < homework.length; i++) {
+        const hw = homework[i];
+        homeworkMessage += hw.text ? `${i + 1}: ${hw.text}\n` : "";
+        attachments = attachments.concat(
+            hw.attachments?.map(({ value }) => value)
+        );
+    }
+    return { homeworkMessage, attachments };
+}
 
 const findMaxPhotoResolution = (photo) => {
     let maxR = 0;
