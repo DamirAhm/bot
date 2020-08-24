@@ -6,13 +6,6 @@ const DataBase = new DB(config["MONGODB_URI"]);
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000;
 
-const getTomorrowDate = () =>
-    new Date(new Date().setDate(new Date().getDate() + 1));
-
-const isToday = (date) =>
-    Math.abs(date.getTime() - new Date().getTime()) <= dayInMilliseconds &&
-    date.getDate() === new Date().getDate();
-
 const notifyStudents = async (botInstance) => {
     try {
         const Classes = await DataBase.getAllClasses();
@@ -24,7 +17,6 @@ const notifyStudents = async (botInstance) => {
         console.error(e);
     }
 };
-
 async function sendHomeworkToClassStudents(Class, botInstance) {
     const tomorrowHomework = await DataBase.getHomeworkByDate(
         Class,
@@ -126,6 +118,19 @@ const findMaxPhotoResolution = (photo) => {
 
     return url;
 };
+
+function getTomorrowDate() {
+    const tomorrowDate = new Date().getDate() + 1;
+    const tomorrowDateInMilliseconds = new Date().setDate(tomorrowDate);
+    return new Date(tomorrowDateInMilliseconds);
+}
+
+function isToday(date) {
+    const deltaIsLessThanDay =
+        Math.abs(date.getTime() - new Date().getTime()) <= dayInMilliseconds;
+    const datesAreSame = date.getDate() === new Date().getDate();
+    return deltaIsLessThanDay && datesAreSame;
+}
 
 module.exports = {
     isToday,
