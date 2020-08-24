@@ -49,7 +49,7 @@ function getNotifiableIds(students) {
 
             if (isReadyToNotificate(hours, mins, student.lastHomeworkCheck)) {
                 ids.push(student.vkId);
-                updateLastHomeworkCheck(student);
+                DataBase.changeLastHomeworkCheckDate(student.vkId, new Date());
             }
         }
     }
@@ -61,10 +61,6 @@ function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
     const minsNow = new Date().getMinutes();
 
     return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
-}
-function updateLastHomeworkCheck(student) {
-    student.lastHomeworkCheck = new Date();
-    student.save();
 }
 
 function sendHomework(parsedHomework, botInstance, notifiableIds) {
