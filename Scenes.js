@@ -339,78 +339,123 @@ module.exports.checkHomework = new Scene(
 				} else {
 					ctx.scene.enter( "default" );
 				}
-				return;
-			}
-
-			let date = null;
-
-			if ( body === botCommands.onTomorrow ) {
-				date = getTomorrowDate();
 			} else if ( body === botCommands.thisWeek ) {
-				ctx.reply( "Дз на неделю" );
-				ctx.scene.enter( "default" );
-				return;
-			} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
-				const [ day, month, year ] = body
-					.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
-					.slice( 1 )
-					.map( Number );
+				const weekDay = new Date().getDay();
+				const daysOfHomework = getLengthOfHomeworkWeek();
 
-				if (
-					inRange( month, 1, 12 ) &&
-					inRange( day, 1, maxDatesPerMonth[ month - 1 ] ) &&
-					year >= new Date().getFullYear()
-				) {
-					date = new Date( year, month - 1, day );
-				} else {
-					ctx.reply( "Проверьте правильность введенной даты" );
-					return;
-				}
-			} else {
-				ctx.reply( "Дата должна быть в формате дд.ММ.ГГГГ" );
-				return;
-			}
 
-			if ( date ) {
-				const homework = filterContentByDate( ctx.session.Class.homework, date );
-				ctx.session.Class = undefined;
-				if ( homework.length === 0 ) {
-					ctx.reply( "На данный день не заданно ни одного задания" );
-					ctx.scene.enter( "default" );
-				} else {
-					const parsedHomework = mapHomeworkByLesson( homework );
 
-					let message = `Задание на ${date.getDate()} ${monthsRP[ date.getMonth() ]
-						}\n`;
+				for ( let i = 0; i < daysOfHomework; i++ ) {
+					const dayOfHomework = new Date().getDate() + i;
+					const dateItMilliseconds = new Date().setDate( dayOfHomework );
+					const date = new Date( dateItMilliseconds )
 
-					ctx.reply(
-						message,
-						null,
-						await createDefaultKeyboard( ctx.session.role, ctx )
-					);
+					const homework = filterContentByDate( ctx.session.Class.homework, date );
+					if ( homework.length === 0 ) {
+						ctx.reply( "На данный день не заданно ни одного задания" );
+						ctx.scene.enter( "default" );
+					} else {
+						const parsedHomework = mapHomeworkByLesson( homework );
 
-					let c = 0;
-					for ( const [ lesson, homework ] of parsedHomework ) {
-						let homeworkMsg = `${lesson}:\n`;
-						let attachments = [];
-						for ( let i = 0; i < homework.length; i++ ) {
-							const hw = homework[ i ];
-							homeworkMsg += hw.text ? `${i + 1}: ${hw.text}\n` : "";
-							attachments = attachments.concat(
-								hw.attachments?.map( ( { value } ) => value )
+						let message = `Задание на ${date.getDate()} ${monthsRP[ date.getMonth() ]
+							}\n`;
+
+						ctx.reply(
+							message,
+							null,
+							await createDefaultKeyboard( ctx.session.role, ctx )
+						);
+
+						let c = 0;
+						for ( const [ lesson, homework ] of parsedHomework ) {
+							let homeworkMsg = `${lesson}:\n`;
+							let attachments = [];
+							for ( let i = 0; i < homework.length; i++ ) {
+								const hw = homework[ i ];
+								homeworkMsg += hw.text ? `${i + 1}: ${hw.text}\n` : "";
+								attachments = attachments.concat(
+									hw.attachments?.map( ( { value } ) => value )
+								);
+							}
+
+							await setTimeout(
+								() => ctx.reply( homeworkMsg, attachments ),
+								++c * 15
 							);
 						}
 
-						await setTimeout(
-							() => ctx.reply( homeworkMsg, attachments ),
-							++c * 15
-						);
 					}
-
-					ctx.scene.enter( "default" );
 				}
+
+				ctx.scene.enter( "default" );
+				ctx.session.Class = undefined;
 			} else {
-				throw new Error( "There's no date" );
+				let date = null;
+
+				if ( body === botCommands.onTomorrow ) {
+					date = getTomorrowDate();
+				} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
+					const [ day, month, year ] = body
+						.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
+						.slice( 1 )
+						.map( Number );
+
+					if (
+						inRange( month, 1, 12 ) &&
+						inRange( day, 1, maxDatesPerMonth[ month - 1 ] ) &&
+						year >= new Date().getFullYear()
+					) {
+						date = new Date( year, month - 1, day );
+					} else {
+						ctx.reply( "Проверьте правильность введенной даты" );
+						return;
+					}
+				} else {
+					ctx.reply( "Дата должна быть в формате дд.ММ.ГГГГ" );
+					return;
+				}
+
+				if ( date ) {
+					const homework = filterContentByDate( ctx.session.Class.homework, date );
+					ctx.session.Class = undefined;
+					if ( homework.length === 0 ) {
+						ctx.reply( "На данный день не заданно ни одного задания" );
+						ctx.scene.enter( "default" );
+					} else {
+						const parsedHomework = mapHomeworkByLesson( homework );
+
+						let message = `Задание на ${date.getDate()} ${monthsRP[ date.getMonth() ]
+							}\n`;
+
+						ctx.reply(
+							message,
+							null,
+							await createDefaultKeyboard( ctx.session.role, ctx )
+						);
+
+						let c = 0;
+						for ( const [ lesson, homework ] of parsedHomework ) {
+							let homeworkMsg = `${lesson}:\n`;
+							let attachments = [];
+							for ( let i = 0; i < homework.length; i++ ) {
+								const hw = homework[ i ];
+								homeworkMsg += hw.text ? `${i + 1}: ${hw.text}\n` : "";
+								attachments = attachments.concat(
+									hw.attachments?.map( ( { value } ) => value )
+								);
+							}
+
+							await setTimeout(
+								() => ctx.reply( homeworkMsg, attachments ),
+								++c * 15
+							);
+						}
+
+						ctx.scene.enter( "default" );
+					}
+				} else {
+					throw new Error( "There's no date" );
+				}
 			}
 		} catch ( e ) {
 			console.error( e );
@@ -1807,4 +1852,12 @@ async function getScheduleString ( { schedule } ) {
 		.join( "\n\n" );
 
 	return message;
+}
+
+
+//Returns amount of days for each of which whe should send homework
+function getLengthOfHomeworkWeek () {
+	const date = new Date().getDay();
+
+	return date >= 5 ? 6 : 7 - date;
 }
