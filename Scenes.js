@@ -16,6 +16,7 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		createBackKeyboard,
 		monthsRP,
 		notifyAllInClass,
+		createDefaultKeyboardSync,
 	} = require( "./utils/messagePayloading.js" ),
 	{ DataBase: DB } = require( "bot-database/DataBase.js" ),
 	{
@@ -46,6 +47,8 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		findMaxPhotoResolution,
 		notifyStudents,
 		inRange,
+		sendHomework,
+		getHomeworkPayload,
 	} = require( "./utils.js" );
 
 const maxDatesPerMonth = [ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
@@ -340,54 +343,66 @@ module.exports.checkHomework = new Scene(
 					ctx.scene.enter( "default" );
 				}
 			} else if ( body === botCommands.thisWeek ) {
+				if ( !ctx.session.role ) ctx.session.role = await DataBase.getRole( ctx.message.user_id );
+
+				const messageDelay = 50;
+
 				const weekDay = new Date().getDay();
 				const daysOfHomework = getLengthOfHomeworkWeek();
 
+				let startDay = new Date().getDate();
+				if ( weekDay >= 5 ) {
+					startDay = new Date().getDate() + ( 7 - startDay + 1 );
+				}
 
+				let delayAmount = 0;
 
 				for ( let i = 0; i < daysOfHomework; i++ ) {
-					const dayOfHomework = new Date().getDate() + i;
+					const dayOfHomework = startDay + i;
 					const dateItMilliseconds = new Date().setDate( dayOfHomework );
 					const date = new Date( dateItMilliseconds )
 
+					const dateString = `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
+
 					const homework = filterContentByDate( ctx.session.Class.homework, date );
+
 					if ( homework.length === 0 ) {
-						ctx.reply( "На данный день не заданно ни одного задания" );
-						ctx.scene.enter( "default" );
+						//? IIFE to make amountOfHomework local closure elsewhere it would be saved as valiable at moment when setTimeout callback will be executed 
+						( ( amountOfHomework ) =>
+							setTimeout( () => {
+								ctx.reply( `На ${dateString} не заданно ни одного задания` );
+							}, messageDelay * amountOfHomework )
+						)( delayAmount )
 					} else {
 						const parsedHomework = mapHomeworkByLesson( homework );
 
-						let message = `Задание на ${date.getDate()} ${monthsRP[ date.getMonth() ]
-							}\n`;
+						let headerMessage = `Задание на ${dateString}\n`;
 
-						ctx.reply(
-							message,
-							null,
-							await createDefaultKeyboard( ctx.session.role, ctx )
-						);
+						setTimeout( () => {
+							ctx.reply( headerMessage )
+						}, delayAmount++ * messageDelay );
 
-						let c = 0;
+						let homeworkIndex = 0;
 						for ( const [ lesson, homework ] of parsedHomework ) {
-							let homeworkMsg = `${lesson}:\n`;
-							let attachments = [];
-							for ( let i = 0; i < homework.length; i++ ) {
-								const hw = homework[ i ];
-								homeworkMsg += hw.text ? `${i + 1}: ${hw.text}\n` : "";
-								attachments = attachments.concat(
-									hw.attachments?.map( ( { value } ) => value )
-								);
-							}
+							const { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework )
 
-							await setTimeout(
-								() => ctx.reply( homeworkMsg, attachments ),
-								++c * 15
+							setTimeout(
+								() => {
+									ctx.reply( homeworkMessage, attachments )
+								},
+								delayAmount * messageDelay + homeworkIndex * messageDelay / 10
 							);
+
+							homeworkIndex++;
+							delayAmount++;
 						}
 
 					}
 				}
 
-				ctx.scene.enter( "default" );
+				setTimeout( () => {
+					ctx.scene.enter( "default" );
+				}, delayAmount * messageDelay * 2 );
 				ctx.session.Class = undefined;
 			} else {
 				let date = null;
@@ -417,7 +432,6 @@ module.exports.checkHomework = new Scene(
 
 				if ( date ) {
 					const homework = filterContentByDate( ctx.session.Class.homework, date );
-					ctx.session.Class = undefined;
 					if ( homework.length === 0 ) {
 						ctx.reply( "На данный день не заданно ни одного задания" );
 						ctx.scene.enter( "default" );
@@ -433,24 +447,9 @@ module.exports.checkHomework = new Scene(
 							await createDefaultKeyboard( ctx.session.role, ctx )
 						);
 
-						let c = 0;
-						for ( const [ lesson, homework ] of parsedHomework ) {
-							let homeworkMsg = `${lesson}:\n`;
-							let attachments = [];
-							for ( let i = 0; i < homework.length; i++ ) {
-								const hw = homework[ i ];
-								homeworkMsg += hw.text ? `${i + 1}: ${hw.text}\n` : "";
-								attachments = attachments.concat(
-									hw.attachments?.map( ( { value } ) => value )
-								);
-							}
+						sendHomework( parsedHomework, ctx.bot, [ ctx.message.user_id ] );
 
-							await setTimeout(
-								() => ctx.reply( homeworkMsg, attachments ),
-								++c * 15
-							);
-						}
-
+						ctx.session.Class = undefined;
 						ctx.scene.enter( "default" );
 					}
 				} else {

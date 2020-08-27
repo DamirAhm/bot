@@ -67,20 +67,11 @@ function sendHomework ( parsedHomework, botInstance, notifiableIds ) {
     let index = 0;
 
     for ( const [ lesson, homework ] of parsedHomework ) {
-        let { homeworkMessage, attachments } = getHomeworkPayload(
-            lesson,
-            homework
-        );
+        let { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework );
 
-        setTimeout(
-            () =>
-                botInstance.sendMessage(
-                    notifiableIds,
-                    homeworkMessage,
-                    attachments
-                ),
-            ++index * 15
-        );
+        setTimeout( () => {
+            botInstance.sendMessage( notifiableIds, homeworkMessage, attachments )
+        }, index++ * 15 );
     }
 }
 function getHomeworkPayload ( lesson, homework ) {
@@ -141,8 +132,13 @@ function inRange ( number, min, max ) {
 
 module.exports = {
     isToday,
-    inRange,
     getTomorrowDate,
     notifyStudents,
     findMaxPhotoResolution,
+    sendHomeworkToClassStudents,
+    getNotifiableIds,
+    isReadyToNotificate,
+    sendHomework,
+    getHomeworkPayload,
+    inRange
 };
