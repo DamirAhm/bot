@@ -365,61 +365,65 @@ module.exports.checkHomework = new Scene(
 				let delayAmount = 0;
 
 				for ( let i = 0; i < daysOfHomework; i++ ) {
-					const dayOfHomework = startDay + i;
-					const dateItMilliseconds = new Date( today.getFullYear(), today.getMonth(), dayOfHomework );
-					const date = new Date( dateItMilliseconds )
+					setTimeout( () => {
+						const dayOfHomework = startDay + i;
+						const dateItMilliseconds = new Date( today.getFullYear(), today.getMonth(), dayOfHomework );
+						const date = new Date( dateItMilliseconds )
 
-					const dateString = `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
+						const dateString = `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
 
-					const homework = filterContentByDate( ctx.session.Class.homework, date );
+						const homework = filterContentByDate( ctx.session.Class.homework, date );
 
-					if ( homework.length === 0 ) {
-						//? IIFE to make amountOfHomework local closure elsewhere it would be saved as valiable at moment when setTimeout callback will be executed 
-						( ( delayAmount ) =>
-							setTimeout( () => {
-								ctx.reply( `На ${dateString} не заданно ни одного задания` );
-							}, messageDelay * delayAmount )
-						)( delayAmount )
-						delayAmount++;
-					} else {
-						const parsedHomework = mapHomeworkByLesson( homework );
-
-						let headerMessage = `Задание на ${dateString}\n`;
-
-						setTimeout( () => {
-							try {
-								ctx.reply( headerMessage )
-							} catch ( e ) {
-								console.error( e );
-							}
-						}, delayAmount++ * messageDelay );
-
-						let homeworkIndex = 0;
-						for ( const [ lesson, homework ] of parsedHomework ) {
-							const { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework )
-
-							setTimeout(
-								() => {
-									try {
-										ctx.reply( homeworkMessage, attachments )
-									} catch ( e ) {
-										console.error( e );
-									}
-								},
-								delayAmount * messageDelay + homeworkIndex * messageDelay / 10
-							);
-
-							homeworkIndex++;
+						if ( homework.length === 0 ) {
+							//? IIFE to make amountOfHomework local closure elsewhere it would be saved as valiable at moment when setTimeout callback will be executed 
+							( ( delayAmount ) =>
+								setTimeout( () => {
+									ctx.reply( `На ${dateString} не заданно ни одного задания` );
+								}, messageDelay * delayAmount )
+							)( delayAmount )
 							delayAmount++;
-						}
+						} else {
+							const parsedHomework = mapHomeworkByLesson( homework );
 
-					}
+							let headerMessage = `Задание на ${dateString}\n`;
+
+							setTimeout( () => {
+								try {
+									ctx.reply( headerMessage )
+								} catch ( e ) {
+									console.error( e );
+								}
+							}, delayAmount++ * messageDelay );
+
+							let homeworkIndex = 0;
+							for ( const [ lesson, homework ] of parsedHomework ) {
+								const { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework )
+
+								setTimeout(
+									() => {
+										try {
+											ctx.reply( homeworkMessage, attachments )
+										} catch ( e ) {
+											console.error( e );
+										}
+									},
+									delayAmount * messageDelay + homeworkIndex * messageDelay / 10
+								);
+
+								homeworkIndex++;
+								delayAmount++;
+							}
+
+						}
+					}, i * messageDelay );
 				}
 
 				setTimeout( () => {
-					ctx.scene.enter( "default" );
-				}, delayAmount * messageDelay * 2 );
-				ctx.session.Class = undefined;
+					setTimeout( () => {
+						ctx.scene.enter( "default" );
+						ctx.session.Class = undefined;
+					}, delayAmount * messageDelay * 2 );
+				}, daysOfHomework * messageDelay );
 			} else {
 				let date = null;
 
