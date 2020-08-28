@@ -23,7 +23,6 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		findNextLessonDate,
 		findNextDayWithLesson,
 		mapHomeworkByLesson,
-		filterContentByDate,
 		dayInMilliseconds,
 	} = require( "bot-database/utils/functions" ),
 	botCommands = require( "./utils/botCommands.js" ),
@@ -45,11 +44,11 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		getTomorrowDate,
 		isToday,
 		findMaxPhotoResolution,
-		notifyStudents,
+		filterContentByDate,
 		inRange,
 		sendHomework,
 		getHomeworkPayload,
-	} = require( "./utils.js" );
+	} = require( "./utils/functions.js" );
 
 const maxDatesPerMonth = [ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
 
@@ -83,6 +82,10 @@ module.exports.errorScene = new Scene( "error", async ( ctx ) => {
 } );
 
 module.exports.startScene = new Scene( "start", async ( ctx ) => {
+	if ( !( ctx.session.firstName && ctx.session.secondName ) ) {
+
+	}
+
 	ctx.reply(
 		`Привет ${ctx.session.firstName} ${ctx.session.secondName}`,
 		null,
@@ -313,7 +316,7 @@ module.exports.checkHomework = new Scene(
 							null,
 							createBackKeyboard( [
 								[ Markup.button( botCommands.onTomorrow, "positive" ) ],
-								[ Markup.button( botCommands.thisWeek, "primary" ) ],
+								[ Markup.button( new Date().getDay() >= 5 ? botCommands.nextWeek : botCommands.thisWeek, "primary" ) ],
 							] )
 						);
 					} else {
@@ -334,7 +337,7 @@ module.exports.checkHomework = new Scene(
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.back ) {
+			if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
 				const isPickedClass = await isAdmin( ctx );
 				if ( isPickedClass ) {
 					ctx.session.Class = undefined;
@@ -342,24 +345,28 @@ module.exports.checkHomework = new Scene(
 				} else {
 					ctx.scene.enter( "default" );
 				}
-			} else if ( body === botCommands.thisWeek ) {
+			} else if (
+				body.toLowerCase() === botCommands.thisWeek.toLowerCase() ||
+				body.toLowerCase() === botCommands.nextWeek.toLowerCase()
+			) {
 				if ( !ctx.session.role ) ctx.session.role = await DataBase.getRole( ctx.message.user_id );
 
 				const messageDelay = 50;
 
-				const weekDay = new Date().getDay();
+				const today = new Date();
+				const weekDay = today.getDay();
 				const daysOfHomework = getLengthOfHomeworkWeek();
 
-				let startDay = new Date().getDate();
+				let startDay = today.getDate();
 				if ( weekDay >= 5 ) {
-					startDay = new Date().getDate() + ( 7 - startDay + 1 );
+					startDay = new Date().getDate() + ( 7 - weekDay + 1 );
 				}
 
 				let delayAmount = 0;
 
 				for ( let i = 0; i < daysOfHomework; i++ ) {
 					const dayOfHomework = startDay + i;
-					const dateItMilliseconds = new Date().setDate( dayOfHomework );
+					const dateItMilliseconds = new Date( today.getFullYear(), today.getMonth(), dayOfHomework );
 					const date = new Date( dateItMilliseconds )
 
 					const dateString = `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
@@ -368,18 +375,23 @@ module.exports.checkHomework = new Scene(
 
 					if ( homework.length === 0 ) {
 						//? IIFE to make amountOfHomework local closure elsewhere it would be saved as valiable at moment when setTimeout callback will be executed 
-						( ( amountOfHomework ) =>
+						( ( delayAmount ) =>
 							setTimeout( () => {
 								ctx.reply( `На ${dateString} не заданно ни одного задания` );
-							}, messageDelay * amountOfHomework )
+							}, messageDelay * delayAmount )
 						)( delayAmount )
+						delayAmount++;
 					} else {
 						const parsedHomework = mapHomeworkByLesson( homework );
 
 						let headerMessage = `Задание на ${dateString}\n`;
 
 						setTimeout( () => {
-							ctx.reply( headerMessage )
+							try {
+								ctx.reply( headerMessage )
+							} catch ( e ) {
+								console.error( e );
+							}
 						}, delayAmount++ * messageDelay );
 
 						let homeworkIndex = 0;
@@ -388,7 +400,11 @@ module.exports.checkHomework = new Scene(
 
 							setTimeout(
 								() => {
-									ctx.reply( homeworkMessage, attachments )
+									try {
+										ctx.reply( homeworkMessage, attachments )
+									} catch ( e ) {
+										console.error( e );
+									}
 								},
 								delayAmount * messageDelay + homeworkIndex * messageDelay / 10
 							);

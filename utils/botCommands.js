@@ -23,6 +23,7 @@ module.exports = {
     onToday: "На сегодня",
     onTomorrow: "На завтра",
     thisWeek: "На эту неделю",
+    nextWeek: "На следущую неделю",
 
     checkSchedule: "Посмотреть расписание",
 

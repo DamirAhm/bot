@@ -1,12 +1,12 @@
 const { mapHomeworkByLesson } = require( "bot-database/utils/functions" );
 const { DataBase: DB } = require( "bot-database/DataBase" );
-const config = require( "./config.json" );
+const config = require( "../config.json" );
 
 const DataBase = new DB( config[ "MONGODB_URI" ] );
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000;
 
-const notifyStudents = async ( botInstance ) => {
+async function notifyStudents ( botInstance ) {
     try {
         const Classes = await DataBase.getAllClasses();
 
@@ -88,7 +88,7 @@ function getHomeworkPayload ( lesson, homework ) {
     return { homeworkMessage, attachments };
 }
 
-const findMaxPhotoResolution = ( photo ) => {
+function findMaxPhotoResolution ( photo ) {
     let maxR = 0;
     let url = "";
 
@@ -130,6 +130,12 @@ function inRange ( number, min, max ) {
     return true;
 }
 
+function filterContentByDate ( content, date ) {
+    return content.filter( ( { to } ) => {
+        return inRange( to.getTime() - date.getTime(), 0, 24 * 60 * 60 * 1000 - 1 );
+    } )
+}
+
 module.exports = {
     isToday,
     getTomorrowDate,
@@ -140,5 +146,6 @@ module.exports = {
     isReadyToNotificate,
     sendHomework,
     getHomeworkPayload,
-    inRange
+    inRange,
+    filterContentByDate
 };
