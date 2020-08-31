@@ -17,7 +17,7 @@ module.exports = {
     changeNotificationTime: "Время уведомлений",
 
     checkHomework: "Посмотреть дз",
-    checkChanges: "Посмотреть изменения в расписании",
+    checkAnnouncements: "Посмотреть обьявления",
     leaveEmpty: "Оставить пустым",
     onNextLesson: "На следующий урок",
     onToday: "На сегодня",

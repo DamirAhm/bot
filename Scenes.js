@@ -199,8 +199,8 @@ module.exports.defaultScene = new Scene(
 					ctx.scene.enter( "checkHomework" );
 					break;
 				}
-				case botCommands.checkChanges: {
-					ctx.scene.enter( "checkChanges" );
+				case botCommands.checkAnnouncements: {
+					ctx.scene.enter( "checkAnnouncements" );
 					break;
 				}
 				case botCommands.checkSchedule: {
@@ -220,7 +220,7 @@ module.exports.defaultScene = new Scene(
 					break;
 				}
 				case "2": {
-					ctx.scene.enter( "checkChanges" );
+					ctx.scene.enter( "checkAnnouncements" );
 					break;
 				}
 				case "3": {
@@ -482,13 +482,13 @@ module.exports.checkHomework = new Scene(
 		}
 	}
 );
-module.exports.checkChanges = new Scene(
-	"checkChanges",
+module.exports.checkAnnouncements = new Scene(
+	"checkAnnouncements",
 	async ( ctx ) => {
 		try {
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
-				ctx.session.nextScene = "checkChanges";
+				ctx.session.nextScene = "checkAnnouncements";
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -529,7 +529,7 @@ module.exports.checkChanges = new Scene(
 				const isPickedClass = await isAdmin( ctx );
 				if ( isPickedClass ) {
 					ctx.session.Class = undefined;
-					ctx.scene.enter( "checkChanges" );
+					ctx.scene.enter( "checkAnnouncements" );
 				} else {
 					ctx.scene.enter( "default" );
 				}
@@ -565,9 +565,9 @@ module.exports.checkChanges = new Scene(
 			}
 
 			if ( date ) {
-				const changes = filterContentByDate( ctx.session.Class.changes, date );
+				const announcements = filterContentByDate( ctx.session.Class.announcements, date );
 				ctx.session.Class = undefined;
-				if ( changes.length === 0 ) {
+				if ( announcements.length === 0 ) {
 					ctx.reply( "На данный день нет ни одного изменения" );
 					ctx.scene.enter( "default" );
 				} else {
@@ -575,11 +575,11 @@ module.exports.checkChanges = new Scene(
 						}\n`;
 
 					let attachments = [];
-					for ( let i = 0; i < changes.length; i++ ) {
-						const change = changes[ i ];
-						message += change.text ? `${i + 1}: ${change.text}\n` : "";
+					for ( let i = 0; i < announcements.length; i++ ) {
+						const announcement = announcements[ i ];
+						message += announcement.text ? `${i + 1}: ${announcement.text}\n` : "";
 						attachments = attachments.concat(
-							change.attachments?.map( ( { value } ) => value )
+							announcement.attachments?.map( ( { value } ) => value )
 						);
 					}
 
@@ -1081,7 +1081,7 @@ module.exports.contributorPanelScene = new Scene(
 					break;
 				}
 				case "2": {
-					ctx.scene.enter( "addChange" );
+					ctx.scene.enter( "addAnnouncement" );
 					break;
 				}
 				case "3": {
@@ -1355,8 +1355,8 @@ module.exports.addHomeworkScene = new Scene(
 		}
 	}
 );
-module.exports.addChangeScene = new Scene(
-	"addChange",
+module.exports.addAnnouncementScene = new Scene(
+	"addAnnouncement",
 	async ( ctx ) => {
 		try {
 			if ( ctx.message.body.trim() === botCommands.back ) {
@@ -1366,7 +1366,7 @@ module.exports.addChangeScene = new Scene(
 
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
-				ctx.session.nextScene = "addChange";
+				ctx.session.nextScene = "addAnnouncement";
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -1424,7 +1424,7 @@ module.exports.addChangeScene = new Scene(
 					album_id: att[ att.type ].album_id,
 				} ) );
 
-				ctx.session.newChange = { text: body, attachments: parsedAttachments };
+				ctx.session.newAnnouncement = { text: body, attachments: parsedAttachments };
 
 				ctx.scene.next();
 				ctx.reply(
@@ -1452,7 +1452,7 @@ module.exports.addChangeScene = new Scene(
 			} = ctx;
 
 			if ( body === botCommands.back ) {
-				ctx.session.newChange.lesson = undefined;
+				ctx.session.newAnnouncement.lesson = undefined;
 				ctx.scene.selectStep( 1 );
 				ctx.reply(
 					"Введите содержимое изменения (можно прикрепить фото)",
@@ -1462,9 +1462,9 @@ module.exports.addChangeScene = new Scene(
 			}
 
 			if ( body === botCommands.onToday ) {
-				ctx.session.newChange.to = new Date();
+				ctx.session.newAnnouncement.to = new Date();
 			} else if ( body === botCommands.onTomorrow ) {
-				ctx.session.newChange.to = getTomorrowDate();
+				ctx.session.newAnnouncement.to = getTomorrowDate();
 			} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
 				const [ day, month, year ] = body
 					.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
@@ -1480,7 +1480,7 @@ module.exports.addChangeScene = new Scene(
 					const date = new Date( year, month - 1, day );
 
 					if ( date.getTime() >= Date.now() ) {
-						ctx.session.newChange.to = date;
+						ctx.session.newAnnouncement.to = date;
 					} else {
 						ctx.reply( "Дата не может быть в прошлом" );
 					}
@@ -1492,18 +1492,18 @@ module.exports.addChangeScene = new Scene(
 				return;
 			}
 
-			if ( ctx.session.newChange.to ) {
+			if ( ctx.session.newAnnouncement.to ) {
 				ctx.scene.next();
 				ctx.reply(
 					`
                 Вы уверены что хотите создать такое изменение?
-                ${createContentDiscription( ctx.session.newChange )}
+                ${createContentDiscription( ctx.session.newAnnouncement )}
                 `,
-					ctx.session.newChange.attachments.map( ( { value } ) => value ),
+					ctx.session.newAnnouncement.attachments.map( ( { value } ) => value ),
 					createConfirmKeyboard()
 				);
 			} else {
-				throw new Error( "There's no to prop in new change" );
+				throw new Error( "There's no to prop in new announcement" );
 			}
 		} catch ( e ) {
 			console.error( e );
@@ -1518,12 +1518,12 @@ module.exports.addChangeScene = new Scene(
 
 			if ( answer.trim().toLowerCase() === botCommands.yes.toLowerCase() ) {
 				const {
-					newChange: { to, text, attachments },
+					newAnnouncement: { to, text, attachments },
 					Class: { name: className },
 				} = ctx.session;
 				ctx.session.Class = undefined;
 
-				const res = await DataBase.addChanges(
+				const res = await DataBase.addAnnouncement(
 					className,
 					{ text, attachments },
 					to,
