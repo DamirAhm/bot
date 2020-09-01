@@ -48,20 +48,16 @@ const userOptions = [
 ];
 
 const contributorOptions = [
-	{ label: "Добавить дз", payload: "addHomework", color: "default" },
-	{
-		label: "Добавить изменения в расписании",
-		payload: "addChange",
-		color: "default",
-	},
-	{ label: "Изменить расписание", payload: "changeSchedule", color: "default" },
+	{ label: botCommands.addHomework, payload: "addHomework", color: "default" },
+	{ label: botCommands.addAnnouncement, payload: "addAnnouncement", color: "default" },
+	{ label: botCommands.changeSchedule, payload: "changeSchedule", color: "default" },
 ];
 const adminOptions = [
-	{ label: "Добавить редактора", payload: "addRedactor", color: "default" },
-	{ label: "Удалить редактора", payload: "removeRedactor", color: "default" },
-	{ label: "Список редакторов", payload: "redactorsList", color: "default" },
-	{ label: "Добавить класс", payload: "addClass", color: "default" },
-	{ label: "Список классов", payload: "classList", color: "default" },
+	{ label: botCommands.addRedactor, payload: "addRedactor", color: "default" },
+	{ label: botCommands.removeRedactor, payload: "removeRedactor", color: "default" },
+	{ label: botCommands.redactorsList, payload: "redactorsList", color: "default" },
+	{ label: botCommands.addClass, payload: "addClass", color: "default" },
+	{ label: botCommands.classList, payload: "classList", color: "default" },
 ];
 
 const mapListToMessage = ( list, startIndex = 1 ) => {

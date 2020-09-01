@@ -82,10 +82,6 @@ module.exports.errorScene = new Scene( "error", async ( ctx ) => {
 } );
 
 module.exports.startScene = new Scene( "start", async ( ctx ) => {
-	if ( !( ctx.session.firstName && ctx.session.secondName ) ) {
-
-	}
-
 	ctx.reply(
 		`Привет ${ctx.session.firstName} ${ctx.session.secondName}`,
 		null,
@@ -163,17 +159,17 @@ module.exports.defaultScene = new Scene(
 	"default",
 	async ( ctx ) => {
 		try {
-			ctx.scene.next();
-
 			if ( !ctx.session.userId ) {
 				ctx.session.userId = ctx.message.user_id;
 			}
-
+			console.log( ctx.session );
 			ctx.reply(
 				createDefaultMenu(),
 				null,
 				await createDefaultKeyboard( ctx.session.role, ctx )
 			);
+
+			ctx.scene.next();
 		} catch ( e ) {
 			ctx.scene.enter( "error" );
 			console.error( e );

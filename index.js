@@ -41,7 +41,13 @@ const stage = new Stage( ...Object.values( Scenes ) );
 bot.use( session.middleware() );
 bot.use( stage.middleware() );
 
-bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => {
+bot.command( "test", async ( ctx ) => {
+    ctx.session.userId = ctx.message.userId;
+    ctx.session.role = await DataBase.getRole( ctx.message.user_id );
+    ctx.scene.enter( "default" );
+} );
+
+bot.command( [ 'start', 'начать', 'меню', 'help', 'помощь', botCommands.back ], async ( ctx ) => {
     try {
         const {
             message: { user_id },
@@ -49,7 +55,7 @@ bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => 
         let student = await DataBase.getStudentByVkId( user_id );
 
         if ( student ) {
-            if ( student.firstName || student.secondName ) {
+            if ( !student.firstName || !student.secondName ) {
                 const { first_name, last_name } = await vk
                     .getUser( user_id )
                     .then( ( res ) => res[ 0 ] );
@@ -65,7 +71,7 @@ bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => 
             ctx.session.fullName = student.fullName;
 
             if ( student.registered ) {
-                ctx.scene.enter( "start" );
+                ctx.scene.enter( "default" );
             } else {
                 ctx.reply(
                     "Привет " + student.firstName + " " + student.lastName
@@ -91,6 +97,7 @@ bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => 
         }
     } catch ( e ) {
         console.log( e.message );
+        throw new Error( e );
     }
 } );
 
@@ -104,7 +111,7 @@ bot.command( botCommands.toStart, ( ctx ) => ctx.scene.enter( "default" ) );
 bot.command( botCommands.checkHomework, ( ctx ) =>
     ctx.scene.enter( "checkHomework" )
 );
-bot.command( botCommands.checkChanges, ( ctx ) => ctx.scene.enter( "checkChanges" ) );
+bot.command( botCommands.checkAnnouncements, ( ctx ) => ctx.scene.enter( "checkAnnouncements" ) );
 bot.command( botCommands.checkSchedule, ( ctx ) =>
     ctx.scene.enter( "checkSchedule" )
 );
