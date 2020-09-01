@@ -41,7 +41,7 @@ const stage = new Stage( ...Object.values( Scenes ) );
 bot.use( session.middleware() );
 bot.use( stage.middleware() );
 
-bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => {
+bot.command( [ 'start', 'начать', 'help', 'помощь', botCommands.back ], async ( ctx ) => {
     try {
         const {
             message: { user_id },
@@ -49,12 +49,14 @@ bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => 
         let student = await DataBase.getStudentByVkId( user_id );
 
         if ( student ) {
-            if ( student.firstName || student.secondName ) {
+            if ( !student.firstName || !student.secondName || !student.fullName ) {
                 const { first_name, last_name } = await vk
                     .getUser( user_id )
                     .then( ( res ) => res[ 0 ] );
                 student.firstName = first_name;
                 student.secondName = last_name;
+                student.secondName = first_name + " " + last_name;
+
                 await student.save();
             }
 
@@ -65,7 +67,7 @@ bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => 
             ctx.session.fullName = student.fullName;
 
             if ( student.registered ) {
-                ctx.scene.enter( "start" );
+                ctx.scene.enter( "default" );
             } else {
                 ctx.reply(
                     "Привет " + student.firstName + " " + student.lastName
@@ -91,6 +93,7 @@ bot.command( /start|начать|меню|help|помощь/i, async ( ctx ) => 
         }
     } catch ( e ) {
         console.log( e.message );
+        throw new Error( e );
     }
 } );
 
@@ -104,7 +107,7 @@ bot.command( botCommands.toStart, ( ctx ) => ctx.scene.enter( "default" ) );
 bot.command( botCommands.checkHomework, ( ctx ) =>
     ctx.scene.enter( "checkHomework" )
 );
-bot.command( botCommands.checkChanges, ( ctx ) => ctx.scene.enter( "checkChanges" ) );
+bot.command( botCommands.checkAnnouncements, ( ctx ) => ctx.scene.enter( "checkAnnouncements" ) );
 bot.command( botCommands.checkSchedule, ( ctx ) =>
     ctx.scene.enter( "checkSchedule" )
 );

@@ -16,8 +16,6 @@ module.exports = {
     notificationTime: "Время уведомлений",
     changeNotificationTime: "Время уведомлений",
 
-    checkHomework: "Посмотреть дз",
-    checkChanges: "Посмотреть изменения в расписании",
     leaveEmpty: "Оставить пустым",
     onNextLesson: "На следующий урок",
     onToday: "На сегодня",
@@ -25,10 +23,26 @@ module.exports = {
     thisWeek: "На эту неделю",
     nextWeek: "На следущую неделю",
 
+    checkHomework: "Посмотреть дз",
+    checkAnnouncements: "Посмотреть обьявления",
+    checkChanges: "Посмотреть изменения в расписании",
     checkSchedule: "Посмотреть расписание",
+
+    addRedactor: "Добавить редактора",
+    addAnnouncement: "Добавить обьявление",
+    addHomework: "Добавить домашнее задание",
+    addClass: "Добавить класс",
+
+    changeSchedule: "Изменить расписание",
+
+    removeRedactor: "Удалить редактора",
+
+    redactorsList: "Список редакторов",
+    classList: "Список классов",
 
     toStart: "В начало",
     back: "Назад",
+    start: "Начать",
     notUnderstood: "Непон",
 
     no: "Нет",
