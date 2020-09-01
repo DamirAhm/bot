@@ -41,13 +41,7 @@ const stage = new Stage( ...Object.values( Scenes ) );
 bot.use( session.middleware() );
 bot.use( stage.middleware() );
 
-bot.command( "test", async ( ctx ) => {
-    ctx.session.userId = ctx.message.userId;
-    ctx.session.role = await DataBase.getRole( ctx.message.user_id );
-    ctx.scene.enter( "default" );
-} );
-
-bot.command( [ 'start', 'начать', 'меню', 'help', 'помощь', botCommands.back ], async ( ctx ) => {
+bot.command( [ 'start', 'начать', 'help', 'помощь', botCommands.back ], async ( ctx ) => {
     try {
         const {
             message: { user_id },
@@ -55,12 +49,14 @@ bot.command( [ 'start', 'начать', 'меню', 'help', 'помощь', botC
         let student = await DataBase.getStudentByVkId( user_id );
 
         if ( student ) {
-            if ( !student.firstName || !student.secondName ) {
+            if ( !student.firstName || !student.secondName || !student.fullName ) {
                 const { first_name, last_name } = await vk
                     .getUser( user_id )
                     .then( ( res ) => res[ 0 ] );
                 student.firstName = first_name;
                 student.secondName = last_name;
+                student.secondName = first_name + " " + last_name;
+
                 await student.save();
             }
 

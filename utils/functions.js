@@ -107,9 +107,8 @@ function findMaxPhotoResolution ( photo ) {
 };
 
 function getTomorrowDate () {
-    const tomorrowDate = new Date().getDate() + 1;
-    const tomorrowDateInMilliseconds = new Date().setDate( tomorrowDate );
-    return new Date( tomorrowDateInMilliseconds );
+    const date = new Date();
+    return new Date( date.getFullYear(), date.getMonth(), date.getDate() + 1 );
 }
 
 function isToday ( date ) {

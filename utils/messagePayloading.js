@@ -35,8 +35,8 @@ const userOptions = [
 		color: "primary",
 	},
 	{
-		label: botCommands.checkChanges,
-		payload: "checkChanges",
+		label: botCommands.checkAnnouncements,
+		payload: "checkAnnouncements",
 		color: "primary",
 	},
 	{

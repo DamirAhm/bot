@@ -41,6 +41,7 @@ module.exports = {
 
     toStart: "В начало",
     back: "Назад",
+    start: "Начать",
     notUnderstood: "Непон",
 
     no: "Нет",

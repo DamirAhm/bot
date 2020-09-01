@@ -177,11 +177,6 @@ module.exports.defaultScene = new Scene(
 	},
 	async ( ctx ) => {
 		try {
-			if ( /^(start|начать|меню|help|помощь)$/i.test( ctx.message.body ) ) {
-				ctx.scene.enter( "start" );
-				return;
-			}
-
 			switch ( ctx.message.body ) {
 				case botCommands.adminPanel: {
 					ctx.scene.enter( "adminPanel" );
@@ -205,10 +200,6 @@ module.exports.defaultScene = new Scene(
 				}
 				case botCommands.settings: {
 					ctx.scene.enter( "settings" );
-					break;
-				}
-				case botCommands.start: {
-					ctx.scene.enter( "start" );
 					break;
 				}
 				case "1": {
@@ -242,6 +233,7 @@ module.exports.checkSchedule = new Scene( "checkSchedule", async ( ctx ) => {
 		const needToPickClass = await isAdmin( ctx );
 		if ( needToPickClass && !ctx.session.Class ) {
 			ctx.session.nextScene = "checkSchedule";
+			ctx.session.pickFor = "Выберите класс у которого хотите посмотреть расписание \n"
 			ctx.scene.enter( "pickClass" );
 		} else {
 			const Student = await DataBase.getStudentByVkId(
@@ -296,6 +288,7 @@ module.exports.checkHomework = new Scene(
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
 				ctx.session.nextScene = "checkHomework";
+				ctx.session.pickFor = "Выберите класс у которого хотите посмотреть дз \n"
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -485,6 +478,7 @@ module.exports.checkAnnouncements = new Scene(
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
 				ctx.session.nextScene = "checkAnnouncements";
+				ctx.session.pickFor = "Выберите класс у которого хотите посмотреть обьявления \n";
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -1017,7 +1011,7 @@ module.exports.removeRedactor = new Scene(
 		}
 	}
 );
-module.exports.createClassScene = new Scene(
+module.exports.createClass = new Scene(
 	"createClass",
 	( ctx ) => {
 		ctx.reply( "Введите имя класса (цифра буква)", null, createBackKeyboard() );
@@ -1053,7 +1047,7 @@ module.exports.createClassScene = new Scene(
 	}
 );
 
-module.exports.contributorPanelScene = new Scene(
+module.exports.contributorPanel = new Scene(
 	"contributorPanel",
 	async ( ctx ) => {
 		if ( await isContributor( ctx ) ) {
@@ -1100,18 +1094,15 @@ module.exports.contributorPanelScene = new Scene(
 		}
 	}
 );
-module.exports.addHomeworkScene = new Scene(
+module.exports.addHomework = new Scene(
 	"addHomework",
 	async ( ctx ) => {
 		try {
-			if ( ctx.message.body.trim() === botCommands.back ) {
-				ctx.scene.enter( "default" );
-				return;
-			}
-
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
 				ctx.session.nextScene = "addHomework";
+				ctx.session.pickFor = "Выберите класс которому хотите добавить дз \n";
+				ctx.session.backScene = "contributorPanel";
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -1351,18 +1342,15 @@ module.exports.addHomeworkScene = new Scene(
 		}
 	}
 );
-module.exports.addAnnouncementScene = new Scene(
+module.exports.addAnnouncement = new Scene(
 	"addAnnouncement",
 	async ( ctx ) => {
 		try {
-			if ( ctx.message.body.trim() === botCommands.back ) {
-				ctx.scene.enter( "default" );
-				return;
-			}
-
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
 				ctx.session.nextScene = "addAnnouncement";
+				ctx.session.pickFor = "Выберите класс у которому хотите добавить обьявление \n";
+				ctx.session.backScene = "contributorPanel";
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -1491,10 +1479,7 @@ module.exports.addAnnouncementScene = new Scene(
 			if ( ctx.session.newAnnouncement.to ) {
 				ctx.scene.next();
 				ctx.reply(
-					`
-                Вы уверены что хотите создать такое изменение?
-                ${createContentDiscription( ctx.session.newAnnouncement )}
-                `,
+					`Вы уверены что хотите создать такое изменение? \n ${createContentDiscription( ctx.session.newAnnouncement )}`,
 					ctx.session.newAnnouncement.attachments.map( ( { value } ) => value ),
 					createConfirmKeyboard()
 				);
@@ -1526,7 +1511,7 @@ module.exports.addAnnouncementScene = new Scene(
 					false,
 					ctx.message.user_id
 				);
-
+				console.log( res );
 				if ( res ) {
 					ctx.scene.enter( "default" );
 					ctx.reply(
@@ -1567,7 +1552,7 @@ module.exports.addAnnouncementScene = new Scene(
 		}
 	}
 );
-module.exports.changeScheduleScene = new Scene(
+module.exports.changeSchedule = new Scene(
 	"changeSchedule",
 	async ( ctx ) => {
 		ctx.session.isFullFill = false;
@@ -1577,7 +1562,8 @@ module.exports.changeScheduleScene = new Scene(
 			const needToPickClass = await isAdmin( ctx );
 			if ( needToPickClass && !ctx.session.Class ) {
 				ctx.session.nextScene = "changeSchedule";
-				ctx.session.step = 0;
+				ctx.session.pickFor = "Выберите класс которому хотите изменить расписание \n";
+				ctx.session.backScene = "contributorPanel";
 				ctx.scene.enter( "pickClass" );
 			} else {
 				const Student = await DataBase.getStudentByVkId(
@@ -1773,7 +1759,7 @@ module.exports.changeScheduleScene = new Scene(
 	}
 );
 
-module.exports.pickClassScene = new Scene(
+module.exports.pickClass = new Scene(
 	"pickClass",
 	async ( ctx ) => {
 		try {
@@ -1783,8 +1769,7 @@ module.exports.pickClassScene = new Scene(
 
 				const classesStr = mapListToMessage( Classes.map( ( { name } ) => name ) );
 
-				const message =
-					"Для какого класса вы хотите посмотреть расписание?\n" + classesStr;
+				const message = ( ctx.session.pickFor ?? "Выберите класс" ) + classesStr;
 
 				ctx.scene.next();
 				const columns =
@@ -1817,7 +1802,7 @@ module.exports.pickClassScene = new Scene(
 	async ( ctx ) => {
 		try {
 			if ( ctx.message.body === botCommands.back ) {
-				ctx.scene.enter( "default" );
+				ctx.scene.enter( ctx.session.backScene ?? "default" );
 				return;
 			}
 
