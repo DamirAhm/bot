@@ -1,6 +1,0 @@
-{
-  "PORT": 80,
-  "admins": [227667805],
-  "TOKEN": "e5100c829eadf1102b0ecafcc47e0ca90f16f8b3f8c7193dc3899be1d7f0f7a938437bfcb8f79bd6f982b",
-  "MONGODB_TEST_URI":  "mongodb://localhost:27017/test"
-}

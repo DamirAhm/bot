@@ -10,7 +10,6 @@ module.exports = {
     contributor: "Редактор",
     student: "Ученик",
     class: "Класс",
-    //banned: "Заблокирован",
     notificationsEnabled: "Уведомления включены",
     disableNotifications: "Выключить уведомления",
     enbleNotifications: "Включить уведомления",
@@ -18,11 +17,13 @@ module.exports = {
     changeNotificationTime: "Время уведомлений",
 
     checkHomework: "Посмотреть дз",
-    checkChanges: "Посмотреть изменения в расписании",
+    checkAnnouncements: "Посмотреть обьявления",
     leaveEmpty: "Оставить пустым",
     onNextLesson: "На следующий урок",
     onToday: "На сегодня",
     onTomorrow: "На завтра",
+    thisWeek: "На эту неделю",
+    nextWeek: "На следущую неделю",
 
     checkSchedule: "Посмотреть расписание",
 
