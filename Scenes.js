@@ -73,6 +73,9 @@ const isContributor = async ( ctx ) => {
 	}
 };
 
+const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
+const timeRegExp = /[0-9]+:[0-9]+/;
+
 module.exports.errorScene = new Scene( "error", async ( ctx ) => {
 	ctx.reply(
 		"Простите произошла ошибка",
@@ -418,17 +421,10 @@ module.exports.checkHomework = new Scene(
 
 				if ( body === botCommands.onTomorrow ) {
 					date = getTomorrowDate();
-				} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
-					const [ day, month, year ] = body
-						.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
-						.slice( 1 )
-						.map( Number );
+				} else if ( dateRegExp.test( body ) ) {
+					const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
 
-					if (
-						inRange( month, 1, 12 ) &&
-						inRange( day, 1, maxDatesPerMonth[ month - 1 ] ) &&
-						year >= new Date().getFullYear()
-					) {
+					if ( validateDate( month, day, year ) ) {
 						date = new Date( year, month - 1, day );
 					} else {
 						ctx.reply( "Проверьте правильность введенной даты" );
@@ -532,18 +528,10 @@ module.exports.checkAnnouncements = new Scene(
 				date = new Date();
 			} else if ( body === botCommands.onTomorrow ) {
 				date = getTomorrowDate();
-			} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
-				const [ day, month, year ] = body
-					.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
-					.slice( 1 )
-					.map( Number );
-				if (
-					month >= 0 &&
-					month < 12 &&
-					day > 0 &&
-					day < maxDatesPerMonth[ month - 1 ] &&
-					year >= new Date().getFullYear()
-				) {
+			} else if ( dateRegExp.test( body ) ) {
+				const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+
+				if ( validateDate( month, day, year ) ) {
 					date = new Date( year, month - 1, day );
 				} else {
 					ctx.reply( "Проверьте правильность введенной даты" );
@@ -734,7 +722,7 @@ module.exports.settings = new Scene(
 						],
 					] )
 				);
-			} else if ( /[0-9]+:[0-9]+/.test( body ) ) {
+			} else if ( timeRegExp.test( body ) ) {
 				const [ hrs, mins ] = body
 					.match( /([0-9]+):([0-9]+)/ )
 					.slice( 1 )
@@ -1094,6 +1082,7 @@ module.exports.contributorPanel = new Scene(
 		}
 	}
 );
+
 module.exports.addHomework = new Scene(
 	"addHomework",
 	async ( ctx ) => {
@@ -1249,18 +1238,10 @@ module.exports.addHomework = new Scene(
 				);
 
 				ctx.session.newHomework.to = datePrediction;
-			} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
-				const [ day, month, year ] = body
-					.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
-					.slice( 1 )
-					.map( Number );
-				if (
-					month >= 0 &&
-					month < 12 &&
-					day > 0 &&
-					day < maxDatesPerMonth[ month - 1 ] &&
-					year >= new Date().getFullYear()
-				) {
+			} else if ( dateRegExp.test( body ) ) {
+				const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+
+				if ( validateDate( month, day, year ) ) {
 					const date = new Date( year, month - 1, day );
 
 					if ( date.getTime() >= Date.now() ) {
@@ -1449,18 +1430,10 @@ module.exports.addAnnouncement = new Scene(
 				ctx.session.newAnnouncement.to = new Date();
 			} else if ( body === botCommands.onTomorrow ) {
 				ctx.session.newAnnouncement.to = getTomorrowDate();
-			} else if ( /[0-9]+\.[0-9]+\.[0-9]/.test( body ) ) {
-				const [ day, month, year ] = body
-					.match( /([0-9]+)\.([0-9]+)\.([0-9]+)/ )
-					.slice( 1 )
-					.map( Number );
-				if (
-					month >= 0 &&
-					month < 12 &&
-					day > 0 &&
-					day < maxDatesPerMonth[ month - 1 ] &&
-					year >= new Date().getFullYear()
-				) {
+			} else if ( dateRegExp.test( body ) ) {
+				const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+
+				if ( validateDate( month, day, year ) ) {
 					const date = new Date( year, month - 1, day );
 
 					if ( date.getTime() >= Date.now() ) {
@@ -1837,6 +1810,21 @@ module.exports.pickClass = new Scene(
 		}
 	}
 );
+function validateDate ( month, day, year ) {
+	return (
+		inRange( month, 1, 12 ) &&
+		inRange( day, 1, maxDatesPerMonth[ month - 1 ] ) &&
+		year >= new Date().getFullYear()
+	)
+}
+
+function parseDate ( body ) {
+	return body
+		.match( /([0-9]+)\.([0-9]+)\.?([0-9]+)?/ )
+		.slice( 1 )
+		.map( n => isNaN( Number( n ) ) ? undefined : Number( n ) );
+}
+
 async function getScheduleString ( { schedule } ) {
 	const message = schedule
 		.map( ( lessons, i ) => {
