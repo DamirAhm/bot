@@ -162,7 +162,7 @@ module.exports.defaultScene = new Scene(
 			if ( !ctx.session.userId ) {
 				ctx.session.userId = ctx.message.user_id;
 			}
-			console.log( ctx.session );
+
 			ctx.reply(
 				createDefaultMenu(),
 				null,
@@ -1316,12 +1316,12 @@ module.exports.addHomework = new Scene(
 				);
 
 				if ( res ) {
-					ctx.scene.enter( "default" );
 					ctx.reply(
 						"Домашнее задание успешно создано",
 						null,
 						await createDefaultKeyboard( ctx.session.role, ctx )
 					);
+					ctx.scene.enter( "default" );
 				} else {
 					ctx.scene.enter( "default" );
 					ctx.reply(

@@ -18,22 +18,26 @@ async function notifyStudents ( botInstance ) {
     }
 };
 async function sendHomeworkToClassStudents ( Class, botInstance ) {
-    const tomorrowHomework = await DataBase.getHomeworkByDate(
-        Class,
-        getTomorrowDate()
-    );
+    try {
+        const tomorrowHomework = await DataBase.getHomeworkByDate(
+            Class,
+            getTomorrowDate()
+        );
 
-    if ( tomorrowHomework.length > 0 ) {
-        const { students } = await Class.populate( "students" ).execPopulate();
+        if ( tomorrowHomework.length > 0 ) {
+            const { students } = await Class.populate( "students" ).execPopulate();
 
-        const notifiableIds = getNotifiableIds( students );
+            const notifiableIds = getNotifiableIds( students );
 
-        const parsedHomework = mapHomeworkByLesson( tomorrowHomework );
+            const parsedHomework = mapHomeworkByLesson( tomorrowHomework );
 
-        let message = `Задание на завтра\n`;
-        botInstance.sendMessage( notifiableIds, message );
+            let message = `Задание на завтра\n`;
+            botInstance.sendMessage( notifiableIds, message );
 
-        sendHomework( parsedHomework, botInstance, notifiableIds );
+            sendHomework( parsedHomework, botInstance, notifiableIds );
+        }
+    } catch ( e ) {
+        console.error( e );
     }
 }
 
@@ -64,14 +68,17 @@ function isReadyToNotificate ( hours, mins, lastHomeworkCheck ) {
 }
 
 function sendHomework ( parsedHomework, botInstance, notifiableIds ) {
-    let index = 0;
+    if ( notifiableIds.length > 0 ) {
+        let index = 1;
 
-    for ( const [ lesson, homework ] of parsedHomework ) {
-        let { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework );
+        for ( const [ lesson, homework ] of parsedHomework ) {
+            let { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework );
 
-        setTimeout( () => {
-            botInstance.sendMessage( notifiableIds, homeworkMessage, attachments )
-        }, index++ * 15 );
+            setTimeout( () => {
+                console.log( "КОГО ОПОВЕЩАТЬ: ", notifiableIds )
+                botInstance.sendMessage( notifiableIds, homeworkMessage, attachments )
+            }, index++ * 15 );
+        }
     }
 }
 function getHomeworkPayload ( lesson, homework ) {
