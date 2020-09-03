@@ -231,59 +231,65 @@ module.exports.defaultScene = new Scene(
 		}
 	}
 );
-module.exports.checkSchedule = new Scene( "checkSchedule", async ( ctx ) => {
-	try {
-		const needToPickClass = await isAdmin( ctx );
-		if ( needToPickClass && !ctx.session.Class ) {
-			ctx.session.nextScene = "checkSchedule";
-			ctx.session.pickFor = "Выберите класс у которого хотите посмотреть расписание \n"
-			ctx.scene.enter( "pickClass" );
-		} else {
-			const Student = await DataBase.getStudentByVkId(
-				ctx.session.userId || ctx.message.user_id
-			);
+module.exports.checkSchedule = new Scene(
+	"checkSchedule",
+	async ( ctx ) => {
+		try {
+			const needToPickClass = await isAdmin( ctx );
+			if ( needToPickClass && !ctx.session.Class ) {
+				ctx.session.nextScene = "checkSchedule";
+				ctx.session.pickFor = "Выберите класс у которого хотите посмотреть расписание \n"
+				ctx.scene.enter( "pickClass" );
+			} else {
+				const Student = await DataBase.getStudentByVkId(
+					ctx.session.userId || ctx.message.user_id
+				);
 
-			if ( Student ) {
-				if ( Student.registered ) {
-					let { Class } = ctx.session;
-					if ( !Class ) {
-						Class = await DataBase.getClassBy_Id( Student.class );
-					}
+				if ( Student ) {
+					if ( Student.registered ) {
+						let { Class } = ctx.session;
+						if ( !Class ) {
+							Class = await DataBase.getClassBy_Id( Student.class );
+						}
 
-					const message = await getScheduleString( Class );
-					ctx.session.Class = undefined;
+						const message = await getScheduleString( Class );
+						ctx.session.Class = undefined;
 
-					if ( message.trim() === "" ) {
-						ctx.scene.enter( "default" );
-						ctx.reply(
-							"Для данного класса пока что не существует расписания",
-							null,
-							await createDefaultKeyboard( ctx.session.role, ctx )
-						);
+						if ( message.trim() === "" ) {
+							ctx.reply(
+								"Для данного класса пока что не существует расписания",
+								null,
+								await createDefaultKeyboard( ctx.session.role, ctx )
+							);
+							setTimeout( () => {
+								ctx.scene.enter( "default" );
+							}, 50 );
+						} else {
+							ctx.reply(
+								message,
+								null,
+								await createDefaultKeyboard( ctx.session.role, ctx )
+							);
+							setTimeout( () => {
+								ctx.scene.enter( "default" );
+							}, 50 );
+						}
 					} else {
-						ctx.scene.enter( "default" );
+						ctx.scene.enter( "register" );
 						ctx.reply(
-							message,
-							null,
-							await createDefaultKeyboard( ctx.session.role, ctx )
+							"Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь"
 						);
 					}
 				} else {
-					ctx.scene.enter( "register" );
-					ctx.reply(
-						"Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь"
-					);
+					console.log( "User are not existing", ctx.session.userId );
+					throw new Error( "Student is not existing" );
 				}
-			} else {
-				console.log( "User are not existing", ctx.session.userId );
-				throw new Error( "Student is not existing" );
 			}
+		} catch ( e ) {
+			console.error( e );
+			ctx.scene.enter( "error" );
 		}
-	} catch ( e ) {
-		console.error( e );
-		ctx.scene.enter( "error" );
-	}
-} );
+	} );
 module.exports.checkHomework = new Scene(
 	"checkHomework",
 	async ( ctx ) => {
@@ -304,7 +310,7 @@ module.exports.checkHomework = new Scene(
 
 						ctx.scene.next();
 						ctx.reply(
-							"На какую дату вы хотите узнать задание? (в формате дд.ММ.ГГГГ)",
+							"На какую дату вы хотите узнать задание? (в формате дд.ММ .ГГГГ если не на этот год )",
 							null,
 							createBackKeyboard( [
 								[ Markup.button( botCommands.onTomorrow, "positive" ) ],
@@ -431,7 +437,7 @@ module.exports.checkHomework = new Scene(
 						return;
 					}
 				} else {
-					ctx.reply( "Дата должна быть в формате дд.ММ.ГГГГ" );
+					ctx.reply( "Дата должна быть в формате дд.ММ .ГГГГ если не на этот год" );
 					return;
 				}
 
@@ -487,7 +493,7 @@ module.exports.checkAnnouncements = new Scene(
 
 						ctx.scene.next();
 						ctx.reply(
-							"На какую дату вы хотите узнать изменения? (в формате дд.ММ.ГГГГ)",
+							"На какую дату вы хотите узнать изменения? (в формате дд.ММ .ГГГГ если не на этот год)",
 							null,
 							createBackKeyboard( [
 								[ Markup.button( botCommands.onTomorrow, "positive" ) ],
@@ -538,7 +544,7 @@ module.exports.checkAnnouncements = new Scene(
 					return;
 				}
 			} else {
-				ctx.reply( "Дата должна быть в формате дд.ММ.ГГГГ" );
+				ctx.reply( "Дата должна быть в формате дд.ММ .ГГГГ если не на этот год" );
 				return;
 			}
 
@@ -1193,7 +1199,7 @@ module.exports.addHomework = new Scene(
 
 				ctx.scene.next();
 				ctx.reply(
-					"Введите дату на которую задано задание (в формате дд.ММ.ГГГГ)",
+					"Введите дату на которую задано задание (в формате дд.ММ .ГГГГ если не на этот год)",
 					null,
 					createBackKeyboard(
 						[ Markup.button( botCommands.onNextLesson, "positive" ) ],
@@ -1253,7 +1259,7 @@ module.exports.addHomework = new Scene(
 					ctx.reply( "Проверьте правильность введенной даты" );
 				}
 			} else {
-				ctx.reply( "Дата должна быть в формате дд.ММ.ГГГГ" );
+				ctx.reply( "Дата должна быть в формате дд.ММ .ГГГГ если не на этот год" );
 				return;
 			}
 
@@ -1313,7 +1319,7 @@ module.exports.addHomework = new Scene(
 				}
 			} else {
 				ctx.reply(
-					"Введите дату на которую задоно задание (в формате дд.ММ.ГГГГ)"
+					"Введите дату на которую задоно задание (в формате дд.ММ .ГГГГ если не на этот год)"
 				);
 				ctx.selectStep( 3 );
 			}
@@ -1393,7 +1399,7 @@ module.exports.addAnnouncement = new Scene(
 
 				ctx.scene.next();
 				ctx.reply(
-					"Введите дату изменения (в формате дд.ММ.ГГГГ)",
+					"Введите дату изменения (в формате дд.ММ .ГГГГ если не на этот год)",
 					null,
 					createBackKeyboard( [
 						[
@@ -1445,7 +1451,7 @@ module.exports.addAnnouncement = new Scene(
 					ctx.reply( "Проверьте правильность введенной даты" );
 				}
 			} else {
-				ctx.reply( "Дата должна быть в формате дд.ММ.ГГГГ" );
+				ctx.reply( "Дата должна быть в формате дд.ММ .ГГГГ если не на этот год" );
 				return;
 			}
 
@@ -1510,7 +1516,7 @@ module.exports.addAnnouncement = new Scene(
 				}
 			} else {
 				ctx.reply(
-					"Введите дату изменения (в формате дд.ММ.ГГГГ)",
+					"Введите дату изменения (в формате дд.ММ .ГГГГ если не на этот год)",
 					null,
 					createBackKeyboard(
 						[ Markup.button( botCommands.onToday, "positive" ) ],
