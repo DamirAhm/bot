@@ -114,6 +114,8 @@ bot.command( botCommands.checkSchedule, ( ctx ) =>
 
 bot.command( botCommands.settings, ( ctx ) => ctx.scene.enter( "settings" ) );
 
+bot.command( botCommands.giveFeedback, ( ctx ) => ctx.scene.enter( "giveFeedback" ) );
+
 bot.command( /.+/, ( ctx ) => ctx.reply( botCommands.notUnderstood ) );
 
 function requestListener ( req, res ) {

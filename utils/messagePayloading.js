@@ -44,7 +44,16 @@ const userOptions = [
 		payload: "checkSchedule",
 		color: "primary",
 	},
-	{ label: botCommands.settings, payload: "settings", color: "primary" },
+	{
+		label: botCommands.settings,
+		payload: "settings",
+		color: "primary"
+	},
+	{
+		label: botCommands.giveFeedback,
+		payload: "giveFeedback",
+		color: "secondary",
+	},
 ];
 
 const contributorOptions = [

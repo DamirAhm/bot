@@ -1,3 +1,5 @@
+const path = require( "path" );
+
 const Scene = require( "node-vk-bot-api/lib/scene" ),
 	config = require( "./config.json" ),
 	{
@@ -48,7 +50,9 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		inRange,
 		sendHomework,
 		getHomeworkPayload,
-	} = require( "./utils/functions.js" );
+	} = require( "./utils/functions.js" ),
+	fs = require( "fs" );
+
 
 const maxDatesPerMonth = [ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
 const changables = {
@@ -210,6 +214,10 @@ module.exports.defaultScene = new Scene(
 					ctx.scene.enter( "settings" );
 					break;
 				}
+				case botCommands.giveFeedback: {
+					ctx.scene.enter( "giveFeedback" );
+					break;
+				}
 				case "1": {
 					ctx.scene.enter( "checkHomework" );
 					break;
@@ -225,6 +233,9 @@ module.exports.defaultScene = new Scene(
 				case "4": {
 					ctx.scene.enter( "settings" );
 					break;
+				}
+				case "5": {
+					ctx.scene.enter( "giveFeedback" );
 				}
 				default: {
 					ctx.reply( botCommands.notUnderstood );
@@ -826,6 +837,53 @@ module.exports.settings = new Scene(
 		}
 	}
 );
+
+module.exports.giveFeedback = new Scene(
+	"giveFeedback",
+	( ctx ) => {
+		ctx.scene.next();
+
+		ctx.reply(
+			"Что вы хотите сказать о нашем боте?",
+			null,
+			createBackKeyboard( [ [ Markup.button( "Мне все нравится, спасибо 😊", "positive" ) ] ] )
+		);
+	},
+	( ctx ) => {
+		const { message: { body, user_id } } = ctx;
+
+		fs.readFile( path.join( __dirname, "Feedback" ), { encoding: "utf8" }, ( err, text ) => {
+			if ( err ) {
+				throw err;
+			}
+
+			const newText = text + `${body} (${user_id}) \n`;
+
+			fs.writeFile( path.join( __dirname, "Feedback" ), newText, { encoding: "utf8" }, async ( err ) => {
+				if ( err ) {
+					throw err;
+				}
+				console.log( newText );
+
+				const adminsIds = await DataBase.getAllStudents()
+					.then( students => students.filter( ( { role } ) => role === Roles.admin ) )
+					.then( admins => admins.map( ( { vkId } ) => vkId ) )
+
+				if ( !adminsIds.some( id => id === ctx.message.user_id ) ) {
+					const notificationMessage = `Новый отзыв: \n` + newText;
+
+					ctx.bot.sendMessage( adminsIds, notificationMessage )
+				}
+
+				ctx.reply(
+					"Спасибо за отзыв",
+					null,
+					await createDefaultKeyboard( ctx.session.role, ctx )
+				)
+			} );
+		} )
+	}
+)
 
 module.exports.adminPanelScene = new Scene(
 	"adminPanel",

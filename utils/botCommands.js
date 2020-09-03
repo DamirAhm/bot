@@ -43,6 +43,8 @@ module.exports = {
     redactorsList: "Список редакторов",
     classList: "Список классов",
 
+    giveFeedback: "Оставить отзыв",
+
     toStart: "В начало",
     back: "Назад",
     start: "Начать",
