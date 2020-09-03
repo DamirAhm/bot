@@ -182,17 +182,22 @@ const createDefaultKeyboardSync = ( role ) => {
 }
 
 const createBackKeyboard = ( existingButtons = [], columns = 4 ) => {
-	if ( existingButtons[ 0 ] instanceof Array ) {
-		existingButtons.push( [
-			Markup.button( botCommands.back, "negative", { button: "back" } ),
-		] );
-	} else {
-		existingButtons.push(
-			Markup.button( botCommands.back, "negative", { button: "back" } )
-		);
-	}
+	try {
+		if ( existingButtons[ 0 ] instanceof Array ) {
+			existingButtons.push( [
+				Markup.button( botCommands.back, "negative", { button: "back" } ),
+			] );
+		} else {
+			existingButtons.push(
+				Markup.button( botCommands.back, "negative", { button: "back" } )
+			);
+		}
 
-	return Markup.keyboard( existingButtons, { columns } );
+		return Markup.keyboard( existingButtons, { columns } );
+	} catch ( e ) {
+		console.error( e );
+		return null;
+	}
 };
 const createConfirmKeyboard = ( existingButtons = [], columns = 4 ) => {
 	if ( existingButtons[ 0 ] instanceof Array ) {

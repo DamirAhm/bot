@@ -51,6 +51,11 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 	} = require( "./utils/functions.js" );
 
 const maxDatesPerMonth = [ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
+const changables = {
+	class: "class",
+	notificationTime: "notificationTime",
+	notificationsEnabled: "notificationsEnabled",
+}
 
 const isAdmin = async ( ctx ) => {
 	if ( ctx?.session?.role !== undefined ) {
@@ -640,7 +645,10 @@ module.exports.settings = new Scene(
 								Markup.button( botCommands.disableNotifications, "primary" ),
 								Markup.button( botCommands.changeNotificationTime, "primary" ),
 							]
-							: [ Markup.button( botCommands.enbleNotifications, "primary" ) ],
+							: [
+								Markup.button( botCommands.enbleNotifications, "primary" ),
+							],
+						[ Markup.button( botCommands.changeClass, "primary" ) ],
 					] )
 				);
 			} else if ( body === botCommands.back ) {
@@ -693,11 +701,20 @@ module.exports.settings = new Scene(
 				);
 			} else if ( body === botCommands.changeNotificationTime ) {
 				ctx.scene.next();
+				ctx.session.changed = changables.notificationTime;
 				ctx.reply(
 					"Когда вы хотите получать уведомления? (в формате ЧЧ:ММ)",
 					null,
 					createBackKeyboard()
 				);
+			} else if ( body === botCommands.changeClass ) {
+				ctx.session.nextScene = "settings";
+				ctx.session.step = 3;
+				ctx.session.pickFor = "Выберите класс \n";
+				ctx.session.backScene = "contributorPanel";
+				ctx.session.backStep = 1;
+				ctx.session.changed = changables.class;
+				ctx.scene.enter( "pickClass" );
 			} else if ( body === botCommands.back ) {
 				ctx.scene.enter( "default" );
 			} else {
@@ -728,38 +745,81 @@ module.exports.settings = new Scene(
 						],
 					] )
 				);
-			} else if ( timeRegExp.test( body ) ) {
-				const [ hrs, mins ] = body
-					.match( /([0-9]+):([0-9]+)/ )
-					.slice( 1 )
-					.map( Number );
+			} else if ( ctx.session.changed === changables.notificationTime ) {
+				body = body.replace( /\./g, ":" )
+				if ( timeRegExp.test( body ) ) {
+					const [ hrs, mins ] = parseTime( body );
 
-				if ( hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60 ) {
-					let { Student } = ctx.session;
+					if ( hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60 ) {
+						let { Student } = ctx.session;
 
-					if ( !Student ) {
-						Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+						if ( !Student ) {
+							Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+						}
+
+						Student.settings.notificationTime = body;
+						Student.save();
+
+						ctx.scene.enter( "default" );
+						ctx.reply(
+							"Время получения уведомлений успешно изменено на " + body,
+							null,
+							await createDefaultKeyboard( ctx.session.role, ctx )
+						);
+					} else {
+						ctx.reply(
+							"Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ"
+						);
 					}
-
-					Student.settings.notificationTime = body;
-					Student.save();
-
-					ctx.scene.enter( "default" );
-					ctx.reply(
-						"Время получения уведомлений успешно изменено на " + body,
-						null,
-						await createDefaultKeyboard( ctx.session.role, ctx )
-					);
 				} else {
 					ctx.reply(
 						"Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ"
 					);
 				}
-			} else {
-				ctx.reply(
-					"Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ"
-				);
+			} else if ( ctx.session.changed === changables.class ) {
+				if ( ctx.session.Class ) {
+					const res = await DataBase.changeClass( ctx.message.user_id, ctx.session.Class.name );
+
+					if ( res ) {
+						ctx.reply(
+							`Класс успешно изменен на ${ctx.session.Class.name}`,
+							null,
+							await createDefaultKeyboard( ctx.session.role, ctx )
+						);
+						ctx.scene.enter( "default" );
+					} else {
+						ctx.reply(
+							`Не удалось сменить класс на ${ctx.session.Class.name}`,
+							null,
+							await createDefaultKeyboard( ctx.session.role, ctx )
+						);
+
+						ctx.session.nextScene = "settings";
+						ctx.session.step = 3;
+						ctx.session.pickFor = "Выберите класс \n";
+						ctx.session.backScene = "contributorPanel";
+						ctx.session.backStep = 1;
+						ctx.session.changed = changables.class;
+						ctx.scene.enter( "pickClass" );
+					}
+				} else {
+					ctx.reply(
+						`Не удалось сменить класс на ${ctx.session.Class.name}`,
+						null,
+						await createDefaultKeyboard( ctx.session.role, ctx )
+					);
+
+					ctx.session.nextScene = "settings";
+					ctx.session.step = 3;
+					ctx.session.pickFor = "Выберите класс \n";
+					ctx.session.backScene = "contributorPanel";
+					ctx.session.backStep = 1;
+					ctx.session.changed = changables.class;
+					ctx.scene.enter( "pickClass" );
+				}
 			}
+
+			delete ctx.session.changed;
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -1781,7 +1841,7 @@ module.exports.pickClass = new Scene(
 	async ( ctx ) => {
 		try {
 			if ( ctx.message.body === botCommands.back ) {
-				ctx.scene.enter( ctx.session.backScene ?? "default" );
+				ctx.scene.enter( ctx.session.backScene ?? "default", ctx.session.backStep ?? 0 );
 				return;
 			}
 
@@ -1797,7 +1857,7 @@ module.exports.pickClass = new Scene(
 
 			let Class;
 			if ( isValidClassName( classIndex ) ) {
-				Class = classes.find( ( { name } ) => name === classIndex );
+				Class = await DataBase.getClassByName( name );
 			} else if ( !isNaN( classIndex ) ) {
 				Class = classes[ classIndex - 1 ];
 			}
@@ -1827,6 +1887,12 @@ function validateDate ( month, day, year ) {
 function parseDate ( body ) {
 	return body
 		.match( /([0-9]+)\.([0-9]+)\.?([0-9]+)?/ )
+		.slice( 1 )
+		.map( n => isNaN( Number( n ) ) ? undefined : Number( n ) );
+}
+function parseTime ( body ) {
+	return body
+		.match( /([0-9]+):([0-9]+)/ )
 		.slice( 1 )
 		.map( n => isNaN( Number( n ) ) ? undefined : Number( n ) );
 }

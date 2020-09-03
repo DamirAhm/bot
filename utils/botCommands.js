@@ -10,9 +10,13 @@ module.exports = {
     contributor: "Редактор",
     student: "Ученик",
     class: "Класс",
+
+    changeClass: "Сменить класс",
+
     notificationsEnabled: "Уведомления включены",
     disableNotifications: "Выключить уведомления",
     enbleNotifications: "Включить уведомления",
+
     notificationTime: "Время уведомлений",
     changeNotificationTime: "Время уведомлений",
 
