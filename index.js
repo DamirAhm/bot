@@ -22,7 +22,7 @@ DataBase.connect(
     },
     async () => {
         console.log( "Mongoose connected" );
-        server.listen( process.env.PORT || 8080 );
+        server.listen( process.env.PORT || 1337 );
         bot.startPolling();
         notifyStudents( bot );
         setInterval( () => notifyStudents( bot ), 1000 * 60 );
