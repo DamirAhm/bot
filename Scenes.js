@@ -885,7 +885,7 @@ module.exports.giveFeedback = new Scene(
 	}
 )
 
-module.exports.adminPanelScene = new Scene(
+module.exports.adminPanel = new Scene(
 	"adminPanel",
 	async ( ctx ) => {
 		if ( await isAdmin( ctx ) ) {
@@ -917,10 +917,7 @@ module.exports.adminPanelScene = new Scene(
 
 					if ( Contributors.length > 0 ) {
 						const classesStr = mapListToMessage(
-							Contributors.map(
-								( { firstName, secondName, vkId } ) =>
-									`${firstName} ${secondName} (${vkId})`
-							)
+							mapStudentToPreview( Contributors )
 						);
 
 						const message = "Список всех редакторов\n\t" + classesStr;
@@ -1163,8 +1160,8 @@ module.exports.contributorPanel = new Scene(
 	"contributorPanel",
 	async ( ctx ) => {
 		if ( await isContributor( ctx ) ) {
-			ctx.scene.next();
 			ctx.reply( renderContributorMenu(), null, renderContributorMenuKeyboard() );
+			ctx.scene.next();
 		} else {
 			ctx.scene.leave();
 			ctx.reply( "Ты не редактор чтоб такое делать" );
@@ -1177,7 +1174,7 @@ module.exports.contributorPanel = new Scene(
 				return;
 			}
 
-			switch ( ctx.message.body.trim() ) {
+			switch ( ctx.message.body.trim().toLowerCase() ) {
 				case "1": {
 					ctx.scene.enter( "addHomework" );
 					break;
@@ -1187,6 +1184,18 @@ module.exports.contributorPanel = new Scene(
 					break;
 				}
 				case "3": {
+					ctx.scene.enter( "changeSchedule" );
+					break;
+				}
+				case botCommands.addHomework.toLowerCase(): {
+					ctx.scene.enter( "addHomework" );
+					break;
+				}
+				case botCommands.addAnnouncement.toLowerCase(): {
+					ctx.scene.enter( "addAnnouncement" );
+					break;
+				}
+				case botCommands.changeSchedule.toLowerCase(): {
 					ctx.scene.enter( "changeSchedule" );
 					break;
 				}
@@ -1428,18 +1437,17 @@ module.exports.addHomework = new Scene(
 					);
 					ctx.scene.enter( "default" );
 				} else {
-					ctx.scene.enter( "default" );
-					ctx.reply(
-						"Простите произошла ошибка",
-						null,
-						await createDefaultKeyboard( ctx.session.role, ctx )
-					);
+					ctx.scene.enter( "error" );
 				}
-			} else {
+			} else if ( ctx.message.body === botCommands.no ) {
+				ctx.scene.selectStep( 3 );
 				ctx.reply(
-					"Введите дату на которую задоно задание (в формате дд.ММ .ГГГГ если не на этот год)"
+					"Введите дату на которую задано задание (в формате дд.ММ .ГГГГ если не на этот год)",
+					null,
+					createBackKeyboard( [ [ Markup.button( botCommands.onNextLesson, "positive" ) ] ] )
 				);
-				ctx.selectStep( 3 );
+			} else {
+				ctx.reply( "Ответьте да или нет" );
 			}
 		} catch ( e ) {
 			console.error( e );
@@ -1548,6 +1556,7 @@ module.exports.addAnnouncement = new Scene(
 					null,
 					createBackKeyboard()
 				);
+				return;
 			}
 
 			if ( body === botCommands.onToday ) {
@@ -1632,16 +1641,17 @@ module.exports.addAnnouncement = new Scene(
 						await createDefaultKeyboard( ctx.session.role, ctx )
 					);
 				}
-			} else {
+			} else if ( ctx.message.body.toLowerCase() === botCommands.no.toLowerCase() ) {
+				ctx.scene.selectStep( 3 );
 				ctx.reply(
 					"Введите дату изменения (в формате дд.ММ .ГГГГ если не на этот год)",
 					null,
 					createBackKeyboard(
 						[ Markup.button( botCommands.onToday, "positive" ) ],
-						1
 					)
 				);
-				ctx.selectStep( 3 );
+			} else {
+				ctx.reply( "Ответьте да или нет" );
 			}
 		} catch ( e ) {
 			console.error( e );
@@ -1934,6 +1944,12 @@ module.exports.pickClass = new Scene(
 		}
 	}
 );
+function mapStudentToPreview ( Contributors ) {
+	return Contributors.map(
+		( { firstName, secondName, vkId } ) => `${firstName} ${secondName} (${vkId})`
+	);
+}
+
 function validateDate ( month, day, year ) {
 	return (
 		inRange( month, 1, 12 ) &&

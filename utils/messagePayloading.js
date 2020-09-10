@@ -57,16 +57,16 @@ const userOptions = [
 ];
 
 const contributorOptions = [
-	{ label: botCommands.addHomework, payload: "addHomework", color: "default" },
-	{ label: botCommands.addAnnouncement, payload: "addAnnouncement", color: "default" },
-	{ label: botCommands.changeSchedule, payload: "changeSchedule", color: "default" },
+	{ label: botCommands.addHomework, payload: botCommands.addHomework, color: "default" },
+	{ label: botCommands.addAnnouncement, payload: botCommands.addAnnouncement, color: "default" },
+	{ label: botCommands.changeSchedule, payload: botCommands.changeSchedule, color: "default" },
 ];
 const adminOptions = [
-	{ label: botCommands.addRedactor, payload: "addRedactor", color: "default" },
-	{ label: botCommands.removeRedactor, payload: "removeRedactor", color: "default" },
-	{ label: botCommands.redactorsList, payload: "redactorsList", color: "default" },
-	{ label: botCommands.addClass, payload: "addClass", color: "default" },
-	{ label: botCommands.classList, payload: "classList", color: "default" },
+	{ label: botCommands.addRedactor, payload: botCommands.addRedactor, color: "default" },
+	{ label: botCommands.removeRedactor, payload: botCommands.removeRedactor, color: "default" },
+	{ label: botCommands.redactorsList, payload: botCommands.redactorsList, color: "default" },
+	{ label: botCommands.addClass, payload: botCommands.addClass, color: "default" },
+	{ label: botCommands.classList, payload: botCommands.classList, color: "default" },
 ];
 
 const mapListToMessage = ( list, startIndex = 1 ) => {
@@ -84,11 +84,18 @@ const renderAdminMenu = () => {
 	);
 };
 const renderAdminMenuKeyboard = () => {
-	const buttons = adminOptions.map( ( opt, i ) =>
-		Markup.button( i + 1, "default", { button: opt.payload } )
-	);
+	const buttons = adminOptions.reduce( ( acc, c ) => {
+		const button = Markup.button( c.payload, "primary" );
+		if ( acc.length === 0 || acc[ acc.length - 1 ].length >= 2 ) {
+			acc.push( [ button ] );
+		} else if ( acc[ acc.length - 1 ].length < 2 ) {
+			acc[ acc.length - 1 ].push( button );
+		}
 
-	buttons.push( Markup.button( "Назад", "negative", { button: "back" } ) );
+		return acc;
+	}, [] )
+
+	buttons.push( [ Markup.button( "Назад", "negative", { button: "back" } ) ] );
 
 	return Markup.keyboard( buttons, { columns: 3 } );
 };
@@ -101,13 +108,18 @@ const renderContributorMenu = () => {
 	);
 };
 const renderContributorMenuKeyboard = () => {
-	const buttons = contributorOptions.map( ( opt, i ) =>
-		Markup.button( i + 1, "default", { button: opt.payload } )
-	);
+	try {
+		const buttons = contributorOptions.map( ( opt, i ) =>
+			[ Markup.button( opt.payload, "default", { button: opt.payload } ) ]
+		);
 
-	buttons.push( Markup.button( "Назад", "negative", { button: "back" } ) );
+		buttons.push( [ Markup.button( "Назад", "negative", { button: "back" } ) ] );
 
-	return Markup.keyboard( buttons, { columns: 3 } );
+		return Markup.keyboard( buttons, { columns: 3 } );
+	} catch ( e ) {
+		console.error( e );
+		return null;
+	}
 };
 
 const parseAttachments = ( attachments ) => {
@@ -210,12 +222,12 @@ const createBackKeyboard = ( existingButtons = [], columns = 4 ) => {
 };
 const createConfirmKeyboard = ( existingButtons = [], columns = 4 ) => {
 	if ( existingButtons[ 0 ] instanceof Array ) {
-		existingButtons.push( [
+		existingButtons.unshift( [
 			Markup.button( botCommands.no, "negative" ),
 			Markup.button( botCommands.yes, "positive" ),
 		] );
 	} else {
-		existingButtons.push(
+		existingButtons.unshift(
 			Markup.button( botCommands.no, "negative" ),
 			Markup.button( botCommands.yes, "positive" )
 		);

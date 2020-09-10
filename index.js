@@ -41,7 +41,7 @@ const stage = new Stage( ...Object.values( Scenes ) );
 bot.use( session.middleware() );
 bot.use( stage.middleware() );
 
-bot.command( [ 'start', 'начать', 'help', 'помощь', botCommands.back ], async ( ctx ) => {
+bot.command( [ 'start', 'начать', 'help', 'помощь', botCommands.back, botCommands.no ], async ( ctx ) => {
     try {
         const {
             message: { user_id },
