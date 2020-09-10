@@ -10,7 +10,7 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		renderContributorMenu,
 		renderContributorMenuKeyboard,
 		lessonsList,
-		parseAttachments,
+		parseAttachmentsToVKString,
 		mapListToMessage,
 		createContentDiscription,
 		createConfirmKeyboard,
@@ -1261,10 +1261,10 @@ module.exports.addHomework = new Scene(
 	async ( ctx ) => {
 		try {
 			const {
-				message: { body = "", attachments = [] },
+				message,
 			} = ctx;
 
-			if ( body === botCommands.back ) {
+			if ( message.body === botCommands.back ) {
 				const peekedClass = await isContributor( ctx );
 				if ( peekedClass ) {
 					ctx.session.Class = undefined;
@@ -1275,23 +1275,18 @@ module.exports.addHomework = new Scene(
 				return;
 			}
 
+			const { body, attachments } = getTextsAndAttachmentsFromForwarded( message );
+
 			if ( attachments.every( ( att ) => att.type === "photo" ) ) {
-				const parsedAttachments = attachments.map( ( att ) => ( {
-					value: parseAttachments( att ),
-					url: findMaxPhotoResolution( att[ att.type ] ),
-					album_id: att[ att.type ].album_id,
-				} ) );
+				const parsedAttachments = mapAttachmentsToObject( attachments );
 
 				ctx.session.newHomework = {
 					text: body,
 					attachments: parsedAttachments,
 				};
 
-				const possibleLessons = ctx.session.Class.schedule
-					.flat()
-					.filter( ( l, i, arr ) => i === arr.lastIndexOf( l ) ); //Pick onlu unique lessons
-				ctx.session.possibleLessons = possibleLessons;
-
+				const possibleLessons = await getPossibleLessonsAndSetInSession( ctx );
+				console.log( possibleLessons );
 				ctx.scene.next();
 				ctx.reply( "Выбирите урок:\n" + mapListToMessage( possibleLessons ) );
 			} else {
@@ -1500,10 +1495,10 @@ module.exports.addAnnouncement = new Scene(
 	async ( ctx ) => {
 		try {
 			const {
-				message: { body = "", attachments = [] },
+				message,
 			} = ctx;
 
-			if ( body === botCommands.back ) {
+			if ( message.body === botCommands.back ) {
 				const peekedClass = await isAdmin( ctx );
 				if ( peekedClass ) {
 					ctx.session.Class = undefined;
@@ -1514,12 +1509,10 @@ module.exports.addAnnouncement = new Scene(
 				return;
 			}
 
+			const { body, attachments } = getTextsAndAttachmentsFromForwarded( message );
+
 			if ( attachments.every( ( att ) => att.type === "photo" ) ) {
-				const parsedAttachments = attachments.map( ( att ) => ( {
-					value: parseAttachments( att ),
-					url: findMaxPhotoResolution( att[ att.type ] ),
-					album_id: att[ att.type ].album_id,
-				} ) );
+				const parsedAttachments = mapAttachmentsToObject( attachments )
 
 				ctx.session.newAnnouncement = { text: body, attachments: parsedAttachments };
 
@@ -1642,12 +1635,12 @@ module.exports.addAnnouncement = new Scene(
 					);
 				}
 			} else if ( ctx.message.body.toLowerCase() === botCommands.no.toLowerCase() ) {
-				ctx.scene.selectStep( 3 );
+				ctx.scene.selectStep( 2 );
 				ctx.reply(
 					"Введите дату изменения (в формате дд.ММ .ГГГГ если не на этот год)",
 					null,
 					createBackKeyboard(
-						[ Markup.button( botCommands.onToday, "positive" ) ],
+						[ [ Markup.button( botCommands.onToday, "positive" ), Markup.button( botCommands.onTomorrow, "positive" ) ] ],
 					)
 				);
 			} else {
@@ -1944,6 +1937,21 @@ module.exports.pickClass = new Scene(
 		}
 	}
 );
+async function getPossibleLessonsAndSetInSession ( ctx ) {
+	if ( ctx.session.Class === undefined ) {
+		ctx.session.Class = await DataBase.getStudentByVkId( ctx.message.user_id )
+			.then( ( { Class: classId } ) => classId )
+			.then( classId => DataBase.getClassBy_Id( classId ) );
+	}
+
+	const possibleLessons = ctx.session.Class.schedule
+		.flat()
+		.filter( ( l, i, arr ) => i === arr.lastIndexOf( l ) ); //Pick onlu unique lessons
+	ctx.session.possibleLessons = possibleLessons;
+
+	return possibleLessons;
+}
+
 function mapStudentToPreview ( Contributors ) {
 	return Contributors.map(
 		( { firstName, secondName, vkId } ) => `${firstName} ${secondName} (${vkId})`
@@ -1994,4 +2002,35 @@ function getLengthOfHomeworkWeek () {
 	const date = new Date().getDay();
 
 	return date >= 5 ? 6 : 7 - date;
+}
+
+function mapAttachmentsToObject ( attachments ) {
+	return attachments.map( ( att ) => ( {
+		value: parseAttachmentsToVKString( att ),
+		url: findMaxPhotoResolution( att[ att.type ] ),
+		album_id: att[ att.type ].album_id,
+	} ) );
+}
+
+function getTextsAndAttachmentsFromForwarded ( { body = "", attachments = [], fwd_messages = [] } ) {
+	if ( fwd_messages.length === 0 ) {
+		return {
+			body: body,
+			attachments: attachments
+		}
+	}
+
+	const nestedMessagesPayload = fwd_messages.reduce( ( { body = "", attachments = [] }, c ) => {
+		const payload = getTextsAndAttachmentsFromForwarded( c );
+
+		return {
+			body: ( body ? body + "\n" : "" ) + payload.body,
+			attachments: attachments.concat( payload.attachments )
+		}
+	}, {} );
+
+	return {
+		body: ( body ? body + "\n" : "" ) + nestedMessagesPayload.body,
+		attachments: attachments.concat( nestedMessagesPayload.attachments )
+	}
 }

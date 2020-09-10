@@ -122,7 +122,7 @@ const renderContributorMenuKeyboard = () => {
 	}
 };
 
-const parseAttachments = ( attachments ) => {
+const parseAttachmentsToVKString = ( attachments ) => {
 	if (
 		Array.isArray( attachments ) &&
 		attachments.every( ( att ) => att.type && att[ att.type ] )
@@ -281,7 +281,7 @@ const lessonsList = mapListToMessage( Lessons, 0 );
 module.exports = {
 	formMessage,
 	renderAdminMenu,
-	parseAttachments,
+	parseAttachmentsToVKString,
 	notifyAllInClass,
 	createDefaultKeyboard,
 	renderAdminMenuKeyboard,
