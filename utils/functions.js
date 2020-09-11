@@ -22,7 +22,7 @@ async function sendHomeworkToClassStudents ( Class, botInstance ) {
         const { students } = await DataBase.populate( Class );
 
         if ( students?.length ) {
-            const daysOffsets = new Set( ...students.map( ( { settings } ) => settings.daysForNotification ).flat() );
+            const daysOffsets = new Set( students.map( ( { settings } ) => settings.daysForNotification ).flat() );
 
             for ( const dayOffset of daysOffsets ) {
                 const notifiableIds = getNotifiableIds( students.filter( ( { settings } ) => settings.daysForNotification.includes( dayOffset ) ) );
