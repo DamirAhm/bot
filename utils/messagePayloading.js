@@ -247,7 +247,7 @@ const createContentDiscription = ( { to, lesson, text }, creatorFullName ) => {
 };
 const createUserInfo = ( {
 	role,
-	settings: { notificationsEnabled, notificationTime },
+	settings: { notificationsEnabled, notificationTime, daysForNotification },
 	className,
 	name,
 } ) => {
@@ -261,8 +261,15 @@ const createUserInfo = ( {
 			? `${botCommands.notificationTime}: ${notificationTime}`
 			: ""
 		}
+		${botCommands.daysForNotification}: ${daysForNotification.join( ", " )} ${getDayWord( daysForNotification[ daysForNotification.length - 1 ] )}
     `;
 };
+function getDayWord ( dayIndexFrom0To9 ) {
+	if ( dayIndexFrom0To9 === 0 ) return "дней";
+	else if ( dayIndexFrom0To9 === 1 ) return "день";
+
+	return dayIndexFrom0To9 > 4 ? "дней" : "дня";
+}
 
 const notifyAllInClass = async ( botInstance, className, ...messagePayload ) => {
 	const Class = await DataBase.getClassByName( className );

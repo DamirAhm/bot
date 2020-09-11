@@ -1,10 +1,7 @@
 module.exports = {
     adminPanel: "Админ меню",
-
     contributorPanel: "Меню редактора",
 
-    settings: "Настройки",
-    changeSettings: "Изменить настройки",
     role: "Роль",
     admin: "Админ",
     contributor: "Редактор",
@@ -13,12 +10,17 @@ module.exports = {
 
     changeClass: "Сменить класс",
 
+    settings: "Настройки",
+    changeSettings: "Изменить настройки",
+
     notificationsEnabled: "Уведомления включены",
     disableNotifications: "Выключить уведомления",
     enbleNotifications: "Включить уведомления",
+    changeDaysForNotification: "Изменить дни оповещения",
 
     notificationTime: "Время уведомлений",
     changeNotificationTime: "Время уведомлений",
+    daysForNotification: "Присылать оповещения за",
 
     leaveEmpty: "Оставить пустым",
     onNextLesson: "На следующий урок",

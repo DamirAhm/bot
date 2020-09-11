@@ -19,22 +19,27 @@ async function notifyStudents ( botInstance ) {
 };
 async function sendHomeworkToClassStudents ( Class, botInstance ) {
     try {
-        const tomorrowHomework = await DataBase.getHomeworkByDate(
-            Class,
-            getTomorrowDate()
-        );
+        const { students } = await DataBase.populate( Class );
 
-        if ( tomorrowHomework.length > 0 ) {
-            const { students } = await Class.populate( "students" ).execPopulate();
+        if ( students?.length ) {
+            const daysOffsets = new Set( ...students.map( ( { settings } ) => settings.daysForNotification ).flat() );
 
-            const notifiableIds = getNotifiableIds( students );
+            for ( const dayOffset of daysOffsets ) {
+                const notifiableIds = getNotifiableIds( students.filter( ( { settings } ) => settings.daysForNotification.includes( dayOffset ) ) );
 
-            const parsedHomework = mapHomeworkByLesson( tomorrowHomework );
+                if ( notifiableIds.length > 0 ) {
+                    const dayHomework = await DataBase.getHomeworkByDate( Class, getDateWithOffset( dayOffset ) );
 
-            let message = `Задание на завтра\n`;
-            botInstance.sendMessage( notifiableIds, message );
+                    if ( dayHomework.length > 0 ) {
+                        const parsedHomework = mapHomeworkByLesson( dayHomework );
 
-            sendHomework( parsedHomework, botInstance, notifiableIds );
+                        let message = `Задание на завтра\n`;
+                        botInstance.sendMessage( notifiableIds, message );
+
+                        sendHomework( parsedHomework, botInstance, notifiableIds );
+                    }
+                }
+            }
         }
     } catch ( e ) {
         console.error( e );
@@ -44,16 +49,16 @@ async function sendHomeworkToClassStudents ( Class, botInstance ) {
 function getNotifiableIds ( students ) {
     const ids = [];
 
-    for ( const student of students ) {
-        if ( student.settings.notificationsEnabled ) {
-            const [ hours, mins ] = student.settings.notificationTime
+    for ( const { settings: { notificationsEnabled, notificationTime, daysForNotification }, lastHomeworkCheck, vkId } of students ) {
+        if ( notificationsEnabled ) {
+            const [ hours, mins ] = notificationTime
                 .match( /([0-9]+):([0-9]+)/ )
                 .slice( 1 )
                 .map( Number );
 
-            if ( isReadyToNotificate( hours, mins, student.lastHomeworkCheck ) ) {
-                ids.push( student.vkId );
-                DataBase.changeLastHomeworkCheckDate( student.vkId, new Date() );
+            if ( isReadyToNotificate( hours, mins, lastHomeworkCheck, daysForNotification ) ) {
+                ids.push( vkId );
+                DataBase.changeLastHomeworkCheckDate( vkId, new Date() );
             }
         }
     }
@@ -113,16 +118,23 @@ function findMaxPhotoResolution ( photo ) {
     return url;
 };
 
-function getTomorrowDate () {
+function getDateWithOffset ( offset ) {
     const date = new Date();
-    return new Date( date.getFullYear(), date.getMonth(), date.getDate() + 1 );
+    return new Date( date.getFullYear(), date.getMonth(), date.getDate() + offset );
+}
+function getTomorrowDate () {
+    return getDateWithOffset( 1 );
 }
 
+function isOneDay ( aDate, bDate ) {
+    return (
+        aDate.getFullYear() === bDate.getFullYear() &&
+        aDate.getMonth() === bDate.getMonth() &&
+        aDate.getDate() === bDate.getDate()
+    )
+}
 function isToday ( date ) {
-    const deltaIsLessThanDay =
-        Math.abs( date.getTime() - new Date().getTime() ) <= dayInMilliseconds;
-    const datesAreSame = date.getDate() === new Date().getDate();
-    return deltaIsLessThanDay && datesAreSame;
+    return isOneDay( date, new Date() );
 }
 
 function inRange ( number, min, max ) {

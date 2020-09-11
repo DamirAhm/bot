@@ -59,6 +59,7 @@ const changables = {
 	class: "class",
 	notificationTime: "notificationTime",
 	notificationsEnabled: "notificationsEnabled",
+	daysForNotification: "daysForNotification",
 }
 
 const isAdmin = async ( ctx ) => {
@@ -512,7 +513,7 @@ module.exports.checkAnnouncements = new Scene(
 							"На какую дату вы хотите узнать изменения? (в формате дд.ММ .ГГГГ если не на этот год)",
 							null,
 							createBackKeyboard( [
-								[ Markup.button( botCommands.onTomorrow, "positive" ) ],
+								[ Markup.button( botCommands.onToday, "positive" ), Markup.button( botCommands.onTomorrow, "positive" ) ],
 							] )
 						);
 					} else {
@@ -607,31 +608,8 @@ module.exports.settings = new Scene(
 
 			if ( Student ) {
 				ctx.session.Student = Student;
-				const { role, class: Class, settings } = Student;
-				let className;
-
-				if ( Class ) {
-					className = await DataBase.getClassBy_Id( Class ).then( ( { name } ) => name );
-				} else {
-					className = "Нету";
-				}
-
-				const message = createUserInfo( {
-					role,
-					className,
-					settings,
-					name: Student.firstName + " " + Student.secondName,
-				} );
-
 				ctx.scene.next();
-				ctx.reply(
-					message,
-					null,
-					createBackKeyboard(
-						[ Markup.button( botCommands.changeSettings, "primary" ) ],
-						1
-					)
-				);
+				await sendStudentInfo( ctx );
 			} else {
 				ctx.scene.enter( "start" );
 			}
@@ -645,6 +623,7 @@ module.exports.settings = new Scene(
 			const {
 				message: { body },
 			} = ctx;
+
 			if ( body === botCommands.changeSettings || /изменить/i.test( body ) ) {
 				ctx.scene.next();
 				ctx.reply(
@@ -659,7 +638,7 @@ module.exports.settings = new Scene(
 							: [
 								Markup.button( botCommands.enbleNotifications, "primary" ),
 							],
-						[ Markup.button( botCommands.changeClass, "primary" ) ],
+						[ Markup.button( botCommands.changeClass, "primary" ), Markup.button( botCommands.changeDaysForNotification, "primary" ) ],
 					] )
 				);
 			} else if ( body === botCommands.back ) {
@@ -679,55 +658,18 @@ module.exports.settings = new Scene(
 			} = ctx;
 
 			if ( body === botCommands.disableNotifications ) {
-				let { Student } = ctx.session;
-
-				if ( !Student ) {
-					Student = await DataBase.getStudentByVkId( ctx.message.user_id );
-				}
-
-				Student.settings.notificationsEnabled = false;
-				Student.save();
-
-				ctx.scene.enter( "default" );
-				ctx.reply(
-					"Уведомления отключены",
-					null,
-					await createDefaultKeyboard( ctx.session.role, ctx )
-				);
+				await disableNotificationsAction( ctx );
 			} else if ( body === botCommands.enbleNotifications ) {
-				let { Student } = ctx.session;
-
-				if ( !Student ) {
-					Student = await DataBase.getStudentByVkId( ctx.message.user_id );
-				}
-
-				Student.settings.notificationsEnabled = true;
-				Student.save();
-
-				ctx.scene.enter( "default" );
-				ctx.reply(
-					"Уведомления включены",
-					null,
-					await createDefaultKeyboard( ctx.session.role, ctx )
-				);
+				await enableNotificationsAction( ctx );
 			} else if ( body === botCommands.changeNotificationTime ) {
-				ctx.scene.next();
-				ctx.session.changed = changables.notificationTime;
-				ctx.reply(
-					"Когда вы хотите получать уведомления? (в формате ЧЧ:ММ)",
-					null,
-					createBackKeyboard()
-				);
+				changeNotificationTimeAction( ctx );
 			} else if ( body === botCommands.changeClass ) {
-				ctx.session.nextScene = "settings";
-				ctx.session.step = 3;
-				ctx.session.pickFor = "Выберите класс \n";
-				ctx.session.backScene = "contributorPanel";
-				ctx.session.backStep = 1;
-				ctx.session.changed = changables.class;
-				ctx.scene.enter( "pickClass" );
+				changeClassAction( ctx );
+			} else if ( body === botCommands.changeDaysForNotification ) {
+				enterDayIndexesAction( ctx );
 			} else if ( body === botCommands.back ) {
-				ctx.scene.enter( "default" );
+				ctx.scene.selectStep( 1 );
+				await sendStudentInfo( ctx );
 			} else {
 				ctx.reply( botCommands.notUnderstood );
 			}
@@ -762,21 +704,23 @@ module.exports.settings = new Scene(
 					const [ hrs, mins ] = parseTime( body );
 
 					if ( hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60 ) {
-						let { Student } = ctx.session;
+						const res = await DataBase.changeSettings( ctx.session.user_id, { notificationTime: body } );
 
-						if ( !Student ) {
-							Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+						if ( res ) {
+							ctx.scene.enter( "default" );
+							ctx.reply(
+								"Время получения уведомлений успешно изменено на " + body,
+								null,
+								await createDefaultKeyboard( ctx.session.role, ctx )
+							);
+						} else {
+							ctx.scene.enter( "default" );
+							ctx.reply(
+								"Простите не удалось изменить настройки, попробуйте позже",
+								null,
+								await createDefaultKeyboard( ctx.session.role, ctx )
+							);
 						}
-
-						Student.settings.notificationTime = body;
-						Student.save();
-
-						ctx.scene.enter( "default" );
-						ctx.reply(
-							"Время получения уведомлений успешно изменено на " + body,
-							null,
-							await createDefaultKeyboard( ctx.session.role, ctx )
-						);
 					} else {
 						ctx.reply(
 							"Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ"
@@ -800,18 +744,12 @@ module.exports.settings = new Scene(
 						ctx.scene.enter( "default" );
 					} else {
 						ctx.reply(
-							`Не удалось сменить класс на ${ctx.session.Class.name}`,
+							`К сожалению не удалось сменить класс на ${ctx.session.Class.name}`,
 							null,
 							await createDefaultKeyboard( ctx.session.role, ctx )
 						);
 
-						ctx.session.nextScene = "settings";
-						ctx.session.step = 3;
-						ctx.session.pickFor = "Выберите класс \n";
-						ctx.session.backScene = "contributorPanel";
-						ctx.session.backStep = 1;
-						ctx.session.changed = changables.class;
-						ctx.scene.enter( "pickClass" );
+						changeClassAction( ctx );
 					}
 				} else {
 					ctx.reply(
@@ -820,13 +758,27 @@ module.exports.settings = new Scene(
 						await createDefaultKeyboard( ctx.session.role, ctx )
 					);
 
-					ctx.session.nextScene = "settings";
-					ctx.session.step = 3;
-					ctx.session.pickFor = "Выберите класс \n";
-					ctx.session.backScene = "contributorPanel";
-					ctx.session.backStep = 1;
-					ctx.session.changed = changables.class;
-					ctx.scene.enter( "pickClass" );
+					changeClassAction( ctx );
+				}
+			} else if ( ctx.session.changed === changables.daysForNotification ) {
+				const { enteredDayIndexes } = ctx.session;
+
+				const res = await DataBase.changeSettings( ctx.message.user_id, { daysForNotification: enteredDayIndexes } );
+
+				if ( res ) {
+					ctx.reply(
+						`Дни оповещений успешно изменены на ${enteredDayIndexes.join( ", " )}`,
+						null,
+						await createDefaultKeyboard( ctx.session.role, ctx )
+					);
+					ctx.scene.enter( "default" );
+				} else {
+					ctx.reply(
+						`К сожалению не удалось сменить дни оповещений, попробуйте позже`,
+						null,
+						await createDefaultKeyboard( ctx.session.role, ctx )
+					);
+					ctx.scene.enter( "default" );
 				}
 			}
 
@@ -1937,6 +1889,132 @@ module.exports.pickClass = new Scene(
 		}
 	}
 );
+module.exports.enterDayIndexes = new Scene(
+	"enterDaysIndexes",
+	( ctx ) => {
+		ctx.session.enteredDayIndexes = undefined;
+
+		ctx.scene.next();
+		ctx.reply(
+			"Введите за сколько дней до задания вы хотите получать уведомление (можно несколько через запятую или пробел)",
+			null,
+			createBackKeyboard()
+		)
+	},
+	( ctx ) => {
+		const { message: { body } } = ctx;
+
+		if ( body === botCommands.back ) {
+			ctx.scene.enter( ctx.session.backScene ?? "default", ctx.session.backStep ?? 0 );
+			return;
+		}
+
+		const indexes = body.replace( /,/g, " " ).replace( /\s\s/g, " " ).split( " " );
+
+		if ( indexes.length > 0 && indexes.every( index => !isNaN( +index ) && +index >= 0 ) && indexes.every( index => Number.isInteger( +index ) ) ) {
+			ctx.session.enteredDayIndexes = indexes.map( Number );
+			ctx.scene.enter( ctx.session.nextScene ?? "default", ctx.session.step ?? 0 );
+		} else {
+			ctx.reply( "Вы должны ввести одно или более целых чисел" );
+		}
+	}
+)
+
+async function sendStudentInfo ( ctx ) {
+	if ( !ctx.session.Student ) {
+		ctx.session.Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+	}
+
+	const { role, class: Class, settings, firstName, secondName } = ctx.session.Student;
+	let className;
+
+	if ( Class ) {
+		className = await DataBase.getClassBy_Id( Class ).then( ( { name } ) => name );
+	} else {
+		className = "Нету";
+	}
+
+	const message = createUserInfo( {
+		role,
+		className,
+		settings,
+		name: firstName + " " + secondName,
+	} );
+
+	ctx.reply(
+		message,
+		null,
+		createBackKeyboard(
+			[ [ Markup.button( botCommands.changeSettings, "primary" ) ] ]
+		)
+	);
+}
+
+function changeClassAction ( ctx ) {
+	ctx.session.nextScene = "settings";
+	ctx.session.step = 3;
+	ctx.session.pickFor = "Выберите класс \n";
+	ctx.session.backScene = "contributorPanel";
+	ctx.session.backStep = 1;
+	ctx.session.changed = changables.class;
+	ctx.scene.enter( "pickClass" );
+}
+
+function enterDayIndexesAction ( ctx ) {
+	ctx.session.nextScene = "settings";
+	ctx.session.step = 3;
+	ctx.session.backScene = "contributorPanel";
+	ctx.session.backStep = 1;
+	ctx.session.changed = changables.daysForNotification;
+	ctx.scene.enter( "enterDaysIndexes" )
+}
+
+function changeNotificationTimeAction ( ctx ) {
+	ctx.scene.next();
+	ctx.session.changed = changables.notificationTime;
+	ctx.reply(
+		"Когда вы хотите получать уведомления? (в формате ЧЧ:ММ)",
+		null,
+		createBackKeyboard()
+	);
+}
+
+async function enableNotificationsAction ( ctx ) {
+	let { Student } = ctx.session;
+
+	if ( !Student ) {
+		Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+	}
+
+	Student.settings.notificationsEnabled = true;
+	Student.save();
+
+	ctx.scene.enter( "default" );
+	ctx.reply(
+		"Уведомления включены",
+		null,
+		await createDefaultKeyboard( ctx.session.role, ctx )
+	);
+}
+
+async function disableNotificationsAction ( ctx ) {
+	let { Student } = ctx.session;
+
+	if ( !Student ) {
+		Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+	}
+
+	Student.settings.notificationsEnabled = false;
+	Student.save();
+
+	ctx.scene.enter( "default" );
+	ctx.reply(
+		"Уведомления отключены",
+		null,
+		await createDefaultKeyboard( ctx.session.role, ctx )
+	);
+}
+
 async function getPossibleLessonsAndSetInSession ( ctx ) {
 	if ( ctx.session.Class === undefined ) {
 		ctx.session.Class = await DataBase.getStudentByVkId( ctx.message.user_id )
