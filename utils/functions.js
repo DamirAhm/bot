@@ -1,6 +1,7 @@
 const { mapHomeworkByLesson } = require( "bot-database/utils/functions" );
 const { DataBase: DB } = require( "bot-database/DataBase" );
 const config = require( "../config.json" );
+const { monthsRP } = require( "./messagePayloading" );
 
 const DataBase = new DB( config[ "MONGODB_URI" ] );
 
@@ -20,7 +21,6 @@ async function notifyStudents ( botInstance ) {
 async function sendHomeworkToClassStudents ( Class, botInstance ) {
     try {
         const { students } = await DataBase.populate( Class );
-
         if ( students?.length ) {
             const daysOffsets = new Set( students.map( ( { settings } ) => settings.daysForNotification ).flat() );
 
@@ -28,12 +28,13 @@ async function sendHomeworkToClassStudents ( Class, botInstance ) {
                 const notifiableIds = getNotifiableIds( students.filter( ( { settings } ) => settings.daysForNotification.includes( dayOffset ) ) );
 
                 if ( notifiableIds.length > 0 ) {
-                    const dayHomework = await DataBase.getHomeworkByDate( Class, getDateWithOffset( dayOffset ) );
+                    const dateWithOffset = getDateWithOffset( dayOffset );
+                    const dayHomework = await DataBase.getHomeworkByDate( Class, dateWithOffset );
 
                     if ( dayHomework.length > 0 ) {
                         const parsedHomework = mapHomeworkByLesson( dayHomework );
 
-                        let message = `Задание на завтра\n`;
+                        let message = `Задание на ${isOneDay( dateWithOffset, getTomorrowDate() ) ? "завтра" : getDayMonthString( dateWithOffset )}\n`;
                         botInstance.sendMessage( notifiableIds, message );
 
                         sendHomework( parsedHomework, botInstance, notifiableIds );
@@ -154,6 +155,10 @@ function filterContentByDate ( content, date ) {
     } )
 }
 
+function getDayMonthString ( date ) {
+    return `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
+}
+
 module.exports = {
     isToday,
     getTomorrowDate,
@@ -165,5 +170,6 @@ module.exports = {
     sendHomework,
     getHomeworkPayload,
     inRange,
-    filterContentByDate
+    filterContentByDate,
+    getDayMonthString
 };

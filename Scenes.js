@@ -18,7 +18,6 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		createBackKeyboard,
 		monthsRP,
 		notifyAllInClass,
-		createDefaultKeyboardSync,
 	} = require( "./utils/messagePayloading.js" ),
 	{ DataBase: DB } = require( "bot-database/DataBase.js" ),
 	{
@@ -50,6 +49,7 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		inRange,
 		sendHomework,
 		getHomeworkPayload,
+		getDayMonthString,
 	} = require( "./utils/functions.js" ),
 	fs = require( "fs" );
 
@@ -385,7 +385,7 @@ module.exports.checkHomework = new Scene(
 						const dateItMilliseconds = new Date( today.getFullYear(), today.getMonth(), dayOfHomework );
 						const date = new Date( dateItMilliseconds )
 
-						const dateString = `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
+						const dateString = getDayMonthString( date );
 
 						const homework = filterContentByDate( ctx.session.Class.homework, date );
 
