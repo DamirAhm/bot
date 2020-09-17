@@ -827,16 +827,17 @@ module.exports.giveFeedback = new Scene(
 					.then( admins => admins.map( ( { vkId } ) => vkId ) )
 
 				if ( !adminsIds.some( id => id === ctx.message.user_id ) ) {
-					const notificationMessage = `Новый отзыв: \n` + newText;
+					const notificationMessage = `Новый отзыв: \n` + `${body} (${user_id}) \n`;
 
-					ctx.bot.sendMessage( adminsIds, notificationMessage )
+					ctx.bot.sendMessage( adminsIds, notificationMessage );
 				}
 
 				ctx.reply(
 					"Спасибо за отзыв",
 					null,
 					await createDefaultKeyboard( ctx.session.role, ctx )
-				)
+				);
+				ctx.scene.enter( "default" );
 			} );
 		} )
 	}
@@ -1150,8 +1151,8 @@ module.exports.createClass = new Scene(
 			DataBase.createClass( spacelessClassName )
 				.then( ( result ) => {
 					if ( result ) {
-						leave();
 						ctx.reply( "Класс успешно создан" );
+						ctx.scene.enter( "default" );
 					} else {
 						ctx.reply( "Создание класса не удалось" );
 					} //исправить (вынести в функцию\превратить старт в сцену\еще что то)
@@ -1729,6 +1730,9 @@ module.exports.changeSchedule = new Scene(
 
 			if ( body.toLowerCase === botCommands.back ) {
 				ctx.scene.enter( "default" );
+			} else if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
+				ctx.scene.enter( "default" );
+				return;
 			}
 
 			if (
@@ -1739,10 +1743,10 @@ module.exports.changeSchedule = new Scene(
 				ctx.session.isFullFill = true;
 				ctx.session.changingDay = 1;
 				const message = `
-            Введите новое расписание цифрами через запятую или пробел, выбирая из этих предметов\n
-            ${lessonsList} \n
-            Сначала понедельник:
-            `;
+            		Введите новое расписание цифрами через запятую или пробел, выбирая из этих предметов\n
+            		${lessonsList} \n
+            		Сначала понедельник:
+            	`;
 
 				ctx.scene.next();
 				ctx.reply(
@@ -1786,6 +1790,9 @@ module.exports.changeSchedule = new Scene(
 
 			if ( body === botCommands.leaveEmpty ) {
 				body = "";
+			} else if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
+				ctx.scene.selectStep( 0 );
+				return;
 			}
 
 			body = body.replace( /,/g, " " );
