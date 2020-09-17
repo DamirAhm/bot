@@ -319,7 +319,7 @@ module.exports.checkHomework = new Scene(
 
 						ctx.scene.next();
 						ctx.reply(
-							'На какую дату вы хотите узнать задание? (в формате дд.ММ .ГГГГ если не на этот год )',
+							'На какую дату вы хотите узнать задание? (в формате ДД.ММ .ГГГГ если не на этот год )',
 							null,
 							createBackKeyboard( [
 								[ Markup.button( botCommands.onTomorrow, 'positive' ) ],
@@ -456,7 +456,7 @@ module.exports.checkHomework = new Scene(
 						return;
 					}
 				} else {
-					ctx.reply( 'Дата должна быть в формате дд.ММ .ГГГГ если не на этот год' );
+					ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
 					return;
 				}
 
@@ -512,7 +512,7 @@ module.exports.checkAnnouncements = new Scene(
 
 						ctx.scene.next();
 						ctx.reply(
-							'На какую дату вы хотите узнать изменения? (в формате дд.ММ .ГГГГ если не на этот год)',
+							'На какую дату вы хотите узнать изменения? (в формате ДД.ММ .ГГГГ если не на этот год)',
 							null,
 							createBackKeyboard( [
 								[
@@ -566,7 +566,7 @@ module.exports.checkAnnouncements = new Scene(
 					return;
 				}
 			} else {
-				ctx.reply( 'Дата должна быть в формате дд.ММ .ГГГГ если не на этот год' );
+				ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
 				return;
 			}
 
@@ -1317,7 +1317,7 @@ module.exports.addHomework = new Scene(
 
 				ctx.scene.next();
 				ctx.reply(
-					'Введите дату на которую задано задание (в формате дд.ММ .ГГГГ если не на этот год)',
+					'Введите дату на которую задано задание (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
 					createBackKeyboard( [ Markup.button( botCommands.onNextLesson, 'positive' ) ], 1 ),
 				);
@@ -1374,7 +1374,7 @@ module.exports.addHomework = new Scene(
 					ctx.reply( 'Проверьте правильность введенной даты' );
 				}
 			} else {
-				ctx.reply( 'Дата должна быть в формате дд.ММ .ГГГГ если не на этот год' );
+				ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
 				return;
 			}
 
@@ -1430,7 +1430,7 @@ module.exports.addHomework = new Scene(
 			} else if ( ctx.message.body === botCommands.no ) {
 				ctx.scene.selectStep( 3 );
 				ctx.reply(
-					'Введите дату на которую задано задание (в формате дд.ММ .ГГГГ если не на этот год)',
+					'Введите дату на которую задано задание (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
 					createBackKeyboard( [ [ Markup.button( botCommands.onNextLesson, 'positive' ) ] ] ),
 				);
@@ -1509,7 +1509,7 @@ module.exports.addAnnouncement = new Scene(
 
 				ctx.scene.next();
 				ctx.reply(
-					'Введите дату изменения (в формате дд.ММ .ГГГГ если не на этот год)',
+					'Введите дату изменения (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
 					createBackKeyboard( [
 						[
@@ -1562,7 +1562,7 @@ module.exports.addAnnouncement = new Scene(
 					ctx.reply( 'Проверьте правильность введенной даты' );
 				}
 			} else {
-				ctx.reply( 'Дата должна быть в формате дд.ММ .ГГГГ если не на этот год' );
+				ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
 				return;
 			}
 
@@ -1630,7 +1630,7 @@ module.exports.addAnnouncement = new Scene(
 			} else if ( ctx.message.body.toLowerCase() === botCommands.no.toLowerCase() ) {
 				ctx.scene.selectStep( 2 );
 				ctx.reply(
-					'Введите дату изменения (в формате дд.ММ .ГГГГ если не на этот год)',
+					'Введите дату изменения (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
 					createBackKeyboard( [
 						[
