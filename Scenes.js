@@ -244,7 +244,7 @@ module.exports.defaultScene = new Scene(
 module.exports.checkSchedule = new Scene( 'checkSchedule', async ( ctx ) => {
 	try {
 		const needToPickClass = await isAdmin( ctx );
-		console.log( ctx.session );
+
 		if ( needToPickClass && !ctx.session.Class ) {
 			ctx.session.nextScene = 'checkSchedule';
 			ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
@@ -291,8 +291,7 @@ module.exports.checkSchedule = new Scene( 'checkSchedule', async ( ctx ) => {
 					);
 				}
 			} else {
-				console.log( 'User are not existing', ctx.session.userId );
-				throw new Error( 'Student is not existing' );
+				throw new Error( `User are not existing, ${ctx.session.userId}` );
 			}
 		}
 	} catch ( e ) {
@@ -649,7 +648,6 @@ module.exports.settings = new Scene(
 			} else if ( body === botCommands.back ) {
 				ctx.scene.enter( 'default' );
 			} else {
-				console.log( 'AWDAWDAW' );
 				ctx.reply( botCommands.notUnderstood );
 			}
 		} catch ( e ) {
@@ -834,7 +832,6 @@ module.exports.giveFeedback = new Scene(
 					if ( err ) {
 						throw err;
 					}
-					console.log( newText );
 
 					const adminsIds = await DataBase.getAllStudents()
 						.then( ( students ) => students.filter( ( { role } ) => role === Roles.admin ) )
@@ -1033,7 +1030,7 @@ module.exports.addRedactor = new Scene(
 
 				if ( !Student ) {
 					const response = await vk.api( 'users.get', { user_ids: id } );
-					console.log( response );
+
 					if ( !response.error_code && response ) {
 						const { first_name, last_name } = response[ 0 ];
 						Student = await DataBase.createStudent( id, {
@@ -1153,7 +1150,7 @@ module.exports.createClass = new Scene(
 					} //исправить (вынести в функцию\превратить старт в сцену\еще что то)
 				} )
 				.catch( ( err ) => {
-					console.log( err );
+					console.error( err );
 					ctx.reply( 'Что то пошло не так попробуйте позже' );
 				} );
 		} else {
@@ -1252,8 +1249,7 @@ module.exports.addHomework = new Scene(
 						);
 					}
 				} else {
-					console.log( 'User is not existing', ctx.session.userId );
-					throw new Error( 'Student is not existing' );
+					throw new Error( `User is not existing ${ctx.session.userId}` );
 				}
 			}
 		} catch ( e ) {
@@ -1286,7 +1282,7 @@ module.exports.addHomework = new Scene(
 				};
 
 				const possibleLessons = await getPossibleLessonsAndSetInSession( ctx );
-				console.log( possibleLessons );
+
 				ctx.scene.next();
 				ctx.reply( 'Выбирите урок:\n' + mapListToMessage( possibleLessons ) );
 			} else {
@@ -1333,7 +1329,7 @@ module.exports.addHomework = new Scene(
 				}
 			}
 		} catch ( e ) {
-			console.log( e );
+			console.error( e );
 			ctx.scene.enter( 'error' );
 		}
 	},
@@ -1482,8 +1478,7 @@ module.exports.addAnnouncement = new Scene(
 						);
 					}
 				} else {
-					console.log( 'User is not existing', ctx.session.userId );
-					throw new Error( 'Student is not existing' );
+					throw new Error( `User is not existing ${ctx.session.userId}` );
 				}
 			}
 		} catch ( e ) {
@@ -1608,7 +1603,7 @@ module.exports.addAnnouncement = new Scene(
 					false,
 					ctx.message.user_id,
 				);
-				console.log( res );
+
 				if ( res ) {
 					ctx.scene.enter( 'default' );
 					ctx.reply(
@@ -1702,8 +1697,7 @@ module.exports.changeSchedule = new Scene(
 						);
 					}
 				} else {
-					console.log( 'User are not existing', ctx.session.userId );
-					throw new Error( 'Student is not existing' );
+					throw new Error( `Student is not existing ${ctx.session.userId}` );
 				}
 			}
 		} catch ( e ) {
@@ -1763,7 +1757,7 @@ module.exports.changeSchedule = new Scene(
 			ctx.scene.enter( 'error' );
 		}
 	},
-	( ctx ) => {
+	async ( ctx ) => {
 		try {
 			let {
 				message: { body },
@@ -1772,7 +1766,28 @@ module.exports.changeSchedule = new Scene(
 			if ( body === botCommands.leaveEmpty ) {
 				body = '';
 			} else if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
-				ctx.scene.selectStep( 0 );
+				const Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+
+				let { Class } = ctx.session;
+				if ( !Class ) Class = await DataBase.getClassBy_Id( Student.class );
+
+				ctx.session.Class = Class;
+				ctx.session.schedule = Class.schedule;
+
+				const days = Object.values( daysOfWeek );
+				const buttons = days.map( ( day, index ) =>
+					Markup.button( index + 1, 'default', { button: day } ),
+				);
+
+				buttons.push( Markup.button( '0', 'primary' ) );
+
+				const message =
+					'Выберите день у которого хотите изменить расписание\n' +
+					mapListToMessage( days ) +
+					'\n0. Заполнить всё';
+
+				ctx.scene.selectStep( 1 );
+				ctx.reply( message, null, createBackKeyboard( buttons ) );
 				return;
 			}
 
@@ -1819,7 +1834,7 @@ module.exports.changeSchedule = new Scene(
 				ctx.reply( 'Вы должны вводить только цифры' );
 			}
 		} catch ( e ) {
-			console.log( e );
+			console.error( e );
 			ctx.scene.enter( 'error' );
 		}
 	},
@@ -1840,7 +1855,6 @@ module.exports.changeSchedule = new Scene(
 						await createDefaultKeyboard( true, false ),
 					);
 				} else {
-					console.log( 'Schedule is ', schedule, 'Class is ', Class );
 					throw new Error(
 						'Schedule is ' +
 						JSON.stringify( schedule ) +
@@ -1952,7 +1966,7 @@ module.exports.enterDayIndexes = new Scene(
 			ctx.scene.enter( ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0 );
 			return;
 		}
-		console.log( body );
+
 		const indexes = body.replace( /,/g, ' ' ).replace( /\s\s/g, ' ' ).split( ' ' );
 
 		if (
