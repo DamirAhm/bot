@@ -2014,7 +2014,7 @@ async function sendStudentInfo ( ctx ) {
 }
 
 function changeClassAction ( ctx ) {
-	fillSessionWithSceneParams( {
+	fillSessionWithSceneParams( ctx, {
 		nextScene: "settings",
 		step: 3,
 		backScene: "contributorPanel",
@@ -2027,7 +2027,7 @@ function changeClassAction ( ctx ) {
 }
 
 function enterDayIndexesAction ( ctx ) {
-	fillSessionWithSceneParams( {
+	fillSessionWithSceneParams( ctx, {
 		nextScene: "settings",
 		step: 3,
 		backScene: "contributorPanel",
@@ -2044,7 +2044,7 @@ function fillSessionWithSceneParams ( ctx, {
 	step = 0,
 	backStep = 0,
 	...sceneInfo
-} ) {
+} = {} ) {
 	ctx.session = {
 		...ctx.session,
 		...sceneInfo,
