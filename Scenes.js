@@ -50,6 +50,9 @@ const Scene = require( "node-vk-bot-api/lib/scene" ),
 		sendHomework,
 		getHomeworkPayload,
 		getDayMonthString,
+		cleanDataForSceneFromSession,
+		cleanSession,
+		calculateColumnsAmount,
 	} = require( "./utils/functions.js" ),
 	fs = require( "fs" );
 
@@ -253,6 +256,7 @@ module.exports.checkSchedule = new Scene(
 	async ( ctx ) => {
 		try {
 			const needToPickClass = await isAdmin( ctx );
+			console.log( ctx.session );
 			if ( needToPickClass && !ctx.session.Class ) {
 				ctx.session.nextScene = "checkSchedule";
 				ctx.session.pickFor = "Выберите класс у которого хотите посмотреть расписание \n"
@@ -270,7 +274,6 @@ module.exports.checkSchedule = new Scene(
 						}
 
 						const message = await getScheduleString( Class );
-						ctx.session.Class = undefined;
 
 						if ( message.trim() === "" ) {
 							ctx.reply(
@@ -291,6 +294,8 @@ module.exports.checkSchedule = new Scene(
 								ctx.scene.enter( "default" );
 							}, 50 );
 						}
+
+						cleanDataForSceneFromSession( ctx );
 					} else {
 						ctx.scene.enter( "register" );
 						ctx.reply(
@@ -477,13 +482,14 @@ module.exports.checkHomework = new Scene(
 
 						sendHomework( parsedHomework, ctx.bot, [ ctx.message.user_id ] );
 
-						ctx.session.Class = undefined;
 						ctx.scene.enter( "default" );
 					}
 				} else {
 					throw new Error( "There's no date" );
 				}
 			}
+
+			cleanDataForSceneFromSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -567,7 +573,6 @@ module.exports.checkAnnouncements = new Scene(
 
 			if ( date ) {
 				const announcements = filterContentByDate( ctx.session.Class.announcements, date );
-				ctx.session.Class = undefined;
 				if ( announcements.length === 0 ) {
 					ctx.reply( "На данный день нет ни одного изменения" );
 					ctx.scene.enter( "default" );
@@ -591,6 +596,8 @@ module.exports.checkAnnouncements = new Scene(
 			} else {
 				throw new Error( "There's no date" );
 			}
+
+			cleanDataForSceneFromSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -602,8 +609,6 @@ module.exports.settings = new Scene(
 	"settings",
 	async ( ctx ) => {
 		try {
-			ctx.session.Student = undefined;
-
 			const Student = await DataBase.getStudentByVkId( ctx.message.user_id );
 
 			if ( Student ) {
@@ -782,7 +787,7 @@ module.exports.settings = new Scene(
 				}
 			}
 
-			delete ctx.session.changed;
+			cleanDataForSceneFromSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -890,6 +895,60 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case "5": {
+					const Classes = await DataBase.getAllClasses();
+
+					if ( Classes.length > 0 ) {
+						const classesStr = mapListToMessage(
+							Classes.map( ( { name } ) => name )
+						);
+
+						const message = "Список всех классов\n\t" + classesStr;
+
+						ctx.reply( message, null, await createDefaultKeyboard( true, false ) );
+					} else {
+						ctx.reply(
+							"Не существует ни одного класса",
+							null,
+							await createDefaultKeyboard( true, false )
+						);
+					}
+					ctx.scene.enter( "default" );
+					break;
+				}
+				case botCommands.addRedactor: {
+					ctx.scene.enter( "addRedactor" );
+					break;
+				}
+				case botCommands.removeRedactor: {
+					ctx.scene.enter( "removeRedactor" );
+					break;
+				}
+				case botCommands.redactorsList: {
+					const Contributors = await DataBase.getAllContributors();
+
+					if ( Contributors.length > 0 ) {
+						const classesStr = mapListToMessage(
+							mapStudentToPreview( Contributors )
+						);
+
+						const message = "Список всех редакторов\n\t" + classesStr;
+
+						ctx.reply( message, null, await createDefaultKeyboard( true ) );
+					} else {
+						ctx.reply(
+							"Не существует ни одного редактора",
+							null,
+							await createDefaultKeyboard( true )
+						);
+					}
+					ctx.scene.enter( "default" );
+					break;
+				}
+				case botCommands.addClass: {
+					ctx.scene.enter( "createClass" );
+					break;
+				}
+				case botCommands.classList: {
 					const Classes = await DataBase.getAllClasses();
 
 					if ( Classes.length > 0 ) {
@@ -1219,7 +1278,6 @@ module.exports.addHomework = new Scene(
 			if ( message.body === botCommands.back ) {
 				const peekedClass = await isContributor( ctx );
 				if ( peekedClass ) {
-					ctx.session.Class = undefined;
 					ctx.scene.enter( "contributorPanel" );
 				} else {
 					ctx.scene.enter( "default" );
@@ -1396,6 +1454,8 @@ module.exports.addHomework = new Scene(
 			} else {
 				ctx.reply( "Ответьте да или нет" );
 			}
+
+			cleanDataForSceneFromSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -1453,7 +1513,6 @@ module.exports.addAnnouncement = new Scene(
 			if ( message.body === botCommands.back ) {
 				const peekedClass = await isAdmin( ctx );
 				if ( peekedClass ) {
-					ctx.session.Class = undefined;
 					ctx.scene.enter( "contributorPanel" );
 				} else {
 					ctx.scene.enter( "default" );
@@ -1598,6 +1657,8 @@ module.exports.addAnnouncement = new Scene(
 			} else {
 				ctx.reply( "Ответьте да или нет" );
 			}
+
+			cleanDataForSceneFromSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -1780,7 +1841,6 @@ module.exports.changeSchedule = new Scene(
 				message: { body },
 			} = ctx;
 			const { schedule, Class } = ctx.session;
-			ctx.session.Class = undefined;
 
 			if ( body.toLowerCase() === "да" ) {
 				if ( schedule && Class ) {
@@ -1804,6 +1864,8 @@ module.exports.changeSchedule = new Scene(
 				ctx.reply( "Введите новое расписание" );
 				ctx.scene.selectStep( 2 );
 			}
+
+			cleanDataForSceneFromSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -1824,14 +1886,8 @@ module.exports.pickClass = new Scene(
 				const message = ( ctx.session.pickFor ?? "Выберите класс" ) + classesStr;
 
 				ctx.scene.next();
-				const columns =
-					Classes.length % 4 === 0
-						? 4
-						: Classes.length % 3 === 0
-							? 3
-							: Classes.length % 2 === 0
-								? 2
-								: 4;
+				const columns = calculateColumnsAmount( Classes.length );
+
 				ctx.reply(
 					message,
 					null,
@@ -1882,7 +1938,7 @@ module.exports.pickClass = new Scene(
 				ctx.reply( "Неверное имя класса" );
 			}
 
-			ctx.session.classses = undefined;
+			cleanSession( ctx );
 		} catch ( e ) {
 			console.error( e );
 			ctx.scene.enter( "error" );
@@ -1892,8 +1948,6 @@ module.exports.pickClass = new Scene(
 module.exports.enterDayIndexes = new Scene(
 	"enterDaysIndexes",
 	( ctx ) => {
-		ctx.session.enteredDayIndexes = undefined;
-
 		ctx.scene.next();
 		ctx.reply(
 			"Введите за сколько дней до задания вы хотите получать уведомление (можно несколько через запятую или пробел)",
@@ -1917,6 +1971,8 @@ module.exports.enterDayIndexes = new Scene(
 		} else {
 			ctx.reply( "Вы должны ввести одно или более целых чисел" );
 		}
+
+		cleanSession( ctx );
 	}
 )
 
@@ -1951,22 +2007,45 @@ async function sendStudentInfo ( ctx ) {
 }
 
 function changeClassAction ( ctx ) {
-	ctx.session.nextScene = "settings";
-	ctx.session.step = 3;
-	ctx.session.pickFor = "Выберите класс \n";
-	ctx.session.backScene = "contributorPanel";
-	ctx.session.backStep = 1;
-	ctx.session.changed = changables.class;
+	fillSessionWithSceneParams( {
+		nextScene: "settings",
+		step: 3,
+		backScene: "contributorPanel",
+		backStep: 1,
+		changed: changables.class,
+		pickFor: botCommands.pickClass + "\n"
+	} );
+
 	ctx.scene.enter( "pickClass" );
 }
 
 function enterDayIndexesAction ( ctx ) {
-	ctx.session.nextScene = "settings";
-	ctx.session.step = 3;
-	ctx.session.backScene = "contributorPanel";
-	ctx.session.backStep = 1;
-	ctx.session.changed = changables.daysForNotification;
+	fillSessionWithSceneParams( {
+		nextScene: "settings",
+		step: 3,
+		backScene: "contributorPanel",
+		backStep: 1,
+		changed: changables.daysForNotification
+	} );
+
 	ctx.scene.enter( "enterDaysIndexes" )
+}
+
+function fillSessionWithSceneParams ( ctx, {
+	nextScene = "default",
+	backScene = "default",
+	step = 0,
+	backStep = 0,
+	...sceneInfo
+} ) {
+	ctx.session = {
+		...ctx.session,
+		...sceneInfo,
+		nextScene,
+		backScene,
+		step,
+		backStep,
+	}
 }
 
 function changeNotificationTimeAction ( ctx ) {
