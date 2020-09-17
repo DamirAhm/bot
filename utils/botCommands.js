@@ -30,11 +30,11 @@ module.exports = {
     nextWeek: "На следущую неделю",
 
     checkHomework: "Посмотреть дз",
-    checkAnnouncements: "Посмотреть обьявления",
+    checkAnnouncements: "Посмотреть объявления",
     checkSchedule: "Посмотреть расписание",
 
     addRedactor: "Добавить редактора",
-    addAnnouncement: "Добавить обьявление",
+    addAnnouncement: "Добавить объявление",
     addHomework: "Добавить домашнее задание",
     addClass: "Добавить класс",
 
