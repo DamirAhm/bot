@@ -32,6 +32,7 @@ module.exports = {
 	checkHomework: 'Посмотреть дз',
 	checkAnnouncements: 'Посмотреть объявления',
 	checkSchedule: 'Посмотреть расписание',
+	checkExisting: 'Посмотреть существующие',
 
 	addRedactor: 'Добавить редактора',
 	addAnnouncement: 'Добавить объявление',

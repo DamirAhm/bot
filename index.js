@@ -78,14 +78,17 @@ bot.command(
 					ctx.scene.enter('register');
 				}
 			} else {
-				const { first_name: firstName, last_name: lastName } = await vk
-					.getUser(user_id)
+				const {
+					first_name: firstName,
+					last_name: lastName,
+				} = await bot
+					.execute('users.get', { user_ids: [ctx.message.user_id] })
 					.then((res) => res[0]);
+
 				student = await DataBase.createStudent(user_id, {
 					firstName,
 					lastName,
 				});
-
 				ctx.session.userId = student.vkId;
 				ctx.session.role = student.role;
 				ctx.session.secondName = student.secondName;

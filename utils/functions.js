@@ -58,7 +58,6 @@ async function notifyAboutReboot(botInstance) {
 	}
 }
 function isStudentOnDefaultScene(res) {
-	console.log();
 	return (
 		(res.items[0].text.startsWith('Mеню') ||
 			res.items[0].text === botCommands.botWasRebooted) &&

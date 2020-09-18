@@ -3,6 +3,7 @@ const config = require('../config.js');
 const Markup = require('node-vk-bot-api/lib/markup');
 const { DataBase: DB } = require('bot-database/DataBase');
 const botCommands = require('./botCommands');
+const { calculateColumnsAmount } = require('./functions.js');
 
 const DataBase = new DB(config['MONGODB_URI']);
 
@@ -68,6 +69,13 @@ const adminOptions = [
 	{ label: botCommands.addClass, payload: botCommands.addClass, color: 'default' },
 	{ label: botCommands.classList, payload: botCommands.classList, color: 'default' },
 ];
+
+const mapListToKeyboard = (list) => {
+	return Markup.keyboard(
+		list.map((value) => Markup.button(value)),
+		{ columns: calculateColumnsAmount(list.length) },
+	);
+};
 
 const mapListToMessage = (list, startIndex = 1) => {
 	return list.map((e, i) => `${i + startIndex}. ${e}`).join('\n');
@@ -294,4 +302,5 @@ module.exports = {
 	createUserInfo,
 	monthsRP,
 	createDefaultKeyboardSync,
+	mapListToKeyboard,
 };

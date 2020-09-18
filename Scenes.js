@@ -18,6 +18,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		createBackKeyboard,
 		monthsRP,
 		notifyAllInClass,
+		mapListToKeyboard,
 	} = require('./utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database/DataBase.js'),
 	{
@@ -99,9 +100,6 @@ module.exports.startScene = new Scene('start', async (ctx) => {
 module.exports.registerScene = new Scene(
 	'register',
 	async (ctx) => {
-		const {
-			scene: { next, leave },
-		} = ctx;
 		const { userId } = ctx.session;
 
 		let Student = await DataBase.getStudentByVkId(userId);
@@ -111,52 +109,77 @@ module.exports.registerScene = new Scene(
 		}
 
 		if (Student.registered) {
-			leave();
-			ctx.reply('Вы уже зарегестрированны');
+			ctx.reply(
+				'Вы уже зарегестрированны',
+				null,
+				await createDefaultKeyboard(ctx.session.role, ctx),
+			);
+			ctx.scene.enter('default');
 		} else {
-			next();
-			ctx.reply('Введите имя класса в котором вы учитесь');
+			ctx.scene.next();
+			ctx.reply(
+				'Введите имя класса в котором вы учитесь',
+				null,
+				Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+			);
 		}
 	},
 	async (ctx) => {
-		const {
-			message: { body },
-			scene: { leave, enter },
-		} = ctx;
-		const { userId } = ctx.session;
+		try {
+			const {
+				message: { body },
+			} = ctx;
+			const { userId } = ctx.session;
 
-		const spacelessClassName = body.replace(/\s*/g, '');
-		if (/\d+([a-z]|[а-я])/i.test(spacelessClassName)) {
-			const Class = await DataBase.getClassByName(spacelessClassName);
-			const Student = await DataBase.getStudentByVkId(userId);
-
-			await Student.updateOne({ registered: true });
-			await Student.save();
-
-			if (Class) {
-				await DataBase.addStudentToClass(userId, spacelessClassName);
-				leave();
-				ctx.reply(
-					'Вы успешно зарегестрированны',
-					null,
-					await createDefaultKeyboard(ctx.session.role, ctx),
+			if (body === botCommands.checkExisting) {
+				const classNames = await DataBase.getAllClasses().then((classes) =>
+					classes.map(({ name }) => name),
 				);
-			} else {
-				const Class = await DataBase.createClass(spacelessClassName);
+
+				ctx.reply(
+					mapListToMessage(classNames),
+					null,
+					classNames.length <= 40 ? mapListToKeyboard(classNames) : null,
+				);
+			}
+
+			const spacelessClassName = body.replace(/\s*/g, '');
+			if (
+				/\d+([a-z]|[а-я])/i.test(spacelessClassName) &&
+				spacelessClassName.match(/\d+([a-z]|[а-я])/i)?.[0] === spacelessClassName
+			) {
+				const Class = await DataBase.getClassByName(spacelessClassName);
+				const Student = await DataBase.getStudentByVkId(userId);
+
+				await Student.updateOne({ registered: true });
+				await Student.save();
+
 				if (Class) {
 					await DataBase.addStudentToClass(userId, spacelessClassName);
-					leave();
 					ctx.reply(
 						'Вы успешно зарегестрированны',
 						null,
-						null,
 						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
+					ctx.scene.enter('default');
+				} else {
+					const Class = await DataBase.createClass(spacelessClassName);
+					if (Class) {
+						await DataBase.addStudentToClass(userId, spacelessClassName);
+						ctx.reply(
+							'Вы успешно зарегестрированны',
+							null,
+							await createDefaultKeyboard(ctx.session.role, ctx),
+						);
+						ctx.scene.enter('default');
+					}
 				}
+			} else {
+				ctx.reply('Неверное имя класса');
 			}
-		} else {
-			enter('register');
-			ctx.reply('Неверное имя класса');
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
