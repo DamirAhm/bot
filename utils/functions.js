@@ -1,11 +1,7 @@
 const { mapHomeworkByLesson } = require('bot-database/utils/functions');
 const { DataBase: DB } = require('bot-database/DataBase');
 const config = require('../config.json');
-const {
-	monthsRP,
-	createDefaultKeyboard,
-	createDefaultKeyboardSync,
-} = require('./messagePayloading');
+const { monthsRP, createDefaultKeyboardSync } = require('./messagePayloading');
 const { Roles } = require('bot-database/Models/utils');
 
 const DataBase = new DB(config['MONGODB_URI']);

@@ -1,7 +1,7 @@
-const path = require( 'path' );
+const path = require('path');
 
-const Scene = require( 'node-vk-bot-api/lib/scene' ),
-	config = require( './config.json' ),
+const Scene = require('node-vk-bot-api/lib/scene'),
+	config = require('./config.json'),
 	{
 		renderAdminMenu,
 		renderAdminMenuKeyboard,
@@ -18,20 +18,24 @@ const Scene = require( 'node-vk-bot-api/lib/scene' ),
 		createBackKeyboard,
 		monthsRP,
 		notifyAllInClass,
-	} = require( './utils/messagePayloading.js' ),
-	{ DataBase: DB } = require( 'bot-database/DataBase.js' ),
+	} = require('./utils/messagePayloading.js'),
+	{ DataBase: DB } = require('bot-database/DataBase.js'),
 	{
 		findNextLessonDate,
 		findNextDayWithLesson,
 		mapHomeworkByLesson,
 		dayInMilliseconds,
-	} = require( 'bot-database/utils/functions' ),
-	botCommands = require( './utils/botCommands.js' ),
-	{ Roles, isValidClassName, Lessons, daysOfWeek } = require( 'bot-database/Models/utils.js' ),
-	VK_API = require( 'bot-database/VkAPI/VK_API.js' ),
-	Markup = require( 'node-vk-bot-api/lib/markup' ),
-	DataBase = new DB( config[ 'MONGODB_URI' ] ),
-	vk = new VK_API( config[ 'VK_API_KEY' ], config[ 'GROUP_ID' ], config[ 'ALBUM_ID' ] ),
+	} = require('bot-database/utils/functions'),
+	botCommands = require('./utils/botCommands.js'),
+	{ Roles, isValidClassName, Lessons, daysOfWeek } = require('bot-database/Models/utils.js'),
+	VK_API = require('bot-database/VkAPI/VK_API.js'),
+	Markup = require('node-vk-bot-api/lib/markup'),
+	DataBase = new DB(config['MONGODB_URI']),
+	vk = new VK_API(
+		...(process.env.NODE_ENV === 'production'
+			? [config['VK_API_KEY'], config['GROUP_ID'], config['ALBUM_ID']]
+			: [config['TEST_VK_API_KEY'], config['TEST_GROUP_ID'], config['TEST_ALBUM_ID']]),
+	),
 	{
 		getTomorrowDate,
 		isToday,
@@ -44,10 +48,10 @@ const Scene = require( 'node-vk-bot-api/lib/scene' ),
 		cleanDataForSceneFromSession,
 		cleanSession,
 		calculateColumnsAmount,
-	} = require( './utils/functions.js' ),
-	fs = require( 'fs' );
+	} = require('./utils/functions.js'),
+	fs = require('fs');
 
-const maxDatesPerMonth = [ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
+const maxDatesPerMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const changables = {
 	class: 'class',
 	notificationTime: 'notificationTime',
@@ -55,274 +59,273 @@ const changables = {
 	daysForNotification: 'daysForNotification',
 };
 
-const isAdmin = async ( ctx ) => {
-	if ( ctx?.session?.role !== undefined ) {
+const isAdmin = async (ctx) => {
+	if (ctx?.session?.role !== undefined) {
 		return ctx?.session.role === Roles.admin;
 	} else {
-		let role = await DataBase.getRole( ctx.message.user_id );
+		let role = await DataBase.getRole(ctx.message.user_id);
 		ctx.session.role = role;
 
 		return role === Roles.admin;
 	}
 };
-const isContributor = async ( ctx ) => {
-	if ( ctx?.session?.role !== undefined ) {
-		return [ Roles.admin, Roles.contributor ].includes( ctx.session.role );
+const isContributor = async (ctx) => {
+	if (ctx?.session?.role !== undefined) {
+		return [Roles.admin, Roles.contributor].includes(ctx.session.role);
 	} else {
-		let role = await DataBase.getRole( ctx.message.user_id );
+		let role = await DataBase.getRole(ctx.message.user_id);
 		ctx.session.role = role;
 
-		return [ Roles.admin, Roles.contributor ].includes( role );
+		return [Roles.admin, Roles.contributor].includes(role);
 	}
 };
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 const timeRegExp = /[0-9]+:[0-9]+/;
 
-module.exports.errorScene = new Scene( 'error', async ( ctx ) => {
+module.exports.errorScene = new Scene('error', async (ctx) => {
 	ctx.reply(
 		'Простите произошла ошибка',
 		null,
-		await createDefaultKeyboard( ctx.session.role, ctx ),
+		await createDefaultKeyboard(ctx.session.role, ctx),
 	);
-} );
+});
 
-module.exports.startScene = new Scene( 'start', async ( ctx ) => {
+module.exports.startScene = new Scene('start', async (ctx) => {
 	ctx.reply(
 		`Привет ${ctx.session.firstName} ${ctx.session.secondName}`,
 		null,
-		await createDefaultKeyboard( ctx.session.role, ctx ),
+		await createDefaultKeyboard(ctx.session.role, ctx),
 	);
-	ctx.scene.enter( 'default' );
-} );
+	ctx.scene.enter('default');
+});
 
 module.exports.registerScene = new Scene(
 	'register',
-	async ( ctx ) => {
+	async (ctx) => {
 		const {
 			scene: { next, leave },
 		} = ctx;
 		const { userId } = ctx.session;
 
-		let Student = await DataBase.getStudentByVkId( userId );
+		let Student = await DataBase.getStudentByVkId(userId);
 
-		if ( !Student ) {
-			Student = await DataBase.createStudent( userId );
+		if (!Student) {
+			Student = await DataBase.createStudent(userId);
 		}
 
-		if ( Student.registered ) {
+		if (Student.registered) {
 			leave();
-			ctx.reply( 'Вы уже зарегестрированны' );
+			ctx.reply('Вы уже зарегестрированны');
 		} else {
 			next();
-			ctx.reply( 'Введите имя класса в котором вы учитесь' );
+			ctx.reply('Введите имя класса в котором вы учитесь');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		const {
 			message: { body },
 			scene: { leave, enter },
 		} = ctx;
 		const { userId } = ctx.session;
 
-		const spacelessClassName = body.replace( /\s*/g, '' );
-		if ( /\d+([a-z]|[а-я])/i.test( spacelessClassName ) ) {
-			const Class = await DataBase.getClassByName( spacelessClassName );
-			const Student = await DataBase.getStudentByVkId( userId );
+		const spacelessClassName = body.replace(/\s*/g, '');
+		if (/\d+([a-z]|[а-я])/i.test(spacelessClassName)) {
+			const Class = await DataBase.getClassByName(spacelessClassName);
+			const Student = await DataBase.getStudentByVkId(userId);
 
-			await Student.updateOne( { registered: true } );
+			await Student.updateOne({ registered: true });
 			await Student.save();
 
-			if ( Class ) {
-				await DataBase.addStudentToClass( userId, spacelessClassName );
+			if (Class) {
+				await DataBase.addStudentToClass(userId, spacelessClassName);
 				leave();
 				ctx.reply(
 					'Вы успешно зарегестрированны',
 					null,
-					await createDefaultKeyboard( ctx.session.role, ctx ),
+					await createDefaultKeyboard(ctx.session.role, ctx),
 				);
 			} else {
-				const Class = await DataBase.createClass( spacelessClassName );
-				if ( Class ) {
-					await DataBase.addStudentToClass( userId, spacelessClassName );
+				const Class = await DataBase.createClass(spacelessClassName);
+				if (Class) {
+					await DataBase.addStudentToClass(userId, spacelessClassName);
 					leave();
 					ctx.reply(
 						'Вы успешно зарегестрированны',
 						null,
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
 				}
 			}
 		} else {
-			enter( 'register' );
-			ctx.reply( 'Неверное имя класса' );
+			enter('register');
+			ctx.reply('Неверное имя класса');
 		}
 	},
 );
 
 module.exports.defaultScene = new Scene(
 	'default',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			if ( !ctx.session.userId ) {
+			if (!ctx.session.userId) {
 				ctx.session.userId = ctx.message.user_id;
 			}
-
 			ctx.reply(
 				createDefaultMenu(),
 				null,
-				await createDefaultKeyboard( ctx.session.role, ctx ),
+				await createDefaultKeyboard(ctx.session.role, ctx),
 			);
 
 			ctx.scene.next();
-		} catch ( e ) {
-			ctx.scene.enter( 'error' );
-			console.error( e );
+		} catch (e) {
+			ctx.scene.enter('error');
+			console.error(e);
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			switch ( ctx.message.body ) {
+			switch (ctx.message.body) {
 				case botCommands.adminPanel: {
-					ctx.scene.enter( 'adminPanel' );
+					ctx.scene.enter('adminPanel');
 					break;
 				}
 				case botCommands.contributorPanel: {
-					ctx.scene.enter( 'contributorPanel' );
+					ctx.scene.enter('contributorPanel');
 					break;
 				}
 				case botCommands.checkHomework: {
-					ctx.scene.enter( 'checkHomework' );
+					ctx.scene.enter('checkHomework');
 					break;
 				}
 				case botCommands.checkAnnouncements: {
-					ctx.scene.enter( 'checkAnnouncements' );
+					ctx.scene.enter('checkAnnouncements');
 					break;
 				}
 				case botCommands.checkSchedule: {
-					ctx.scene.enter( 'checkSchedule' );
+					ctx.scene.enter('checkSchedule');
 					break;
 				}
 				case botCommands.settings: {
-					ctx.scene.enter( 'settings' );
+					ctx.scene.enter('settings');
 					break;
 				}
 				case botCommands.giveFeedback: {
-					ctx.scene.enter( 'giveFeedback' );
+					ctx.scene.enter('giveFeedback');
 					break;
 				}
 				case '1': {
-					ctx.scene.enter( 'checkHomework' );
+					ctx.scene.enter('checkHomework');
 					break;
 				}
 				case '2': {
-					ctx.scene.enter( 'checkAnnouncements' );
+					ctx.scene.enter('checkAnnouncements');
 					break;
 				}
 				case '3': {
-					ctx.scene.enter( 'checkSchedule' );
+					ctx.scene.enter('checkSchedule');
 					break;
 				}
 				case '4': {
-					ctx.scene.enter( 'settings' );
+					ctx.scene.enter('settings');
 					break;
 				}
 				case '5': {
-					ctx.scene.enter( 'giveFeedback' );
+					ctx.scene.enter('giveFeedback');
 				}
 				default: {
-					ctx.reply( botCommands.notUnderstood );
+					ctx.reply(botCommands.notUnderstood);
 				}
 			}
-		} catch ( e ) {
-			ctx.scene.enter( 'error' );
-			console.error( e );
+		} catch (e) {
+			ctx.scene.enter('error');
+			console.error(e);
 		}
 	},
 );
-module.exports.checkSchedule = new Scene( 'checkSchedule', async ( ctx ) => {
+module.exports.checkSchedule = new Scene('checkSchedule', async (ctx) => {
 	try {
-		const needToPickClass = await isAdmin( ctx );
+		const needToPickClass = await isAdmin(ctx);
 
-		if ( needToPickClass && !ctx.session.Class ) {
+		if (needToPickClass && !ctx.session.Class) {
 			ctx.session.nextScene = 'checkSchedule';
 			ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
-			ctx.scene.enter( 'pickClass' );
+			ctx.scene.enter('pickClass');
 		} else {
 			const Student = await DataBase.getStudentByVkId(
 				ctx.session.userId || ctx.message.user_id,
 			);
 
-			if ( Student ) {
-				if ( Student.registered ) {
+			if (Student) {
+				if (Student.registered) {
 					let { Class } = ctx.session;
-					if ( !Class ) {
-						Class = await DataBase.getClassBy_Id( Student.class );
+					if (!Class) {
+						Class = await DataBase.getClassBy_Id(Student.class);
 					}
 
-					const message = await getScheduleString( Class );
+					const message = await getScheduleString(Class);
 
-					if ( message.trim() === '' ) {
+					if (message.trim() === '') {
 						ctx.reply(
 							'Для данного класса пока что не существует расписания',
 							null,
-							await createDefaultKeyboard( ctx.session.role, ctx ),
+							await createDefaultKeyboard(ctx.session.role, ctx),
 						);
-						setTimeout( () => {
-							ctx.scene.enter( 'default' );
-						}, 50 );
+						setTimeout(() => {
+							ctx.scene.enter('default');
+						}, 50);
 					} else {
 						ctx.reply(
 							message,
 							null,
-							await createDefaultKeyboard( ctx.session.role, ctx ),
+							await createDefaultKeyboard(ctx.session.role, ctx),
 						);
-						setTimeout( () => {
-							ctx.scene.enter( 'default' );
-						}, 50 );
+						setTimeout(() => {
+							ctx.scene.enter('default');
+						}, 50);
 					}
 
-					cleanDataForSceneFromSession( ctx );
+					cleanDataForSceneFromSession(ctx);
 				} else {
-					ctx.scene.enter( 'register' );
+					ctx.scene.enter('register');
 					ctx.reply(
 						'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 					);
 				}
 			} else {
-				throw new Error( `User are not existing, ${ctx.session.userId}` );
+				throw new Error(`User are not existing, ${ctx.session.userId}`);
 			}
 		}
-	} catch ( e ) {
-		console.error( e );
-		ctx.scene.enter( 'error' );
+	} catch (e) {
+		console.error(e);
+		ctx.scene.enter('error');
 	}
-} );
+});
 module.exports.checkHomework = new Scene(
 	'checkHomework',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin( ctx );
-			if ( needToPickClass && !ctx.session.Class ) {
+			const needToPickClass = await isAdmin(ctx);
+			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'checkHomework';
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть дз \n';
-				ctx.scene.enter( 'pickClass' );
+				ctx.scene.enter('pickClass');
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
-				if ( Student ) {
-					if ( Student.registered ) {
-						if ( !ctx.session.Class )
-							ctx.session.Class = await DataBase.getClassBy_Id( Student.class );
+				if (Student) {
+					if (Student.registered) {
+						if (!ctx.session.Class)
+							ctx.session.Class = await DataBase.getClassBy_Id(Student.class);
 
 						ctx.scene.next();
 						ctx.reply(
 							'На какую дату вы хотите узнать задание? (в формате ДД.ММ .ГГГГ если не на этот год )',
 							null,
-							createBackKeyboard( [
-								[ Markup.button( botCommands.onTomorrow, 'positive' ) ],
+							createBackKeyboard([
+								[Markup.button(botCommands.onTomorrow, 'positive')],
 								[
 									Markup.button(
 										new Date().getDay() >= 5
@@ -331,40 +334,40 @@ module.exports.checkHomework = new Scene(
 										'primary',
 									),
 								],
-							] ),
+							]),
 						);
 					} else {
-						ctx.scene.enter( 'register' );
+						ctx.scene.enter('register');
 					}
 				} else {
-					throw new Error( 'Student is not exists' );
+					throw new Error('Student is not exists');
 				}
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
-				const isPickedClass = await isAdmin( ctx );
-				if ( isPickedClass ) {
+			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				const isPickedClass = await isAdmin(ctx);
+				if (isPickedClass) {
 					ctx.session.Class = undefined;
-					ctx.scene.enter( 'checkHomework' );
+					ctx.scene.enter('checkHomework');
 				} else {
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				}
 			} else if (
 				body.toLowerCase() === botCommands.thisWeek.toLowerCase() ||
 				body.toLowerCase() === botCommands.nextWeek.toLowerCase()
 			) {
-				if ( !ctx.session.role )
-					ctx.session.role = await DataBase.getRole( ctx.message.user_id );
+				if (!ctx.session.role)
+					ctx.session.role = await DataBase.getRole(ctx.message.user_id);
 
 				const messageDelay = 50;
 
@@ -373,358 +376,358 @@ module.exports.checkHomework = new Scene(
 				const daysOfHomework = getLengthOfHomeworkWeek();
 
 				let startDay = today.getDate();
-				if ( weekDay >= 5 ) {
-					startDay = new Date().getDate() + ( 7 - weekDay + 1 );
+				if (weekDay >= 5) {
+					startDay = new Date().getDate() + (7 - weekDay + 1);
 				}
 
 				let delayAmount = 0;
 
-				for ( let i = 0; i < daysOfHomework; i++ ) {
-					setTimeout( () => {
+				for (let i = 0; i < daysOfHomework; i++) {
+					setTimeout(() => {
 						const dayOfHomework = startDay + i;
 						const dateItMilliseconds = new Date(
 							today.getFullYear(),
 							today.getMonth(),
 							dayOfHomework,
 						);
-						const date = new Date( dateItMilliseconds );
+						const date = new Date(dateItMilliseconds);
 
-						const dateString = getDayMonthString( date );
+						const dateString = getDayMonthString(date);
 
-						const homework = filterContentByDate( ctx.session.Class.homework, date );
+						const homework = filterContentByDate(ctx.session.Class.homework, date);
 
-						if ( homework.length === 0 ) {
+						if (homework.length === 0) {
 							//? IIFE to make amountOfHomework local closure elsewhere it would be saved as valiable at moment when setTimeout callback will be executed
-							( ( delayAmount ) =>
-								setTimeout( () => {
-									ctx.reply( `На ${dateString} не заданно ни одного задания` );
-								}, messageDelay * delayAmount ) )( delayAmount );
+							((delayAmount) =>
+								setTimeout(() => {
+									ctx.reply(`На ${dateString} не заданно ни одного задания`);
+								}, messageDelay * delayAmount))(delayAmount);
 							delayAmount++;
 						} else {
-							const parsedHomework = mapHomeworkByLesson( homework );
+							const parsedHomework = mapHomeworkByLesson(homework);
 
 							let headerMessage = `Задание на ${dateString}\n`;
 
-							setTimeout( () => {
+							setTimeout(() => {
 								try {
-									ctx.reply( headerMessage );
-								} catch ( e ) {
-									console.error( e );
+									ctx.reply(headerMessage);
+								} catch (e) {
+									console.error(e);
 								}
-							}, delayAmount++ * messageDelay );
+							}, delayAmount++ * messageDelay);
 
 							let homeworkIndex = 0;
-							for ( const [ lesson, homework ] of parsedHomework ) {
+							for (const [lesson, homework] of parsedHomework) {
 								const { homeworkMessage, attachments } = getHomeworkPayload(
 									lesson,
 									homework,
 								);
 
-								setTimeout( () => {
+								setTimeout(() => {
 									try {
-										ctx.reply( homeworkMessage, attachments );
-									} catch ( e ) {
-										console.error( e );
+										ctx.reply(homeworkMessage, attachments);
+									} catch (e) {
+										console.error(e);
 									}
-								}, delayAmount * messageDelay + ( homeworkIndex * messageDelay ) / 10 );
+								}, delayAmount * messageDelay + (homeworkIndex * messageDelay) / 10);
 
 								homeworkIndex++;
 								delayAmount++;
 							}
 						}
-					}, i * messageDelay );
+					}, i * messageDelay);
 				}
 
-				setTimeout( () => {
-					setTimeout( () => {
-						ctx.scene.enter( 'default' );
+				setTimeout(() => {
+					setTimeout(() => {
+						ctx.scene.enter('default');
 						ctx.session.Class = undefined;
-					}, delayAmount * messageDelay * 2 );
-				}, daysOfHomework * messageDelay );
+					}, delayAmount * messageDelay * 2);
+				}, daysOfHomework * messageDelay);
 			} else {
 				let date = null;
 
-				if ( body === botCommands.onTomorrow ) {
+				if (body === botCommands.onTomorrow) {
 					date = getTomorrowDate();
-				} else if ( dateRegExp.test( body ) ) {
-					const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+				} else if (dateRegExp.test(body)) {
+					const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-					if ( validateDate( month, day, year ) ) {
-						date = new Date( year, month - 1, day );
+					if (validateDate(month, day, year)) {
+						date = new Date(year, month - 1, day);
 					} else {
-						ctx.reply( 'Проверьте правильность введенной даты' );
+						ctx.reply('Проверьте правильность введенной даты');
 						return;
 					}
 				} else {
-					ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
+					ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
 					return;
 				}
 
-				if ( date ) {
-					const homework = filterContentByDate( ctx.session.Class.homework, date );
-					if ( homework.length === 0 ) {
-						ctx.reply( 'На данный день не заданно ни одного задания' );
-						ctx.scene.enter( 'default' );
+				if (date) {
+					const homework = filterContentByDate(ctx.session.Class.homework, date);
+					if (homework.length === 0) {
+						ctx.reply('На данный день не заданно ни одного задания');
+						ctx.scene.enter('default');
 					} else {
-						const parsedHomework = mapHomeworkByLesson( homework );
+						const parsedHomework = mapHomeworkByLesson(homework);
 
-						let message = `Задание на ${date.getDate()} ${monthsRP[ date.getMonth() ]}\n`;
+						let message = `Задание на ${date.getDate()} ${monthsRP[date.getMonth()]}\n`;
 
 						ctx.reply(
 							message,
 							null,
-							await createDefaultKeyboard( ctx.session.role, ctx ),
+							await createDefaultKeyboard(ctx.session.role, ctx),
 						);
 
-						sendHomework( parsedHomework, ctx.bot, [ ctx.message.user_id ] );
+						sendHomework(parsedHomework, ctx.bot, [ctx.message.user_id]);
 
-						ctx.scene.enter( 'default' );
+						ctx.scene.enter('default');
 					}
 				} else {
-					throw new Error( "There's no date" );
+					throw new Error("There's no date");
 				}
 			}
 
-			cleanDataForSceneFromSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanDataForSceneFromSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 module.exports.checkAnnouncements = new Scene(
 	'checkAnnouncements',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin( ctx );
-			if ( needToPickClass && !ctx.session.Class ) {
+			const needToPickClass = await isAdmin(ctx);
+			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'checkAnnouncements';
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть обьявления \n';
-				ctx.scene.enter( 'pickClass' );
+				ctx.scene.enter('pickClass');
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
-				if ( Student ) {
-					if ( Student.registered ) {
-						if ( !ctx.session.Class )
-							ctx.session.Class = await DataBase.getClassBy_Id( Student.class );
+				if (Student) {
+					if (Student.registered) {
+						if (!ctx.session.Class)
+							ctx.session.Class = await DataBase.getClassBy_Id(Student.class);
 
 						ctx.scene.next();
 						ctx.reply(
-							'На какую дату вы хотите узнать изменения? (в формате ДД.ММ .ГГГГ если не на этот год)',
+							'На какую дату вы хотите узнать объявления? (в формате ДД.ММ .ГГГГ если не на этот год)',
 							null,
-							createBackKeyboard( [
+							createBackKeyboard([
 								[
-									Markup.button( botCommands.onToday, 'positive' ),
-									Markup.button( botCommands.onTomorrow, 'positive' ),
+									Markup.button(botCommands.onToday, 'positive'),
+									Markup.button(botCommands.onTomorrow, 'positive'),
 								],
-							] ),
+							]),
 						);
 					} else {
-						ctx.scene.enter( 'register' );
+						ctx.scene.enter('register');
 					}
 				} else {
-					throw new Error( 'Student is not exists' );
+					throw new Error('Student is not exists');
 				}
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.back ) {
-				const isPickedClass = await isAdmin( ctx );
-				if ( isPickedClass ) {
+			if (body === botCommands.back) {
+				const isPickedClass = await isAdmin(ctx);
+				if (isPickedClass) {
 					ctx.session.Class = undefined;
-					ctx.scene.enter( 'checkAnnouncements' );
+					ctx.scene.enter('checkAnnouncements');
 				} else {
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				}
 				return;
 			}
 
 			let date = null;
 
-			if ( body === botCommands.onToday ) {
+			if (body === botCommands.onToday) {
 				date = new Date();
-			} else if ( body === botCommands.onTomorrow ) {
+			} else if (body === botCommands.onTomorrow) {
 				date = getTomorrowDate();
-			} else if ( dateRegExp.test( body ) ) {
-				const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+			} else if (dateRegExp.test(body)) {
+				const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-				if ( validateDate( month, day, year ) ) {
-					date = new Date( year, month - 1, day );
+				if (validateDate(month, day, year)) {
+					date = new Date(year, month - 1, day);
 				} else {
-					ctx.reply( 'Проверьте правильность введенной даты' );
+					ctx.reply('Проверьте правильность введенной даты');
 					return;
 				}
 			} else {
-				ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
+				ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
 				return;
 			}
 
-			if ( date ) {
-				const announcements = filterContentByDate( ctx.session.Class.announcements, date );
-				if ( announcements.length === 0 ) {
-					ctx.reply( 'На данный день нет ни одного изменения' );
-					ctx.scene.enter( 'default' );
+			if (date) {
+				const announcements = filterContentByDate(ctx.session.Class.announcements, date);
+				if (announcements.length === 0) {
+					ctx.reply('На данный день нет ни одного объявления');
+					ctx.scene.enter('default');
 				} else {
-					let message = `Изменения на ${date.getDate()} ${monthsRP[ date.getMonth() ]}\n`;
+					let message = `Объявления на ${date.getDate()} ${monthsRP[date.getMonth()]}\n`;
 
 					let attachments = [];
-					for ( let i = 0; i < announcements.length; i++ ) {
-						const announcement = announcements[ i ];
+					for (let i = 0; i < announcements.length; i++) {
+						const announcement = announcements[i];
 						message += announcement.text ? `${i + 1}: ${announcement.text}\n` : '';
 						attachments = attachments.concat(
-							announcement.attachments?.map( ( { value } ) => value ),
+							announcement.attachments?.map(({ value }) => value),
 						);
 					}
 
-					ctx.reply( message, attachments );
+					ctx.reply(message, attachments);
 
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				}
 			} else {
-				throw new Error( "There's no date" );
+				throw new Error("There's no date");
 			}
 
-			cleanDataForSceneFromSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanDataForSceneFromSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 
 module.exports.settings = new Scene(
 	'settings',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			const Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+			const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 
-			if ( Student ) {
+			if (Student) {
 				ctx.session.Student = Student;
 				ctx.scene.next();
-				await sendStudentInfo( ctx );
+				await sendStudentInfo(ctx);
 			} else {
-				ctx.scene.enter( 'start' );
+				ctx.scene.enter('start');
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	( ctx ) => {
+	(ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.changeSettings || /изменить/i.test( body ) ) {
+			if (body === botCommands.changeSettings || /изменить/i.test(body)) {
 				ctx.scene.next();
 				ctx.reply(
 					'Что вы хотите изменить?',
 					null,
-					createBackKeyboard( [
+					createBackKeyboard([
 						ctx.session.Student.settings.notificationsEnabled
 							? [
-								Markup.button( botCommands.disableNotifications, 'primary' ),
-								Markup.button( botCommands.changeNotificationTime, 'primary' ),
-							]
-							: [ Markup.button( botCommands.enbleNotifications, 'primary' ) ],
+									Markup.button(botCommands.disableNotifications, 'primary'),
+									Markup.button(botCommands.changeNotificationTime, 'primary'),
+							  ]
+							: [Markup.button(botCommands.enbleNotifications, 'primary')],
 						[
-							Markup.button( botCommands.changeClass, 'primary' ),
-							Markup.button( botCommands.changeDaysForNotification, 'primary' ),
+							Markup.button(botCommands.changeClass, 'primary'),
+							Markup.button(botCommands.changeDaysForNotification, 'primary'),
 						],
-					] ),
+					]),
 				);
-			} else if ( body === botCommands.back ) {
-				ctx.scene.enter( 'default' );
+			} else if (body === botCommands.back) {
+				ctx.scene.enter('default');
 			} else {
-				ctx.reply( botCommands.notUnderstood );
+				ctx.reply(botCommands.notUnderstood);
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.disableNotifications ) {
-				await disableNotificationsAction( ctx );
-			} else if ( body === botCommands.enbleNotifications ) {
-				await enableNotificationsAction( ctx );
-			} else if ( body === botCommands.changeNotificationTime ) {
-				changeNotificationTimeAction( ctx );
-			} else if ( body === botCommands.changeClass ) {
-				changeClassAction( ctx );
-			} else if ( body === botCommands.changeDaysForNotification ) {
-				enterDayIndexesAction( ctx );
-			} else if ( body === botCommands.back ) {
-				ctx.scene.selectStep( 1 );
-				await sendStudentInfo( ctx );
+			if (body === botCommands.disableNotifications) {
+				await disableNotificationsAction(ctx);
+			} else if (body === botCommands.enbleNotifications) {
+				await enableNotificationsAction(ctx);
+			} else if (body === botCommands.changeNotificationTime) {
+				changeNotificationTimeAction(ctx);
+			} else if (body === botCommands.changeClass) {
+				changeClassAction(ctx);
+			} else if (body === botCommands.changeDaysForNotification) {
+				enterDayIndexesAction(ctx);
+			} else if (body === botCommands.back) {
+				ctx.scene.selectStep(1);
+				await sendStudentInfo(ctx);
 			} else {
-				ctx.reply( botCommands.notUnderstood );
+				ctx.reply(botCommands.notUnderstood);
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			let {
 				message: { body },
 			} = ctx;
 
-			body = body.replace( /\./g, ':' );
+			body = body.replace(/\./g, ':');
 
-			if ( body === botCommands.back ) {
-				ctx.scene.selectStep( 2 );
+			if (body === botCommands.back) {
+				ctx.scene.selectStep(2);
 				ctx.reply(
 					'Что вы хотите изменить?',
 					null,
-					createBackKeyboard( [
+					createBackKeyboard([
 						[
-							Markup.button( botCommands.disableNotifications ),
-							Markup.button( botCommands.changeNotificationTime ),
+							Markup.button(botCommands.disableNotifications),
+							Markup.button(botCommands.changeNotificationTime),
 						],
-					] ),
+					]),
 				);
-			} else if ( ctx.session.changed === changables.notificationTime ) {
-				body = body.replace( /\./g, ':' );
-				if ( timeRegExp.test( body ) ) {
-					const [ hrs, mins ] = parseTime( body );
+			} else if (ctx.session.changed === changables.notificationTime) {
+				body = body.replace(/\./g, ':');
+				if (timeRegExp.test(body)) {
+					const [hrs, mins] = parseTime(body);
 
-					if ( hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60 ) {
-						const res = await DataBase.changeSettings( ctx.session.user_id, {
+					if (hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60) {
+						const res = await DataBase.changeSettings(ctx.session.user_id, {
 							notificationTime: body,
-						} );
+						});
 
-						if ( res ) {
-							ctx.scene.enter( 'default' );
+						if (res) {
+							ctx.scene.enter('default');
 							ctx.reply(
 								'Время получения уведомлений успешно изменено на ' + body,
 								null,
-								await createDefaultKeyboard( ctx.session.role, ctx ),
+								await createDefaultKeyboard(ctx.session.role, ctx),
 							);
 						} else {
-							ctx.scene.enter( 'default' );
+							ctx.scene.enter('default');
 							ctx.reply(
 								'Простите не удалось изменить настройки, попробуйте позже',
 								null,
-								await createDefaultKeyboard( ctx.session.role, ctx ),
+								await createDefaultKeyboard(ctx.session.role, ctx),
 							);
 						}
 					} else {
@@ -737,258 +740,258 @@ module.exports.settings = new Scene(
 						'Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ',
 					);
 				}
-			} else if ( ctx.session.changed === changables.class ) {
-				if ( ctx.session.Class ) {
+			} else if (ctx.session.changed === changables.class) {
+				if (ctx.session.Class) {
 					const res = await DataBase.changeClass(
 						ctx.message.user_id,
 						ctx.session.Class.name,
 					);
 
-					if ( res ) {
+					if (res) {
 						ctx.reply(
 							`Класс успешно изменен на ${ctx.session.Class.name}`,
 							null,
-							await createDefaultKeyboard( ctx.session.role, ctx ),
+							await createDefaultKeyboard(ctx.session.role, ctx),
 						);
-						ctx.scene.enter( 'default' );
+						ctx.scene.enter('default');
 					} else {
 						ctx.reply(
 							`К сожалению не удалось сменить класс на ${ctx.session.Class.name}`,
 							null,
-							await createDefaultKeyboard( ctx.session.role, ctx ),
+							await createDefaultKeyboard(ctx.session.role, ctx),
 						);
 
-						changeClassAction( ctx );
+						changeClassAction(ctx);
 					}
 				} else {
 					ctx.reply(
 						`Не удалось сменить класс на ${ctx.session.Class.name}`,
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
 
-					changeClassAction( ctx );
+					changeClassAction(ctx);
 				}
-			} else if ( ctx.session.changed === changables.daysForNotification ) {
+			} else if (ctx.session.changed === changables.daysForNotification) {
 				const { enteredDayIndexes } = ctx.session;
 
-				const res = await DataBase.changeSettings( ctx.message.user_id, {
+				const res = await DataBase.changeSettings(ctx.message.user_id, {
 					daysForNotification: enteredDayIndexes,
-				} );
+				});
 
-				if ( res ) {
+				if (res) {
 					ctx.reply(
-						`Дни оповещений успешно изменены на ${enteredDayIndexes.join( ', ' )}`,
+						`Дни оповещений успешно изменены на ${enteredDayIndexes.join(', ')}`,
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				} else {
 					ctx.reply(
 						`К сожалению не удалось сменить дни оповещений, попробуйте позже`,
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				}
 			}
 
-			cleanDataForSceneFromSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanDataForSceneFromSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 
 module.exports.giveFeedback = new Scene(
 	'giveFeedback',
-	( ctx ) => {
+	(ctx) => {
 		ctx.scene.next();
 
 		ctx.reply(
 			'Что вы хотите сказать о нашем боте?',
 			null,
-			createBackKeyboard( [ [ Markup.button( 'Мне все нравится, спасибо 😊', 'positive' ) ] ] ),
+			createBackKeyboard([[Markup.button('Мне все нравится, спасибо 😊', 'positive')]]),
 		);
 	},
-	( ctx ) => {
+	(ctx) => {
 		const {
 			message: { body, user_id },
 		} = ctx;
 
-		fs.readFile( path.join( __dirname, 'Feedback' ), { encoding: 'utf8' }, ( err, text ) => {
-			if ( err ) {
+		fs.readFile(path.join(__dirname, 'Feedback'), { encoding: 'utf8' }, (err, text) => {
+			if (err) {
 				throw err;
 			}
 
 			const newText = text + `${body} (${user_id}) \n`;
 
 			fs.writeFile(
-				path.join( __dirname, 'Feedback' ),
+				path.join(__dirname, 'Feedback'),
 				newText,
 				{ encoding: 'utf8' },
-				async ( err ) => {
-					if ( err ) {
+				async (err) => {
+					if (err) {
 						throw err;
 					}
 
 					const adminsIds = await DataBase.getAllStudents()
-						.then( ( students ) => students.filter( ( { role } ) => role === Roles.admin ) )
-						.then( ( admins ) => admins.map( ( { vkId } ) => vkId ) );
+						.then((students) => students.filter(({ role }) => role === Roles.admin))
+						.then((admins) => admins.map(({ vkId }) => vkId));
 
-					if ( !adminsIds.some( ( id ) => id === ctx.message.user_id ) ) {
+					if (!adminsIds.some((id) => id === ctx.message.user_id)) {
 						const notificationMessage = `Новый отзыв: \n` + `${body} (${user_id}) \n`;
 
-						ctx.bot.sendMessage( adminsIds, notificationMessage );
+						ctx.bot.sendMessage(adminsIds, notificationMessage);
 					}
 
 					ctx.reply(
 						'Спасибо за отзыв',
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				},
 			);
-		} );
+		});
 	},
 );
 
 module.exports.adminPanel = new Scene(
 	'adminPanel',
-	async ( ctx ) => {
-		if ( await isAdmin( ctx ) ) {
+	async (ctx) => {
+		if (await isAdmin(ctx)) {
 			ctx.scene.next();
-			ctx.reply( renderAdminMenu(), null, renderAdminMenuKeyboard() );
+			ctx.reply(renderAdminMenu(), null, renderAdminMenuKeyboard());
 		} else {
 			ctx.scene.leave();
-			ctx.reply( 'Ты не админ чтоб такое делать' );
+			ctx.reply('Ты не админ чтоб такое делать');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			if ( [ '0', botCommands.back ].includes( ctx.message.body.trim() ) ) {
-				ctx.scene.enter( 'default' );
+			if (['0', botCommands.back].includes(ctx.message.body.trim())) {
+				ctx.scene.enter('default');
 				return;
 			}
 
-			switch ( ctx.message.body.trim() ) {
+			switch (ctx.message.body.trim()) {
 				case '1': {
-					ctx.scene.enter( 'addRedactor' );
+					ctx.scene.enter('addRedactor');
 					break;
 				}
 				case '2': {
-					ctx.scene.enter( 'removeRedactor' );
+					ctx.scene.enter('removeRedactor');
 					break;
 				}
 				case '3': {
 					const Contributors = await DataBase.getAllContributors();
 
-					if ( Contributors.length > 0 ) {
-						const classesStr = mapListToMessage( mapStudentToPreview( Contributors ) );
+					if (Contributors.length > 0) {
+						const classesStr = mapListToMessage(mapStudentToPreview(Contributors));
 
 						const message = 'Список всех редакторов\n\t' + classesStr;
 
-						ctx.reply( message, null, await createDefaultKeyboard( true ) );
+						ctx.reply(message, null, await createDefaultKeyboard(true));
 					} else {
 						ctx.reply(
 							'Не существует ни одного редактора',
 							null,
-							await createDefaultKeyboard( true ),
+							await createDefaultKeyboard(true),
 						);
 					}
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					break;
 				}
 				case '4': {
-					ctx.scene.enter( 'createClass' );
+					ctx.scene.enter('createClass');
 					break;
 				}
 				case '5': {
 					const Classes = await DataBase.getAllClasses();
 
-					if ( Classes.length > 0 ) {
-						const classesStr = mapListToMessage( Classes.map( ( { name } ) => name ) );
+					if (Classes.length > 0) {
+						const classesStr = mapListToMessage(Classes.map(({ name }) => name));
 
 						const message = 'Список всех классов\n\t' + classesStr;
 
-						ctx.reply( message, null, await createDefaultKeyboard( true, false ) );
+						ctx.reply(message, null, await createDefaultKeyboard(true, false));
 					} else {
 						ctx.reply(
 							'Не существует ни одного класса',
 							null,
-							await createDefaultKeyboard( true, false ),
+							await createDefaultKeyboard(true, false),
 						);
 					}
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					break;
 				}
 				case botCommands.addRedactor: {
-					ctx.scene.enter( 'addRedactor' );
+					ctx.scene.enter('addRedactor');
 					break;
 				}
 				case botCommands.removeRedactor: {
-					ctx.scene.enter( 'removeRedactor' );
+					ctx.scene.enter('removeRedactor');
 					break;
 				}
 				case botCommands.redactorsList: {
 					const Contributors = await DataBase.getAllContributors();
 
-					if ( Contributors.length > 0 ) {
-						const classesStr = mapListToMessage( mapStudentToPreview( Contributors ) );
+					if (Contributors.length > 0) {
+						const classesStr = mapListToMessage(mapStudentToPreview(Contributors));
 
 						const message = 'Список всех редакторов\n\t' + classesStr;
 
-						ctx.reply( message, null, await createDefaultKeyboard( true ) );
+						ctx.reply(message, null, await createDefaultKeyboard(true));
 					} else {
 						ctx.reply(
 							'Не существует ни одного редактора',
 							null,
-							await createDefaultKeyboard( true ),
+							await createDefaultKeyboard(true),
 						);
 					}
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					break;
 				}
 				case botCommands.addClass: {
-					ctx.scene.enter( 'createClass' );
+					ctx.scene.enter('createClass');
 					break;
 				}
 				case botCommands.classList: {
 					const Classes = await DataBase.getAllClasses();
 
-					if ( Classes.length > 0 ) {
-						const classesStr = mapListToMessage( Classes.map( ( { name } ) => name ) );
+					if (Classes.length > 0) {
+						const classesStr = mapListToMessage(Classes.map(({ name }) => name));
 
 						const message = 'Список всех классов\n\t' + classesStr;
 
-						ctx.reply( message, null, await createDefaultKeyboard( true, false ) );
+						ctx.reply(message, null, await createDefaultKeyboard(true, false));
 					} else {
 						ctx.reply(
 							'Не существует ни одного класса',
 							null,
-							await createDefaultKeyboard( true, false ),
+							await createDefaultKeyboard(true, false),
 						);
 					}
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					break;
 				}
 				default: {
-					ctx.reply( botCommands.notUnderstood );
+					ctx.reply(botCommands.notUnderstood);
 					break;
 				}
 			}
-		} catch ( e ) {
+		} catch (e) {
 			ctx.scene.leave();
-			ctx.reply( 'Простите произошла ошибка', null, await createDefaultKeyboard( true, false ) );
-			console.error( e );
+			ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(true, false));
+			console.error(e);
 		}
 	},
 );
 module.exports.addRedactor = new Scene(
 	'addRedactor',
-	( ctx ) => {
+	(ctx) => {
 		ctx.reply(
 			'Введите id пользователя, которого хотите сделать редактором',
 			null,
@@ -996,49 +999,49 @@ module.exports.addRedactor = new Scene(
 		);
 		ctx.scene.next();
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			if ( ctx.message.body.trim() === botCommands.back ) {
-				ctx.scene.enter( 'default' );
+			if (ctx.message.body.trim() === botCommands.back) {
+				ctx.scene.enter('default');
 			}
 			const {
 				message: { body },
 				scene: { leave, enter },
 			} = ctx;
-			const id = Number( body.trim() );
+			const id = Number(body.trim());
 
-			if ( !isNaN( id ) ) {
-				let Student = await DataBase.getStudentByVkId( id );
+			if (!isNaN(id)) {
+				let Student = await DataBase.getStudentByVkId(id);
 
-				if ( Student && Student.role === Roles.admin ) {
+				if (Student && Student.role === Roles.admin) {
 					ctx.reply(
 						'Пользователь уже является администратором',
 						null,
-						await createDefaultKeyboard( true, false ),
+						await createDefaultKeyboard(true, false),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					return;
-				} else if ( Student && Student.role === Roles.contributor ) {
+				} else if (Student && Student.role === Roles.contributor) {
 					ctx.reply(
 						'Пользователь уже является редактором',
 						null,
-						await createDefaultKeyboard( true, false ),
+						await createDefaultKeyboard(true, false),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					return;
 				}
 
-				if ( !Student ) {
-					const response = await vk.api( 'users.get', { user_ids: id } );
+				if (!Student) {
+					const response = await vk.api('users.get', { user_ids: id });
 
-					if ( !response.error_code && response ) {
-						const { first_name, last_name } = response[ 0 ];
-						Student = await DataBase.createStudent( id, {
+					if (!response.error_code && response) {
+						const { first_name, last_name } = response[0];
+						Student = await DataBase.createStudent(id, {
 							firstName: first_name,
 							lastName: last_name,
-						} );
+						});
 					} else {
-						throw new Error( JSON.stringify( response ) );
+						throw new Error(JSON.stringify(response));
 					}
 				}
 
@@ -1048,23 +1051,23 @@ module.exports.addRedactor = new Scene(
 				ctx.reply(
 					'Пользователь стал редактором',
 					null,
-					await createDefaultKeyboard( true, false ),
+					await createDefaultKeyboard(true, false),
 				);
-				ctx.scene.enter( 'default' );
+				ctx.scene.enter('default');
 			} else {
-				ctx.reply( 'Неверный id' );
-				ctx.scene.enter( 'addRedactor' );
+				ctx.reply('Неверный id');
+				ctx.scene.enter('addRedactor');
 			}
-		} catch ( e ) {
+		} catch (e) {
 			ctx.scene.leave();
-			ctx.reply( 'Простите произошла ошибка', null, await createDefaultKeyboard( true, false ) );
-			console.error( e );
+			ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(true, false));
+			console.error(e);
 		}
 	},
 );
 module.exports.removeRedactor = new Scene(
 	'removeRedactor',
-	( ctx ) => {
+	(ctx) => {
 		ctx.reply(
 			'Введите id пользователя, которого хотите сделать редактором',
 			null,
@@ -1072,35 +1075,35 @@ module.exports.removeRedactor = new Scene(
 		);
 		ctx.scene.next();
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			if ( ctx.message.body.trim() === botCommands.back ) {
-				ctx.scene.enter( 'default' );
+			if (ctx.message.body.trim() === botCommands.back) {
+				ctx.scene.enter('default');
 			}
 			const {
 				message: { body },
 				scene: { leave, enter },
 			} = ctx;
-			const id = Number( body.trim() );
+			const id = Number(body.trim());
 
-			if ( !isNaN( id ) ) {
-				let Student = await DataBase.getStudentByVkId( id );
+			if (!isNaN(id)) {
+				let Student = await DataBase.getStudentByVkId(id);
 
-				if ( Student && Student.role === Roles.admin ) {
+				if (Student && Student.role === Roles.admin) {
 					ctx.reply(
 						'Пользователя нельзя понизить в роли, так как он является администратором',
 						null,
-						await createDefaultKeyboard( true, false ),
+						await createDefaultKeyboard(true, false),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					return;
-				} else if ( !Student || Student.role === Roles.student ) {
+				} else if (!Student || Student.role === Roles.student) {
 					ctx.reply(
 						'Пользователь уже не является редактором',
 						null,
-						await createDefaultKeyboard( true, false ),
+						await createDefaultKeyboard(true, false),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					return;
 				}
 
@@ -1110,131 +1113,131 @@ module.exports.removeRedactor = new Scene(
 				ctx.reply(
 					'Пользователь перестал быть редактором',
 					null,
-					await createDefaultKeyboard( true, false ),
+					await createDefaultKeyboard(true, false),
 				);
-				ctx.scene.enter( 'default' );
+				ctx.scene.enter('default');
 			} else {
-				ctx.reply( 'Неверный id' );
-				ctx.scene.enter( 'removeRedactor' );
+				ctx.reply('Неверный id');
+				ctx.scene.enter('removeRedactor');
 			}
-		} catch ( e ) {
+		} catch (e) {
 			ctx.scene.leave();
-			ctx.reply( 'Простите произошла ошибка', null, await createDefaultKeyboard( true, false ) );
-			console.error( e );
+			ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(true, false));
+			console.error(e);
 		}
 	},
 );
 module.exports.createClass = new Scene(
 	'createClass',
-	( ctx ) => {
-		ctx.reply( 'Введите имя класса (цифра буква)', null, createBackKeyboard() );
+	(ctx) => {
+		ctx.reply('Введите имя класса (цифра буква)', null, createBackKeyboard());
 		ctx.scene.next();
 	},
-	( ctx ) => {
-		if ( ctx.message.body.trim() === botCommands.back ) {
-			ctx.scene.enter( 'default' );
+	(ctx) => {
+		if (ctx.message.body.trim() === botCommands.back) {
+			ctx.scene.enter('default');
 		}
 		const {
 			message: { body },
 			scene: { leave, enter },
 		} = ctx;
-		const spacelessClassName = body.replace( /\s*/g, '' );
-		if ( /\d+([a-z]|[а-я])/i.test( spacelessClassName ) ) {
-			DataBase.createClass( spacelessClassName )
-				.then( ( result ) => {
-					if ( result ) {
-						ctx.reply( 'Класс успешно создан' );
-						ctx.scene.enter( 'default' );
+		const spacelessClassName = body.replace(/\s*/g, '');
+		if (/\d+([a-z]|[а-я])/i.test(spacelessClassName)) {
+			DataBase.createClass(spacelessClassName)
+				.then((result) => {
+					if (result) {
+						ctx.reply('Класс успешно создан');
+						ctx.scene.enter('default');
 					} else {
-						ctx.reply( 'Создание класса не удалось' );
+						ctx.reply('Создание класса не удалось');
 					} //исправить (вынести в функцию\превратить старт в сцену\еще что то)
-				} )
-				.catch( ( err ) => {
-					console.error( err );
-					ctx.reply( 'Что то пошло не так попробуйте позже' );
-				} );
+				})
+				.catch((err) => {
+					console.error(err);
+					ctx.reply('Что то пошло не так попробуйте позже');
+				});
 		} else {
-			enter( 'createClass' );
-			ctx.reply( 'Неправильный формат ввода (должна быть цифра и потом буква)' );
+			enter('createClass');
+			ctx.reply('Неправильный формат ввода (должна быть цифра и потом буква)');
 		}
 	},
 );
 
 module.exports.contributorPanel = new Scene(
 	'contributorPanel',
-	async ( ctx ) => {
-		if ( await isContributor( ctx ) ) {
-			ctx.reply( renderContributorMenu(), null, renderContributorMenuKeyboard() );
+	async (ctx) => {
+		if (await isContributor(ctx)) {
+			ctx.reply(renderContributorMenu(), null, renderContributorMenuKeyboard());
 			ctx.scene.next();
 		} else {
 			ctx.scene.leave();
-			ctx.reply( 'Ты не редактор чтоб такое делать' );
+			ctx.reply('Ты не редактор чтоб такое делать');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			if ( [ '0', botCommands.back ].includes( ctx.message.body.trim() ) ) {
-				ctx.scene.enter( 'default' );
+			if (['0', botCommands.back].includes(ctx.message.body.trim())) {
+				ctx.scene.enter('default');
 				return;
 			}
 
-			switch ( ctx.message.body.trim().toLowerCase() ) {
+			switch (ctx.message.body.trim().toLowerCase()) {
 				case '1': {
-					ctx.scene.enter( 'addHomework' );
+					ctx.scene.enter('addHomework');
 					break;
 				}
 				case '2': {
-					ctx.scene.enter( 'addAnnouncement' );
+					ctx.scene.enter('addAnnouncement');
 					break;
 				}
 				case '3': {
-					ctx.scene.enter( 'changeSchedule' );
+					ctx.scene.enter('changeSchedule');
 					break;
 				}
 				case botCommands.addHomework.toLowerCase(): {
-					ctx.scene.enter( 'addHomework' );
+					ctx.scene.enter('addHomework');
 					break;
 				}
 				case botCommands.addAnnouncement.toLowerCase(): {
-					ctx.scene.enter( 'addAnnouncement' );
+					ctx.scene.enter('addAnnouncement');
 					break;
 				}
 				case botCommands.changeSchedule.toLowerCase(): {
-					ctx.scene.enter( 'changeSchedule' );
+					ctx.scene.enter('changeSchedule');
 					break;
 				}
 				default: {
-					ctx.reply( botCommands.notUnderstood );
+					ctx.reply(botCommands.notUnderstood);
 					break;
 				}
 			}
-		} catch ( e ) {
+		} catch (e) {
 			ctx.scene.leave();
-			ctx.reply( 'Простите произошла ошибка', null, await createDefaultKeyboard( true, false ) );
-			console.error( e );
+			ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(true, false));
+			console.error(e);
 		}
 	},
 );
 
 module.exports.addHomework = new Scene(
 	'addHomework',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin( ctx );
-			if ( needToPickClass && !ctx.session.Class ) {
+			const needToPickClass = await isAdmin(ctx);
+			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'addHomework';
 				ctx.session.pickFor = 'Выберите класс которому хотите добавить дз \n';
 				ctx.session.backScene = 'contributorPanel';
-				ctx.scene.enter( 'pickClass' );
+				ctx.scene.enter('pickClass');
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
 
-				if ( Student ) {
-					if ( Student.registered ) {
-						if ( !ctx.session.Class )
-							ctx.session.Class = await DataBase.getClassBy_Id( Student.class );
+				if (Student) {
+					if (Student.registered) {
+						if (!ctx.session.Class)
+							ctx.session.Class = await DataBase.getClassBy_Id(Student.class);
 
 						ctx.scene.next();
 						ctx.reply(
@@ -1243,66 +1246,66 @@ module.exports.addHomework = new Scene(
 							createBackKeyboard(),
 						);
 					} else {
-						ctx.scene.enter( 'register' );
+						ctx.scene.enter('register');
 						ctx.reply(
 							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 						);
 					}
 				} else {
-					throw new Error( `User is not existing ${ctx.session.userId}` );
+					throw new Error(`User is not existing ${ctx.session.userId}`);
 				}
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const { message } = ctx;
 
-			if ( message.body === botCommands.back ) {
-				const peekedClass = await isContributor( ctx );
-				if ( peekedClass ) {
-					ctx.scene.enter( 'contributorPanel' );
+			if (message.body === botCommands.back) {
+				const peekedClass = await isContributor(ctx);
+				if (peekedClass) {
+					ctx.scene.enter('contributorPanel');
 				} else {
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				}
 				return;
 			}
 
-			const { body, attachments } = getTextsAndAttachmentsFromForwarded( message );
+			const { body, attachments } = getTextsAndAttachmentsFromForwarded(message);
 
-			if ( attachments.every( ( att ) => att.type === 'photo' ) ) {
-				const parsedAttachments = mapAttachmentsToObject( attachments );
+			if (attachments.every((att) => att.type === 'photo')) {
+				const parsedAttachments = mapAttachmentsToObject(attachments);
 
 				ctx.session.newHomework = {
 					text: body,
 					attachments: parsedAttachments,
 				};
 
-				const possibleLessons = await getPossibleLessonsAndSetInSession( ctx );
+				const possibleLessons = await getPossibleLessonsAndSetInSession(ctx);
 
 				ctx.scene.next();
-				ctx.reply( 'Выбирите урок:\n' + mapListToMessage( possibleLessons ) );
+				ctx.reply('Выбирите урок:\n' + mapListToMessage(possibleLessons));
 			} else {
-				ctx.reply( 'Отправлять можно только фото' );
+				ctx.reply('Отправлять можно только фото');
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	( ctx ) => {
+	(ctx) => {
 		try {
 			let {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.back ) {
+			if (body === botCommands.back) {
 				ctx.session.newHomework.attachment = undefined;
 				ctx.session.newHomework.text = undefined;
-				ctx.scene.selectStep( 1 );
+				ctx.scene.selectStep(1);
 				ctx.reply(
 					'Введите содержимое дз (можно прикрепить фото)',
 					null,
@@ -1310,8 +1313,8 @@ module.exports.addHomework = new Scene(
 				);
 			}
 
-			if ( !isNaN( +body ) || ctx.session.possibleLessons.includes( body ) ) {
-				const lesson = ctx.session.possibleLessons[ +body - 1 ] || body;
+			if (!isNaN(+body) || ctx.session.possibleLessons.includes(body)) {
+				const lesson = ctx.session.possibleLessons[+body - 1] || body;
 
 				ctx.session.newHomework.lesson = lesson;
 
@@ -1319,37 +1322,37 @@ module.exports.addHomework = new Scene(
 				ctx.reply(
 					'Введите дату на которую задано задание (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
-					createBackKeyboard( [ Markup.button( botCommands.onNextLesson, 'positive' ) ], 1 ),
+					createBackKeyboard([Markup.button(botCommands.onNextLesson, 'positive')], 1),
 				);
 			} else {
-				if ( Lessons.includes( body ) ) {
-					ctx.reply( 'Вы можете вводить только доступные уроки' );
+				if (Lessons.includes(body)) {
+					ctx.reply('Вы можете вводить только доступные уроки');
 				} else {
-					ctx.reply( 'Вы должны ввести цифру или название урока' );
+					ctx.reply('Вы должны ввести цифру или название урока');
 				}
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.back ) {
+			if (body === botCommands.back) {
 				ctx.session.newHomework.lesson = undefined;
-				ctx.scene.selectStep( 2 );
+				ctx.scene.selectStep(2);
 				ctx.reply(
-					'Выбирите урок:\n' + mapListToMessage( ctx.session.possibleLessons, 1 ),
+					'Выбирите урок:\n' + mapListToMessage(ctx.session.possibleLessons, 1),
 					null,
 					createBackKeyboard(),
 				);
 			}
 
-			if ( body === botCommands.onNextLesson ) {
+			if (body === botCommands.onNextLesson) {
 				const datePrediction = findNextLessonDate(
 					findNextDayWithLesson(
 						ctx.session.Class.schedule,
@@ -1359,50 +1362,50 @@ module.exports.addHomework = new Scene(
 				);
 
 				ctx.session.newHomework.to = datePrediction;
-			} else if ( dateRegExp.test( body ) ) {
-				const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+			} else if (dateRegExp.test(body)) {
+				const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-				if ( validateDate( month, day, year ) ) {
-					const date = new Date( year, month - 1, day );
+				if (validateDate(month, day, year)) {
+					const date = new Date(year, month - 1, day);
 
-					if ( date.getTime() >= Date.now() ) {
+					if (date.getTime() >= Date.now()) {
 						ctx.session.newHomework.to = date;
 					} else {
-						ctx.reply( 'Дата не может быть в прошлом' );
+						ctx.reply('Дата не может быть в прошлом');
 					}
 				} else {
-					ctx.reply( 'Проверьте правильность введенной даты' );
+					ctx.reply('Проверьте правильность введенной даты');
 				}
 			} else {
-				ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
+				ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
 				return;
 			}
 
-			if ( ctx.session.newHomework.to ) {
+			if (ctx.session.newHomework.to) {
 				ctx.scene.next();
 				ctx.reply(
 					`
                 Вы уверены что хотите создать такое задание?
-                ${createContentDiscription( ctx.session.newHomework )}
+                ${createContentDiscription(ctx.session.newHomework)}
                 `,
-					ctx.session.newHomework.attachments.map( ( { value } ) => value ),
+					ctx.session.newHomework.attachments.map(({ value }) => value),
 					createConfirmKeyboard(),
 				);
 			} else {
-				throw new Error( "Threre's no to prop in new Homework" );
+				throw new Error("Threre's no to prop in new Homework");
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body: answer },
 			} = ctx;
 
-			if ( answer.trim().toLowerCase() === botCommands.yes.toLowerCase() ) {
+			if (answer.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
 				const {
 					newHomework: { to, lesson, text, attachments },
 					Class: { name: className },
@@ -1417,179 +1420,179 @@ module.exports.addHomework = new Scene(
 					to,
 				);
 
-				if ( res ) {
+				if (res) {
 					ctx.reply(
 						'Домашнее задание успешно создано',
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				} else {
-					ctx.scene.enter( 'error' );
+					ctx.scene.enter('error');
 				}
-			} else if ( ctx.message.body === botCommands.no ) {
-				ctx.scene.selectStep( 3 );
+			} else if (ctx.message.body === botCommands.no) {
+				ctx.scene.selectStep(3);
 				ctx.reply(
 					'Введите дату на которую задано задание (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
-					createBackKeyboard( [ [ Markup.button( botCommands.onNextLesson, 'positive' ) ] ] ),
+					createBackKeyboard([[Markup.button(botCommands.onNextLesson, 'positive')]]),
 				);
 			} else {
-				ctx.reply( 'Ответьте да или нет' );
+				ctx.reply('Ответьте да или нет');
 			}
 
-			cleanDataForSceneFromSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanDataForSceneFromSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 module.exports.addAnnouncement = new Scene(
 	'addAnnouncement',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin( ctx );
-			if ( needToPickClass && !ctx.session.Class ) {
+			const needToPickClass = await isAdmin(ctx);
+			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'addAnnouncement';
 				ctx.session.pickFor = 'Выберите класс у которому хотите добавить обьявление \n';
 				ctx.session.backScene = 'contributorPanel';
-				ctx.scene.enter( 'pickClass' );
+				ctx.scene.enter('pickClass');
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
 
-				if ( Student ) {
-					if ( Student.registered ) {
-						if ( !ctx.session.Class )
-							ctx.session.Class = await DataBase.getClassBy_Id( Student.class );
+				if (Student) {
+					if (Student.registered) {
+						if (!ctx.session.Class)
+							ctx.session.Class = await DataBase.getClassBy_Id(Student.class);
 
 						ctx.scene.next();
 						ctx.reply(
-							'Введите содержимое изменения (можно прикрепить фото)',
+							'Введите содержимое объявления (можно прикрепить фото)',
 							null,
 							createBackKeyboard(),
 						);
 					} else {
-						ctx.scene.enter( 'register' );
+						ctx.scene.enter('register');
 						ctx.reply(
 							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 						);
 					}
 				} else {
-					throw new Error( `User is not existing ${ctx.session.userId}` );
+					throw new Error(`User is not existing ${ctx.session.userId}`);
 				}
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const { message } = ctx;
 
-			if ( message.body === botCommands.back ) {
-				const peekedClass = await isAdmin( ctx );
-				if ( peekedClass ) {
-					ctx.scene.enter( 'contributorPanel' );
+			if (message.body === botCommands.back) {
+				const peekedClass = await isAdmin(ctx);
+				if (peekedClass) {
+					ctx.scene.enter('contributorPanel');
 				} else {
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 				}
 				return;
 			}
 
-			const { body, attachments } = getTextsAndAttachmentsFromForwarded( message );
+			const { body, attachments } = getTextsAndAttachmentsFromForwarded(message);
 
-			if ( attachments.every( ( att ) => att.type === 'photo' ) ) {
-				const parsedAttachments = mapAttachmentsToObject( attachments );
+			if (attachments.every((att) => att.type === 'photo')) {
+				const parsedAttachments = mapAttachmentsToObject(attachments);
 
 				ctx.session.newAnnouncement = { text: body, attachments: parsedAttachments };
 
 				ctx.scene.next();
 				ctx.reply(
-					'Введите дату изменения (в формате ДД.ММ .ГГГГ если не на этот год)',
+					'Введите дату объявления (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
-					createBackKeyboard( [
+					createBackKeyboard([
 						[
-							Markup.button( botCommands.onToday, 'positive' ),
-							Markup.button( botCommands.onTomorrow, 'positive' ),
+							Markup.button(botCommands.onToday, 'positive'),
+							Markup.button(botCommands.onTomorrow, 'positive'),
 						],
-					] ),
+					]),
 				);
 			} else {
-				ctx.reply( 'Отправлять можно только фото' );
+				ctx.reply('Отправлять можно только фото');
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.back ) {
+			if (body === botCommands.back) {
 				ctx.session.newAnnouncement.lesson = undefined;
-				ctx.scene.selectStep( 1 );
+				ctx.scene.selectStep(1);
 				ctx.reply(
-					'Введите содержимое изменения (можно прикрепить фото)',
+					'Введите содержимое объявления (можно прикрепить фото)',
 					null,
 					createBackKeyboard(),
 				);
 				return;
 			}
 
-			if ( body === botCommands.onToday ) {
+			if (body === botCommands.onToday) {
 				ctx.session.newAnnouncement.to = new Date();
-			} else if ( body === botCommands.onTomorrow ) {
+			} else if (body === botCommands.onTomorrow) {
 				ctx.session.newAnnouncement.to = getTomorrowDate();
-			} else if ( dateRegExp.test( body ) ) {
-				const [ day, month, year = new Date().getFullYear() ] = parseDate( body );
+			} else if (dateRegExp.test(body)) {
+				const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-				if ( validateDate( month, day, year ) ) {
-					const date = new Date( year, month - 1, day );
+				if (validateDate(month, day, year)) {
+					const date = new Date(year, month - 1, day);
 
-					if ( date.getTime() >= Date.now() ) {
+					if (date.getTime() >= Date.now()) {
 						ctx.session.newAnnouncement.to = date;
 					} else {
-						ctx.reply( 'Дата не может быть в прошлом' );
+						ctx.reply('Дата не может быть в прошлом');
 					}
 				} else {
-					ctx.reply( 'Проверьте правильность введенной даты' );
+					ctx.reply('Проверьте правильность введенной даты');
 				}
 			} else {
-				ctx.reply( 'Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год' );
+				ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
 				return;
 			}
 
-			if ( ctx.session.newAnnouncement.to ) {
+			if (ctx.session.newAnnouncement.to) {
 				ctx.scene.next();
 				ctx.reply(
 					`Вы уверены что хотите создать такое изменение? \n ${createContentDiscription(
 						ctx.session.newAnnouncement,
 					)}`,
-					ctx.session.newAnnouncement.attachments.map( ( { value } ) => value ),
+					ctx.session.newAnnouncement.attachments.map(({ value }) => value),
 					createConfirmKeyboard(),
 				);
 			} else {
-				throw new Error( "There's no to prop in new announcement" );
+				throw new Error("There's no to prop in new announcement");
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body: answer },
 			} = ctx;
 
-			if ( answer.trim().toLowerCase() === botCommands.yes.toLowerCase() ) {
+			if (answer.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
 				const {
 					newAnnouncement: { to, text, attachments },
 					Class: { name: className },
@@ -1604,14 +1607,14 @@ module.exports.addAnnouncement = new Scene(
 					ctx.message.user_id,
 				);
 
-				if ( res ) {
-					ctx.scene.enter( 'default' );
+				if (res) {
+					ctx.scene.enter('default');
 					ctx.reply(
 						'Изменение в расписании успешно создано',
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
-					if ( isToday( to ) ) {
+					if (isToday(to)) {
 						notifyAllInClass(
 							ctx.bot,
 							className,
@@ -1620,106 +1623,106 @@ module.exports.addAnnouncement = new Scene(
 						);
 					}
 				} else {
-					ctx.scene.enter( 'default' );
+					ctx.scene.enter('default');
 					ctx.reply(
 						'Простите произошла ошибка',
 						null,
-						await createDefaultKeyboard( ctx.session.role, ctx ),
+						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
 				}
-			} else if ( ctx.message.body.toLowerCase() === botCommands.no.toLowerCase() ) {
-				ctx.scene.selectStep( 2 );
+			} else if (ctx.message.body.toLowerCase() === botCommands.no.toLowerCase()) {
+				ctx.scene.selectStep(2);
 				ctx.reply(
-					'Введите дату изменения (в формате ДД.ММ .ГГГГ если не на этот год)',
+					'Введите дату объявления (в формате ДД.ММ .ГГГГ если не на этот год)',
 					null,
-					createBackKeyboard( [
+					createBackKeyboard([
 						[
-							Markup.button( botCommands.onToday, 'positive' ),
-							Markup.button( botCommands.onTomorrow, 'positive' ),
+							Markup.button(botCommands.onToday, 'positive'),
+							Markup.button(botCommands.onTomorrow, 'positive'),
 						],
-					] ),
+					]),
 				);
 			} else {
-				ctx.reply( 'Ответьте да или нет' );
+				ctx.reply('Ответьте да или нет');
 			}
 
-			cleanDataForSceneFromSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanDataForSceneFromSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 module.exports.changeSchedule = new Scene(
 	'changeSchedule',
-	async ( ctx ) => {
+	async (ctx) => {
 		ctx.session.isFullFill = false;
 		ctx.session.changingDay = undefined;
 
 		try {
-			const needToPickClass = await isAdmin( ctx );
-			if ( needToPickClass && !ctx.session.Class ) {
+			const needToPickClass = await isAdmin(ctx);
+			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'changeSchedule';
 				ctx.session.pickFor = 'Выберите класс которому хотите изменить расписание \n';
 				ctx.session.backScene = 'contributorPanel';
-				ctx.scene.enter( 'pickClass' );
+				ctx.scene.enter('pickClass');
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
 
-				if ( Student ) {
-					if ( Student.registered ) {
+				if (Student) {
+					if (Student.registered) {
 						let { Class } = ctx.session;
-						if ( !Class ) Class = await DataBase.getClassBy_Id( Student.class );
+						if (!Class) Class = await DataBase.getClassBy_Id(Student.class);
 
 						ctx.session.Class = Class;
 						ctx.session.schedule = Class.schedule;
 
-						const days = Object.values( daysOfWeek );
-						const buttons = days.map( ( day, index ) =>
-							Markup.button( index + 1, 'default', { button: day } ),
+						const days = Object.values(daysOfWeek);
+						const buttons = days.map((day, index) =>
+							Markup.button(index + 1, 'default', { button: day }),
 						);
 
-						buttons.push( Markup.button( '0', 'primary' ) );
+						buttons.push(Markup.button('0', 'primary'));
 
 						const message =
 							'Выберите день у которого хотите изменить расписание\n' +
-							mapListToMessage( days ) +
+							mapListToMessage(days) +
 							'\n0. Заполнить всё';
 
 						ctx.scene.next();
-						ctx.reply( message, null, createBackKeyboard( buttons ) );
+						ctx.reply(message, null, createBackKeyboard(buttons));
 					} else {
-						ctx.scene.enter( 'register' );
+						ctx.scene.enter('register');
 						ctx.reply(
 							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 						);
 					}
 				} else {
-					throw new Error( `Student is not existing ${ctx.session.userId}` );
+					throw new Error(`Student is not existing ${ctx.session.userId}`);
 				}
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 
-			if ( body.toLowerCase === botCommands.back ) {
-				ctx.scene.enter( 'default' );
-			} else if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
-				ctx.scene.enter( 'default' );
+			if (body.toLowerCase === botCommands.back) {
+				ctx.scene.enter('default');
+			} else if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				ctx.scene.enter('default');
 				return;
 			}
 
 			if (
-				[ 'заполнить всё', 'все', '0', 'всё', 'заполнить всё' ].includes( body.toLowerCase() )
+				['заполнить всё', 'все', '0', 'всё', 'заполнить всё'].includes(body.toLowerCase())
 			) {
 				ctx.session.isFullFill = true;
 				ctx.session.changingDay = 1;
@@ -1733,11 +1736,11 @@ module.exports.changeSchedule = new Scene(
 				ctx.reply(
 					message,
 					null,
-					createBackKeyboard( [ Markup.button( botCommands.leaveEmpty, 'primary' ) ], 1 ),
+					createBackKeyboard([Markup.button(botCommands.leaveEmpty, 'primary')], 1),
 				);
 			} else if (
-				( !isNaN( +body ) && +body >= 1 && +body <= 7 ) ||
-				Object.values( daysOfWeek ).includes( body )
+				(!isNaN(+body) && +body >= 1 && +body <= 7) ||
+				Object.values(daysOfWeek).includes(body)
 			) {
 				ctx.session.changingDay = +body;
 
@@ -1747,172 +1750,172 @@ module.exports.changeSchedule = new Scene(
 				ctx.reply(
 					message,
 					null,
-					createBackKeyboard( [ Markup.button( botCommands.leaveEmpty, 'primary' ) ], 1 ),
+					createBackKeyboard([Markup.button(botCommands.leaveEmpty, 'primary')], 1),
 				);
 			} else {
-				ctx.reply( 'Неверно введен день' );
+				ctx.reply('Неверно введен день');
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			let {
 				message: { body },
 			} = ctx;
 
-			if ( body === botCommands.leaveEmpty ) {
+			if (body === botCommands.leaveEmpty) {
 				body = '';
-			} else if ( body.toLowerCase() === botCommands.back.toLowerCase() ) {
-				const Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+			} else if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 
 				let { Class } = ctx.session;
-				if ( !Class ) Class = await DataBase.getClassBy_Id( Student.class );
+				if (!Class) Class = await DataBase.getClassBy_Id(Student.class);
 
 				ctx.session.Class = Class;
 				ctx.session.schedule = Class.schedule;
 
-				const days = Object.values( daysOfWeek );
-				const buttons = days.map( ( day, index ) =>
-					Markup.button( index + 1, 'default', { button: day } ),
+				const days = Object.values(daysOfWeek);
+				const buttons = days.map((day, index) =>
+					Markup.button(index + 1, 'default', { button: day }),
 				);
 
-				buttons.push( Markup.button( '0', 'primary' ) );
+				buttons.push(Markup.button('0', 'primary'));
 
 				const message =
 					'Выберите день у которого хотите изменить расписание\n' +
-					mapListToMessage( days ) +
+					mapListToMessage(days) +
 					'\n0. Заполнить всё';
 
-				ctx.scene.selectStep( 1 );
-				ctx.reply( message, null, createBackKeyboard( buttons ) );
+				ctx.scene.selectStep(1);
+				ctx.reply(message, null, createBackKeyboard(buttons));
 				return;
 			}
 
-			body = body.replace( /,/g, ' ' );
+			body = body.replace(/,/g, ' ');
 
-			let indexes = body.trim().split( ' ' ).filter( Boolean );
-			if ( indexes.every( ( index ) => !isNaN( +index ) ) ) {
-				indexes = indexes.map( ( i ) => +i );
-				if ( indexes.every( ( index ) => index >= 0 && index < Lessons.length ) ) {
-					const newLessons = indexes.map( ( i ) => Lessons[ i ] );
-					ctx.session.schedule[ ctx.session.changingDay - 1 ] = newLessons;
+			let indexes = body.trim().split(' ').filter(Boolean);
+			if (indexes.every((index) => !isNaN(+index))) {
+				indexes = indexes.map((i) => +i);
+				if (indexes.every((index) => index >= 0 && index < Lessons.length)) {
+					const newLessons = indexes.map((i) => Lessons[i]);
+					ctx.session.schedule[ctx.session.changingDay - 1] = newLessons;
 
 					if (
 						!ctx.session.isFullFill ||
-						ctx.session.changingDay === Object.keys( daysOfWeek ).length
+						ctx.session.changingDay === Object.keys(daysOfWeek).length
 					) {
 						ctx.scene.next();
 
 						const newScheduleStr = ctx.session.isFullFill
 							? ctx.session.schedule.map(
-								( lessons, i ) =>
-									`${daysOfWeek[ i ]}: \n ${mapListToMessage( lessons )} `,
-							)
-							: mapListToMessage( newLessons );
+									(lessons, i) =>
+										`${daysOfWeek[i]}: \n ${mapListToMessage(lessons)} `,
+							  )
+							: mapListToMessage(newLessons);
 						const isEmpty = ctx.session.isFullFill
-							? ctx.session.schedule.every( ( lessons ) => lessons.length === 0 )
+							? ctx.session.schedule.every((lessons) => lessons.length === 0)
 							: newLessons.length === 0;
 						const message = !isEmpty
 							? 'Вы уверены, что хотите изменить расписание на это:\n' +
-							newScheduleStr +
-							'?'
+							  newScheduleStr +
+							  '?'
 							: 'Вы уверены, что хотите оставить расписание пустым?';
 
-						ctx.reply( message, null, createConfirmKeyboard() );
+						ctx.reply(message, null, createConfirmKeyboard());
 					} else {
 						ctx.session.changingDay++;
-						ctx.scene.selectStep( 2 );
-						ctx.reply( daysOfWeek[ ctx.session.changingDay - 1 ] + ':' );
+						ctx.scene.selectStep(2);
+						ctx.reply(daysOfWeek[ctx.session.changingDay - 1] + ':');
 					}
 				} else {
-					ctx.reply( 'Проверьте правильность введенного расписания' );
+					ctx.reply('Проверьте правильность введенного расписания');
 				}
 			} else {
-				ctx.reply( 'Вы должны вводить только цифры' );
+				ctx.reply('Вы должны вводить только цифры');
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const {
 				message: { body },
 			} = ctx;
 			const { schedule, Class } = ctx.session;
 
-			if ( body.toLowerCase() === 'да' ) {
-				if ( schedule && Class ) {
-					await Class.updateOne( { schedule } );
-					ctx.scene.enter( 'default' );
+			if (body.toLowerCase() === 'да') {
+				if (schedule && Class) {
+					await Class.updateOne({ schedule });
+					ctx.scene.enter('default');
 					ctx.reply(
 						'Расписание успешно обновлено',
 						null,
-						await createDefaultKeyboard( true, false ),
+						await createDefaultKeyboard(true, false),
 					);
 				} else {
 					throw new Error(
 						'Schedule is ' +
-						JSON.stringify( schedule ) +
-						'\nClass is ' +
-						JSON.stringify( Class ),
+							JSON.stringify(schedule) +
+							'\nClass is ' +
+							JSON.stringify(Class),
 					);
 				}
 			} else {
-				ctx.reply( 'Введите новое расписание' );
-				ctx.scene.selectStep( 2 );
+				ctx.reply('Введите новое расписание');
+				ctx.scene.selectStep(2);
 			}
 
-			cleanDataForSceneFromSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanDataForSceneFromSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 
 module.exports.pickClass = new Scene(
 	'pickClass',
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
 			const Classes = await DataBase.getAllClasses();
-			if ( Classes.length > 0 ) {
+			if (Classes.length > 0) {
 				ctx.session.classes = Classes;
 
-				const classesStr = mapListToMessage( Classes.map( ( { name } ) => name ) );
+				const classesStr = mapListToMessage(Classes.map(({ name }) => name));
 
-				const message = ( ctx.session.pickFor ?? 'Выберите класс' ) + classesStr;
+				const message = (ctx.session.pickFor ?? 'Выберите класс') + classesStr;
 
 				ctx.scene.next();
-				const columns = calculateColumnsAmount( Classes.length );
+				const columns = calculateColumnsAmount(Classes.length);
 
 				ctx.reply(
 					message,
 					null,
 					createBackKeyboard(
-						Classes.map( ( { name }, i ) =>
-							Markup.button( i + 1, 'default', { button: name } ),
+						Classes.map(({ name }, i) =>
+							Markup.button(i + 1, 'default', { button: name }),
 						),
 						columns,
 					),
 				);
 			} else {
-				ctx.scene.enter( 'default' );
-				ctx.reply( 'Не существует ни одного класса' );
+				ctx.scene.enter('default');
+				ctx.reply('Не существует ни одного класса');
 			}
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
-	async ( ctx ) => {
+	async (ctx) => {
 		try {
-			if ( ctx.message.body === botCommands.back ) {
-				ctx.scene.enter( ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0 );
+			if (ctx.message.body === botCommands.back) {
+				ctx.scene.enter(ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0);
 				return;
 			}
 
@@ -1922,34 +1925,34 @@ module.exports.pickClass = new Scene(
 
 			let { classes } = ctx.session;
 
-			if ( !classes ) {
+			if (!classes) {
 				classes = await DataBase.getAllClasses();
 			}
 
 			let Class;
-			if ( isValidClassName( classIndex ) ) {
-				Class = await DataBase.getClassByName( name );
-			} else if ( !isNaN( classIndex ) ) {
-				Class = classes[ classIndex - 1 ];
+			if (isValidClassName(classIndex)) {
+				Class = await DataBase.getClassByName(name);
+			} else if (!isNaN(classIndex)) {
+				Class = classes[classIndex - 1];
 			}
 
-			if ( Class ) {
+			if (Class) {
 				ctx.session.Class = Class;
-				ctx.scene.enter( ctx.session.nextScene, ctx.session.step );
+				ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
 			} else {
-				ctx.reply( 'Неверное имя класса' );
+				ctx.reply('Неверное имя класса');
 			}
 
-			cleanSession( ctx );
-		} catch ( e ) {
-			console.error( e );
-			ctx.scene.enter( 'error' );
+			cleanSession(ctx);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
 	},
 );
 module.exports.enterDayIndexes = new Scene(
 	'enterDaysIndexes',
-	( ctx ) => {
+	(ctx) => {
 		ctx.scene.next();
 		ctx.reply(
 			'Введите за сколько дней до задания вы хотите получать уведомление (можно несколько через запятую или пробел)',
@@ -1957,80 +1960,80 @@ module.exports.enterDayIndexes = new Scene(
 			createBackKeyboard(),
 		);
 	},
-	( ctx ) => {
+	(ctx) => {
 		const {
 			message: { body },
 		} = ctx;
 
-		if ( body === botCommands.back ) {
-			ctx.scene.enter( ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0 );
+		if (body === botCommands.back) {
+			ctx.scene.enter(ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0);
 			return;
 		}
 
-		const indexes = body.replace( /,/g, ' ' ).replace( /\s\s/g, ' ' ).split( ' ' );
+		const indexes = body.replace(/,/g, ' ').replace(/\s\s/g, ' ').split(' ');
 
 		if (
 			indexes.length > 0 &&
-			indexes.every( ( index ) => !isNaN( +index ) && +index >= 0 ) &&
-			indexes.every( ( index ) => Number.isInteger( +index ) )
+			indexes.every((index) => !isNaN(+index) && +index >= 0) &&
+			indexes.every((index) => Number.isInteger(+index))
 		) {
-			ctx.session.enteredDayIndexes = indexes.map( Number );
-			ctx.scene.enter( ctx.session.nextScene ?? 'default', ctx.session.step ?? 0 );
+			ctx.session.enteredDayIndexes = indexes.map(Number);
+			ctx.scene.enter(ctx.session.nextScene ?? 'default', ctx.session.step ?? 0);
 		} else {
-			ctx.reply( 'Вы должны ввести одно или более целых чисел' );
+			ctx.reply('Вы должны ввести одно или более целых чисел');
 		}
 
-		cleanSession( ctx );
+		cleanSession(ctx);
 	},
 );
 
-async function sendStudentInfo ( ctx ) {
-	if ( !ctx.session.Student ) {
-		ctx.session.Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+async function sendStudentInfo(ctx) {
+	if (!ctx.session.Student) {
+		ctx.session.Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 	}
 
 	const { role, class: Class, settings, firstName, secondName } = ctx.session.Student;
 	let className;
 
-	if ( Class ) {
-		className = await DataBase.getClassBy_Id( Class ).then( ( { name } ) => name );
+	if (Class) {
+		className = await DataBase.getClassBy_Id(Class).then(({ name }) => name);
 	} else {
 		className = 'Нету';
 	}
 
-	const message = createUserInfo( {
+	const message = createUserInfo({
 		role,
 		className,
 		settings,
 		name: firstName + ' ' + secondName,
-	} );
+	});
 
 	ctx.reply(
 		message,
 		null,
-		createBackKeyboard( [ [ Markup.button( botCommands.changeSettings, 'primary' ) ] ] ),
+		createBackKeyboard([[Markup.button(botCommands.changeSettings, 'primary')]]),
 	);
 }
 
-function changeClassAction ( ctx ) {
+function changeClassAction(ctx) {
 	ctx.session.nextScene = 'settings';
 	ctx.session.step = 3;
 	ctx.session.pickFor = 'Выберите класс \n';
 	ctx.session.backScene = 'contributorPanel';
 	ctx.session.backStep = 1;
 	ctx.session.changed = changables.class;
-	ctx.scene.enter( 'pickClass' );
+	ctx.scene.enter('pickClass');
 }
-function enterDayIndexesAction ( ctx ) {
+function enterDayIndexesAction(ctx) {
 	ctx.session.nextScene = 'settings';
 	ctx.session.step = 3;
 	ctx.session.backScene = 'contributorPanel';
 	ctx.session.backStep = 1;
 	ctx.session.changed = changables.daysForNotification;
-	ctx.scene.enter( 'enterDaysIndexes' );
+	ctx.scene.enter('enterDaysIndexes');
 }
 
-function changeNotificationTimeAction ( ctx ) {
+function changeNotificationTimeAction(ctx) {
 	ctx.scene.next();
 	ctx.session.changed = changables.notificationTime;
 	ctx.reply(
@@ -2040,125 +2043,125 @@ function changeNotificationTimeAction ( ctx ) {
 	);
 }
 
-async function enableNotificationsAction ( ctx ) {
+async function enableNotificationsAction(ctx) {
 	let { Student } = ctx.session;
 
-	if ( !Student ) {
-		Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+	if (!Student) {
+		Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 	}
 
 	Student.settings.notificationsEnabled = true;
 	Student.save();
 
-	ctx.scene.enter( 'default' );
-	ctx.reply( 'Уведомления включены', null, await createDefaultKeyboard( ctx.session.role, ctx ) );
+	ctx.scene.enter('default');
+	ctx.reply('Уведомления включены', null, await createDefaultKeyboard(ctx.session.role, ctx));
 }
 
-async function disableNotificationsAction ( ctx ) {
+async function disableNotificationsAction(ctx) {
 	let { Student } = ctx.session;
 
-	if ( !Student ) {
-		Student = await DataBase.getStudentByVkId( ctx.message.user_id );
+	if (!Student) {
+		Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 	}
 
 	Student.settings.notificationsEnabled = false;
 	Student.save();
 
-	ctx.scene.enter( 'default' );
-	ctx.reply( 'Уведомления отключены', null, await createDefaultKeyboard( ctx.session.role, ctx ) );
+	ctx.scene.enter('default');
+	ctx.reply('Уведомления отключены', null, await createDefaultKeyboard(ctx.session.role, ctx));
 }
 
-async function getPossibleLessonsAndSetInSession ( ctx ) {
-	if ( ctx.session.Class === undefined ) {
-		ctx.session.Class = await DataBase.getStudentByVkId( ctx.message.user_id )
-			.then( ( { Class: classId } ) => classId )
-			.then( ( classId ) => DataBase.getClassBy_Id( classId ) );
+async function getPossibleLessonsAndSetInSession(ctx) {
+	if (ctx.session.Class === undefined) {
+		ctx.session.Class = await DataBase.getStudentByVkId(ctx.message.user_id)
+			.then(({ Class: classId }) => classId)
+			.then((classId) => DataBase.getClassBy_Id(classId));
 	}
 
 	const possibleLessons = ctx.session.Class.schedule
 		.flat()
-		.filter( ( l, i, arr ) => i === arr.lastIndexOf( l ) ); //Pick onlu unique lessons
+		.filter((l, i, arr) => i === arr.lastIndexOf(l)); //Pick onlu unique lessons
 	ctx.session.possibleLessons = possibleLessons;
 
 	return possibleLessons;
 }
 
-function mapStudentToPreview ( Contributors ) {
+function mapStudentToPreview(Contributors) {
 	return Contributors.map(
-		( { firstName, secondName, vkId } ) => `${firstName} ${secondName} (${vkId})`,
+		({ firstName, secondName, vkId }) => `${firstName} ${secondName} (${vkId})`,
 	);
 }
 
-function validateDate ( month, day, year ) {
+function validateDate(month, day, year) {
 	return (
-		inRange( month, 1, 12 ) &&
-		inRange( day, 1, maxDatesPerMonth[ month - 1 ] ) &&
+		inRange(month, 1, 12) &&
+		inRange(day, 1, maxDatesPerMonth[month - 1]) &&
 		year >= new Date().getFullYear()
 	);
 }
 
-function parseDate ( body ) {
+function parseDate(body) {
 	return body
-		.match( /([0-9]+)\.([0-9]+)\.?([0-9]+)?/ )
-		.slice( 1 )
-		.map( ( n ) => ( isNaN( Number( n ) ) ? undefined : Number( n ) ) );
+		.match(/([0-9]+)\.([0-9]+)\.?([0-9]+)?/)
+		.slice(1)
+		.map((n) => (isNaN(Number(n)) ? undefined : Number(n)));
 }
-function parseTime ( body ) {
+function parseTime(body) {
 	return body
-		.match( /([0-9]+):([0-9]+)/ )
-		.slice( 1 )
-		.map( ( n ) => ( isNaN( Number( n ) ) ? undefined : Number( n ) ) );
+		.match(/([0-9]+):([0-9]+)/)
+		.slice(1)
+		.map((n) => (isNaN(Number(n)) ? undefined : Number(n)));
 }
 
-async function getScheduleString ( { schedule } ) {
+async function getScheduleString({ schedule }) {
 	const message = schedule
-		.map( ( lessons, i ) => {
-			const dayName = daysOfWeek[ i ];
+		.map((lessons, i) => {
+			const dayName = daysOfWeek[i];
 
 			const dayMessage =
-				lessons.length > 0 ? `${dayName}: \n ${mapListToMessage( lessons )} ` : '';
+				lessons.length > 0 ? `${dayName}: \n ${mapListToMessage(lessons)} ` : '';
 
 			return dayMessage;
-		} )
-		.join( '\n\n' );
+		})
+		.join('\n\n');
 
 	return message;
 }
 
 //Returns amount of days for each of which whe should send homework
-function getLengthOfHomeworkWeek () {
+function getLengthOfHomeworkWeek() {
 	const date = new Date().getDay();
 
 	return date >= 5 ? 6 : 7 - date;
 }
 
-function mapAttachmentsToObject ( attachments ) {
-	return attachments.map( ( att ) => ( {
-		value: parseAttachmentsToVKString( att ),
-		url: findMaxPhotoResolution( att[ att.type ] ),
-		album_id: att[ att.type ].album_id,
-	} ) );
+function mapAttachmentsToObject(attachments) {
+	return attachments.map((att) => ({
+		value: parseAttachmentsToVKString(att),
+		url: findMaxPhotoResolution(att[att.type]),
+		album_id: att[att.type].album_id,
+	}));
 }
 
-function getTextsAndAttachmentsFromForwarded ( { body = '', attachments = [], fwd_messages = [] } ) {
-	if ( fwd_messages.length === 0 ) {
+function getTextsAndAttachmentsFromForwarded({ body = '', attachments = [], fwd_messages = [] }) {
+	if (fwd_messages.length === 0) {
 		return {
 			body: body,
 			attachments: attachments,
 		};
 	}
 
-	const nestedMessagesPayload = fwd_messages.reduce( ( { body = '', attachments = [] }, c ) => {
-		const payload = getTextsAndAttachmentsFromForwarded( c );
+	const nestedMessagesPayload = fwd_messages.reduce(({ body = '', attachments = [] }, c) => {
+		const payload = getTextsAndAttachmentsFromForwarded(c);
 
 		return {
-			body: ( body ? body + '\n' : '' ) + payload.body,
-			attachments: attachments.concat( payload.attachments ),
+			body: (body ? body + '\n' : '') + payload.body,
+			attachments: attachments.concat(payload.attachments),
 		};
-	}, {} );
+	}, {});
 
 	return {
-		body: ( body ? body + '\n' : '' ) + nestedMessagesPayload.body,
-		attachments: attachments.concat( nestedMessagesPayload.attachments ),
+		body: (body ? body + '\n' : '') + nestedMessagesPayload.body,
+		attachments: attachments.concat(nestedMessagesPayload.attachments),
 	};
 }
