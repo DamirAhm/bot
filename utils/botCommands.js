@@ -55,7 +55,7 @@ module.exports = {
 	start: 'Начать',
 	notUnderstood: 'Непон',
 
-	botWasRebooted: 'Простите бот был перезапущен',
+	botWasRebooted: 'Простите бот был перезапущен, скорее всего он стал немного лучше :3',
 
 	no: 'Нет',
 	yes: 'Да',
