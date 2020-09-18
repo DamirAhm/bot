@@ -2,21 +2,20 @@
 const VkBot = require('node-vk-bot-api'),
 	Session = require('node-vk-bot-api/lib/session'),
 	Stage = require('node-vk-bot-api/lib/stage'),
-	config = require('./config.json'),
+	{ TOKEN, MONGODB_URI, VK_API_KEY, GROUP_ID, ALBUM_ID } = require('./config.js'),
 	{ DataBase: DB } = require('bot-database/DataBase.js'),
-	bot = new VkBot({
-		token: process.env.NODE_ENV == 'production' ? config['TOKEN'] : config['TEST_TOKEN'],
-		group_id:
-			process.env.NODE_ENV === 'production' ? config['GROUP_ID'] : config['TEST_GROUP_ID'],
-	}),
 	VK_API = require('bot-database/VkAPI/VK_API'),
 	Scenes = require('./Scenes.js'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
 	{ notifyStudents, notifyAboutReboot } = require('./utils/functions');
 
-const DataBase = new DB(config['MONGODB_URI']);
+const DataBase = new DB(MONGODB_URI);
 const server = http.createServer(requestListener);
+const bot = new VkBot({
+	token: TOKEN,
+	group_id: GROUP_ID,
+});
 
 DataBase.connect(
 	{
@@ -38,11 +37,7 @@ DataBase.connect(
 	},
 );
 
-const vk = new VK_API(
-	...(process.env.NODE_ENV === 'production'
-		? [config['VK_API_KEY'], config['GROUP_ID'], config['ALBUM_ID']]
-		: [config['TEST_VK_API_KEY'], config['TEST_GROUP_ID'], config['TEST_ALBUM_ID']]),
-);
+const vk = new VK_API([VK_API_KEY, GROUP_ID, ALBUM_ID]);
 
 const session = new Session();
 const stage = new Stage(...Object.values(Scenes));

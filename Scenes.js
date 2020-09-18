@@ -1,7 +1,7 @@
 const path = require('path');
 
 const Scene = require('node-vk-bot-api/lib/scene'),
-	config = require('./config.json'),
+	config = require('./config.js'),
 	{
 		renderAdminMenu,
 		renderAdminMenuKeyboard,
@@ -31,11 +31,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	VK_API = require('bot-database/VkAPI/VK_API.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(config['MONGODB_URI']),
-	vk = new VK_API(
-		...(process.env.NODE_ENV === 'production'
-			? [config['VK_API_KEY'], config['GROUP_ID'], config['ALBUM_ID']]
-			: [config['TEST_VK_API_KEY'], config['TEST_GROUP_ID'], config['TEST_ALBUM_ID']]),
-	),
+	vk = new VK_API([config['VK_API_KEY'], config['GROUP_ID'], config['ALBUM_ID']]),
 	{
 		getTomorrowDate,
 		isToday,

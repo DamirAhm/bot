@@ -1,8 +1,9 @@
 const { mapHomeworkByLesson } = require('bot-database/utils/functions');
 const { DataBase: DB } = require('bot-database/DataBase');
-const config = require('../config.json');
+const config = require('../config.js');
 const { monthsRP, createDefaultKeyboardSync } = require('./messagePayloading');
 const { Roles } = require('bot-database/Models/utils');
+const botCommands = require('./botCommands');
 
 const DataBase = new DB(config['MONGODB_URI']);
 
@@ -29,23 +30,40 @@ async function notifyAboutReboot(botInstance) {
 		const studentsIdsAndRoles = await DataBase.getAllStudents().then((students) =>
 			students.map(({ vkId, role }) => ({ vkId, role })),
 		);
+
 		for (const { role, vkId } of studentsIdsAndRoles.filter(
 			({ role }) => role === Roles.admin,
 		)) {
-			setTimeout(
-				async () =>
-					botInstance.sendMessage(
-						[vkId],
-						'Простите бот был перезапущен',
-						null,
-						await createDefaultKeyboardSync(role),
-					),
-				50,
-			);
+			const res = await botInstance.execute('messages.getHistory', {
+				count: 1,
+				user_id: vkId,
+				extended: 1,
+			});
+
+			if (!res || (res.items[0] && !isStudentOnDefaultScene(res))) {
+				setTimeout(
+					async () =>
+						botInstance.sendMessage(
+							[vkId],
+							botCommands.botWasRebooted,
+							null,
+							await createDefaultKeyboardSync(role),
+						),
+					50,
+				);
+			}
 		}
 	} catch (e) {
 		console.error(e);
 	}
+}
+function isStudentOnDefaultScene(res) {
+	console.log();
+	return (
+		(res.items[0].text.startsWith('Mеню') ||
+			res.items[0].text === botCommands.botWasRebooted) &&
+		-res.items[0].from_id === +config['GROUP_ID']
+	);
 }
 
 async function notifyStudents(botInstance) {
@@ -223,11 +241,9 @@ function cleanSession(ctx) {
 	cleanSceneInfoFromSession(ctx);
 }
 function cleanSceneInfoFromSession(ctx) {
-	console.log(ctx.session);
 	for (const pole of sceneInfoInSession) {
 		delete ctx[pole];
 	}
-	console.log(ctx.session);
 }
 function cleanDataForSceneFromSession(ctx) {
 	for (const pole of dataForSceneInSession) {
