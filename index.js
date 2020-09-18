@@ -9,7 +9,7 @@ const VkBot = require( "node-vk-bot-api" ),
     Scenes = require( "./Scenes.js" ),
     botCommands = require( "./utils/botCommands.js" ),
     http = require( "http" ),
-    { notifyStudents } = require( "./utils/functions" );
+    { notifyStudents, notifyAboutReboot } = require( "./utils/functions" );
 
 const DataBase = new DB( config[ "MONGODB_URI" ] );
 const server = http.createServer( requestListener );
@@ -24,6 +24,11 @@ DataBase.connect(
         console.log( "Mongoose connected" );
         server.listen( process.env.PORT || 1337 );
         bot.startPolling();
+
+        if ( process.env.NODE_ENV === "production" ) {
+            notifyAboutReboot( bot );
+        }
+
         notifyStudents( bot );
         setInterval( () => notifyStudents( bot ), 1000 * 60 );
     }

@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "touch Feedback",
-    "start:dev": "supervisor index -n -w .",
-    "start": "node index",
+    "start:dev": "NODE_ENV=development supervisor index -n -w .",
+    "start": "NODE_ENV=production node index",
     "logs": "heroku logs --tail",
     "start:debug": "node --inspect index -i"
   },

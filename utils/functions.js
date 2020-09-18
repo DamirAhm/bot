@@ -1,236 +1,266 @@
-const { mapHomeworkByLesson } = require( 'bot-database/utils/functions' );
-const { DataBase: DB } = require( 'bot-database/DataBase' );
-const config = require( '../config.json' );
-const { monthsRP } = require( './messagePayloading' );
+const { mapHomeworkByLesson } = require('bot-database/utils/functions');
+const { DataBase: DB } = require('bot-database/DataBase');
+const config = require('../config.json');
+const {
+	monthsRP,
+	createDefaultKeyboard,
+	createDefaultKeyboardSync,
+} = require('./messagePayloading');
+const { Roles } = require('bot-database/Models/utils');
 
-const DataBase = new DB( config[ 'MONGODB_URI' ] );
+const DataBase = new DB(config['MONGODB_URI']);
 
-const sceneInfoInSession = [ 'nextScene', 'pickFor', 'backScene', 'step', 'backStep' ];
-const userDataInSession = [ 'role', 'userId', 'fullName', 'firstScene', 'secondScene' ];
+const sceneInfoInSession = ['nextScene', 'pickFor', 'backScene', 'step', 'backStep'];
+const userDataInSession = ['role', 'userId', 'fullName', 'firstScene', 'secondScene'];
 const dataForSceneInSession = [
-    'Class',
-    'Student',
-    'newHomework',
-    'newAnnouncement',
-    'isFullFill',
-    'schedule',
-    'changingDay',
-    'classes',
-    'enteredDayIndexes',
-    'changed',
-    'possibleLessons',
-    "homework",
-    "students",
-
+	'Class',
+	'Student',
+	'newHomework',
+	'newAnnouncement',
+	'isFullFill',
+	'schedule',
+	'changingDay',
+	'classes',
+	'enteredDayIndexes',
+	'changed',
+	'possibleLessons',
+	'homework',
+	'students',
 ];
 
-async function notifyStudents ( botInstance ) {
-    try {
-        const Classes = await DataBase.getAllClasses();
-
-        for ( const Class of Classes ) {
-            await sendHomeworkToClassStudents( Class, botInstance );
-        }
-    } catch ( e ) {
-        console.error( e );
-    }
-}
-async function sendHomeworkToClassStudents ( Class, botInstance ) {
-    try {
-        const { students } = await DataBase.populate( Class );
-        if ( students?.length ) {
-            const daysOffsets = new Set(
-                students.map( ( { settings } ) => settings.daysForNotification ).flat(),
-            );
-
-            for ( const dayOffset of daysOffsets ) {
-                const notifiableIds = getNotifiableIds(
-                    students.filter( ( { settings } ) =>
-                        settings.daysForNotification.includes( dayOffset ),
-                    ),
-                );
-
-                if ( notifiableIds.length > 0 ) {
-                    const dateWithOffset = getDateWithOffset( dayOffset );
-                    const dayHomework = await DataBase.getHomeworkByDate( Class, dateWithOffset );
-
-                    if ( dayHomework.length > 0 ) {
-                        const parsedHomework = mapHomeworkByLesson( dayHomework );
-
-                        let message = `Задание на ${isOneDay( dateWithOffset, getTomorrowDate() )
-                            ? 'завтра'
-                            : getDayMonthString( dateWithOffset )
-                            }\n`;
-                        botInstance.sendMessage( notifiableIds, message );
-
-                        sendHomework( parsedHomework, botInstance, notifiableIds );
-                    }
-                }
-            }
-        }
-    } catch ( e ) {
-        console.error( e );
-    }
+async function notifyAboutReboot(botInstance) {
+	try {
+		const studentsIdsAndRoles = await DataBase.getAllStudents().then((students) =>
+			students.map(({ vkId, role }) => ({ vkId, role })),
+		);
+		for (const { role, vkId } of studentsIdsAndRoles.filter(
+			({ role }) => role === Roles.admin,
+		)) {
+			setTimeout(
+				async () =>
+					botInstance.sendMessage(
+						[vkId],
+						'Простите бот был перезапущен',
+						null,
+						await createDefaultKeyboardSync(role),
+					),
+				50,
+			);
+		}
+	} catch (e) {
+		console.error(e);
+	}
 }
 
-function getNotifiableIds ( students ) {
-    const ids = [];
+async function notifyStudents(botInstance) {
+	try {
+		const Classes = await DataBase.getAllClasses();
 
-    for ( const {
-        settings: { notificationsEnabled, notificationTime },
-        lastHomeworkCheck,
-        vkId,
-    } of students ) {
-        if ( notificationsEnabled ) {
-            const [ hours, mins ] = notificationTime
-                .match( /([0-9]+):([0-9]+)/ )
-                .slice( 1 )
-                .map( Number );
-
-            if ( isReadyToNotificate( hours, mins, lastHomeworkCheck ) ) {
-                ids.push( vkId );
-                DataBase.changeLastHomeworkCheckDate( vkId, new Date() );
-            }
-        }
-    }
-
-    return ids;
+		for (const Class of Classes) {
+			await sendHomeworkToClassStudents(Class, botInstance);
+		}
+	} catch (e) {
+		console.error(e);
+	}
 }
-function isReadyToNotificate ( hours, mins, lastHomeworkCheck ) {
-    const hoursNow = new Date().getHours();
-    const minsNow = new Date().getMinutes();
+async function sendHomeworkToClassStudents(Class, botInstance) {
+	try {
+		const { students } = await DataBase.populate(Class);
+		if (students?.length) {
+			const daysOffsets = new Set(
+				students.map(({ settings }) => settings.daysForNotification).flat(),
+			);
 
-    return hours <= hoursNow && mins <= minsNow && !isToday( lastHomeworkCheck );
-}
+			for (const dayOffset of daysOffsets) {
+				const notifiableIds = getNotifiableIds(
+					students.filter(({ settings }) =>
+						settings.daysForNotification.includes(dayOffset),
+					),
+				);
 
-function sendHomework ( parsedHomework, botInstance, notifiableIds ) {
-    if ( notifiableIds.length > 0 ) {
-        let index = 1;
+				if (notifiableIds.length > 0) {
+					const dateWithOffset = getDateWithOffset(dayOffset);
+					const dayHomework = await DataBase.getHomeworkByDate(Class, dateWithOffset);
 
-        for ( const [ lesson, homework ] of parsedHomework ) {
-            let { homeworkMessage, attachments } = getHomeworkPayload( lesson, homework );
+					if (dayHomework.length > 0) {
+						const parsedHomework = mapHomeworkByLesson(dayHomework);
 
-            setTimeout( () => {
-                console.log( 'КОГО ОПОВЕЩАТЬ: ', notifiableIds );
-                botInstance.sendMessage( notifiableIds, homeworkMessage, attachments );
-            }, index++ * 15 );
-        }
-    }
-}
-function getHomeworkPayload ( lesson, homework ) {
-    let homeworkMessage = `${lesson}:\n`;
-    let attachments = [];
+						let message = `Задание на ${
+							isOneDay(dateWithOffset, getTomorrowDate())
+								? 'завтра'
+								: getDayMonthString(dateWithOffset)
+						}\n`;
+						botInstance.sendMessage(notifiableIds, message);
 
-    for ( let i = 0; i < homework.length; i++ ) {
-        const hw = homework[ i ];
-        homeworkMessage += hw.text ? `${i + 1}: ${hw.text}\n` : '';
-        attachments = attachments.concat( hw.attachments?.map( ( { value } ) => value ) );
-    }
-    return { homeworkMessage, attachments };
+						sendHomework(parsedHomework, botInstance, notifiableIds);
+					}
+				}
+			}
+		}
+	} catch (e) {
+		console.error(e);
+	}
 }
 
-function findMaxPhotoResolution ( photo ) {
-    let maxR = 0;
-    let url = '';
+function getNotifiableIds(students) {
+	const ids = [];
 
-    for ( let i in photo ) {
-        if ( photo.hasOwnProperty( i ) && /photo_\d/.test( i ) ) {
-            const [ _, res ] = i.match( /photo_(\d)/ );
+	for (const {
+		settings: { notificationsEnabled, notificationTime },
+		lastHomeworkCheck,
+		vkId,
+	} of students) {
+		if (notificationsEnabled) {
+			const [hours, mins] = notificationTime
+				.match(/([0-9]+):([0-9]+)/)
+				.slice(1)
+				.map(Number);
 
-            if ( +res > maxR ) {
-                maxR = +res;
-                url = photo[ i ];
-            }
-        }
-    }
+			if (isReadyToNotificate(hours, mins, lastHomeworkCheck)) {
+				ids.push(vkId);
+				DataBase.changeLastHomeworkCheckDate(vkId, new Date());
+			}
+		}
+	}
 
-    return url;
+	return ids;
 }
+function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
+	const hoursNow = new Date().getHours();
+	const minsNow = new Date().getMinutes();
 
-function getDateWithOffset ( offset ) {
-    const date = new Date();
-    return new Date( date.getFullYear(), date.getMonth(), date.getDate() + offset );
-}
-function getTomorrowDate () {
-    return getDateWithOffset( 1 );
-}
-
-function isOneDay ( aDate, bDate ) {
-    return (
-        aDate.getFullYear() === bDate.getFullYear() &&
-        aDate.getMonth() === bDate.getMonth() &&
-        aDate.getDate() === bDate.getDate()
-    );
-}
-function isToday ( date ) {
-    return isOneDay( date, new Date() );
+	return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
 }
 
-function inRange ( number, min, max ) {
-    if ( min !== undefined && min > number ) {
-        return false;
-    }
-    if ( max !== undefined && max < number ) {
-        return false;
-    }
+function sendHomework(parsedHomework, botInstance, notifiableIds) {
+	if (notifiableIds.length > 0) {
+		let index = 1;
 
-    return true;
+		for (const [lesson, homework] of parsedHomework) {
+			let { homeworkMessage, attachments } = getHomeworkPayload(lesson, homework);
+
+			setTimeout(() => {
+				console.log('КОГО ОПОВЕЩАТЬ: ', notifiableIds);
+				botInstance.sendMessage(notifiableIds, homeworkMessage, attachments);
+			}, index++ * 15);
+		}
+	}
+}
+function getHomeworkPayload(lesson, homework) {
+	let homeworkMessage = `${lesson}:\n`;
+	let attachments = [];
+
+	for (let i = 0; i < homework.length; i++) {
+		const hw = homework[i];
+		homeworkMessage += hw.text ? `${i + 1}: ${hw.text}\n` : '';
+		attachments = attachments.concat(hw.attachments?.map(({ value }) => value));
+	}
+	return { homeworkMessage, attachments };
 }
 
-function filterContentByDate ( content, date ) {
-    return content.filter( ( { to } ) => {
-        return inRange( to.getTime() - date.getTime(), 0, 24 * 60 * 60 * 1000 - 1 );
-    } );
+function findMaxPhotoResolution(photo) {
+	let maxR = 0;
+	let url = '';
+
+	for (let i in photo) {
+		if (photo.hasOwnProperty(i) && /photo_\d/.test(i)) {
+			const [_, res] = i.match(/photo_(\d)/);
+
+			if (+res > maxR) {
+				maxR = +res;
+				url = photo[i];
+			}
+		}
+	}
+
+	return url;
 }
 
-function getDayMonthString ( date ) {
-    return `${date.getDate()} ${monthsRP[ date.getMonth() ]}`;
+function getDateWithOffset(offset) {
+	const date = new Date();
+	return new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset);
+}
+function getTomorrowDate() {
+	return getDateWithOffset(1);
 }
 
-function calculateColumnsAmount ( amountOfItems ) {
-    if ( amountOfItems % 3 === 0 ) return 3
-    else if ( amountOfItems % 2 === 0 ) return 2
-    else return 4;
+function isOneDay(aDate, bDate) {
+	return (
+		aDate.getFullYear() === bDate.getFullYear() &&
+		aDate.getMonth() === bDate.getMonth() &&
+		aDate.getDate() === bDate.getDate()
+	);
+}
+function isToday(date) {
+	return isOneDay(date, new Date());
 }
 
-function cleanSession ( ctx ) {
-    cleanDataForSceneFromSession( ctx );
-    cleanSceneInfoFromSession( ctx );
+function inRange(number, min, max) {
+	if (min !== undefined && min > number) {
+		return false;
+	}
+	if (max !== undefined && max < number) {
+		return false;
+	}
+
+	return true;
 }
-function cleanSceneInfoFromSession ( ctx ) {
-    console.log( ctx.session )
-    for ( const pole of sceneInfoInSession ) {
-        delete ctx[ pole ];
-    }
-    console.log( ctx.session )
+
+function filterContentByDate(content, date) {
+	return content.filter(({ to }) => {
+		return inRange(to.getTime() - date.getTime(), 0, 24 * 60 * 60 * 1000 - 1);
+	});
 }
-function cleanDataForSceneFromSession ( ctx ) {
-    for ( const pole of dataForSceneInSession ) {
-        ctx[ pole ] = undefined;
-    }
+
+function getDayMonthString(date) {
+	return `${date.getDate()} ${monthsRP[date.getMonth()]}`;
 }
-function cleanUserInfoFromSession ( ctx ) {
-    for ( const pole of userDataInSession ) {
-        ctx[ pole ] = undefined;
-    }
+
+function calculateColumnsAmount(amountOfItems) {
+	if (amountOfItems % 3 === 0) return 3;
+	else if (amountOfItems % 2 === 0) return 2;
+	else return 4;
+}
+
+function cleanSession(ctx) {
+	cleanDataForSceneFromSession(ctx);
+	cleanSceneInfoFromSession(ctx);
+}
+function cleanSceneInfoFromSession(ctx) {
+	console.log(ctx.session);
+	for (const pole of sceneInfoInSession) {
+		delete ctx[pole];
+	}
+	console.log(ctx.session);
+}
+function cleanDataForSceneFromSession(ctx) {
+	for (const pole of dataForSceneInSession) {
+		ctx[pole] = undefined;
+	}
+}
+function cleanUserInfoFromSession(ctx) {
+	for (const pole of userDataInSession) {
+		ctx[pole] = undefined;
+	}
 }
 
 module.exports = {
-    isToday,
-    getTomorrowDate,
-    notifyStudents,
-    findMaxPhotoResolution,
-    sendHomeworkToClassStudents,
-    getNotifiableIds,
-    isReadyToNotificate,
-    sendHomework,
-    getHomeworkPayload,
-    inRange,
-    filterContentByDate,
-    getDayMonthString,
-    cleanSession,
-    cleanUserInfoFromSession,
-    cleanDataForSceneFromSession,
-    cleanSceneInfoFromSession,
-    calculateColumnsAmount,
+	isToday,
+	getTomorrowDate,
+	notifyStudents,
+	findMaxPhotoResolution,
+	sendHomeworkToClassStudents,
+	getNotifiableIds,
+	isReadyToNotificate,
+	sendHomework,
+	getHomeworkPayload,
+	inRange,
+	filterContentByDate,
+	getDayMonthString,
+	cleanSession,
+	cleanUserInfoFromSession,
+	cleanDataForSceneFromSession,
+	cleanSceneInfoFromSession,
+	calculateColumnsAmount,
+	notifyAboutReboot,
 };
