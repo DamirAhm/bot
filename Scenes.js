@@ -18,7 +18,6 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		createBackKeyboard,
 		monthsRP,
 		notifyAllInClass,
-		mapListToKeyboard,
 	} = require('./utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database/DataBase.js'),
 	{
@@ -45,6 +44,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		cleanDataForSceneFromSession,
 		cleanSession,
 		calculateColumnsAmount,
+		mapListToKeyboard,
 	} = require('./utils/functions.js'),
 	fs = require('fs');
 
@@ -152,7 +152,6 @@ module.exports.registerScene = new Scene(
 				const Student = await DataBase.getStudentByVkId(userId);
 
 				await Student.updateOne({ registered: true });
-				await Student.save();
 
 				if (Class) {
 					await DataBase.addStudentToClass(userId, spacelessClassName);
@@ -1917,7 +1916,7 @@ module.exports.pickClass = new Scene(
 					null,
 					createBackKeyboard(
 						Classes.map(({ name }, i) =>
-							Markup.button(i + 1, 'default', { button: name }),
+							Markup.button(name, 'default', { button: name }),
 						),
 						columns,
 					),
@@ -2035,21 +2034,31 @@ async function sendStudentInfo(ctx) {
 }
 
 function changeClassAction(ctx) {
-	ctx.session.nextScene = 'settings';
-	ctx.session.step = 3;
-	ctx.session.pickFor = 'Выберите класс \n';
-	ctx.session.backScene = 'contributorPanel';
-	ctx.session.backStep = 1;
-	ctx.session.changed = changables.class;
-	ctx.scene.enter('pickClass');
+	if (ctx.session) {
+		ctx.session.nextScene = 'settings';
+		ctx.session.step = 3;
+		ctx.session.pickFor = 'Выберите класс \n';
+		ctx.session.backScene = 'contributorPanel';
+		ctx.session.backStep = 1;
+		ctx.session.changed = changables.class;
+		ctx.scene.enter('pickClass');
+	} else {
+		console.log('Theres is no session in context');
+		ctx.scene.enter('error');
+	}
 }
 function enterDayIndexesAction(ctx) {
-	ctx.session.nextScene = 'settings';
-	ctx.session.step = 3;
-	ctx.session.backScene = 'contributorPanel';
-	ctx.session.backStep = 1;
-	ctx.session.changed = changables.daysForNotification;
-	ctx.scene.enter('enterDaysIndexes');
+	if (ctx.session) {
+		ctx.session.nextScene = 'settings';
+		ctx.session.step = 3;
+		ctx.session.backScene = 'contributorPanel';
+		ctx.session.backStep = 1;
+		ctx.session.changed = changables.daysForNotification;
+		ctx.scene.enter('enterDaysIndexes');
+	} else {
+		console.log('Theres is no session in context');
+		ctx.scene.enter('error');
+	}
 }
 
 function changeNotificationTimeAction(ctx) {

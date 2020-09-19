@@ -4,6 +4,14 @@ const config = require('../config.js');
 const { monthsRP, createDefaultKeyboardSync } = require('./messagePayloading');
 const { Roles } = require('bot-database/Models/utils');
 const botCommands = require('./botCommands');
+const Markup = require('node-vk-bot-api/lib/markup');
+
+const mapListToKeyboard = (list) => {
+	return Markup.keyboard(
+		list.map((value) => Markup.button(value)),
+		{ columns: calculateColumnsAmount(list.length) },
+	);
+};
 
 const DataBase = new DB(config['MONGODB_URI']);
 
@@ -274,4 +282,5 @@ module.exports = {
 	cleanSceneInfoFromSession,
 	calculateColumnsAmount,
 	notifyAboutReboot,
+	mapListToKeyboard,
 };
