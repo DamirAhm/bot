@@ -143,7 +143,7 @@ module.exports.registerScene = new Scene(
 				);
 			}
 
-			const spacelessClassName = body.replace(/\s*/g, '');
+			const spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
 			if (
 				/\d+([a-z]|[а-я])/i.test(spacelessClassName) &&
 				spacelessClassName.match(/\d+([a-z]|[а-я])/i)?.[0] === spacelessClassName
