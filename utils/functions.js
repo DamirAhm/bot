@@ -39,9 +39,7 @@ async function notifyAboutReboot(botInstance) {
 			students.map(({ vkId, role }) => ({ vkId, role })),
 		);
 
-		for (const { role, vkId } of studentsIdsAndRoles.filter(
-			({ role }) => role === Roles.admin,
-		)) {
+		for (const { role, vkId } of studentsIdsAndRoles) {
 			const res = await botInstance.execute('messages.getHistory', {
 				count: 1,
 				user_id: vkId,
