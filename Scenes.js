@@ -1937,7 +1937,7 @@ module.exports.pickClass = new Scene(
 				return;
 			}
 
-			const {
+			let {
 				message: { body: classIndex },
 			} = ctx;
 
@@ -1948,6 +1948,9 @@ module.exports.pickClass = new Scene(
 			}
 
 			let Class;
+
+			classIndex = classIndex.toUpperCase();
+
 			if (isValidClassName(classIndex)) {
 				Class = await DataBase.getClassByName(name);
 			} else if (!isNaN(classIndex)) {
