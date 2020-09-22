@@ -66,7 +66,8 @@ async function notifyAboutReboot(botInstance) {
 function isStudentOnDefaultScene(res) {
 	return (
 		(res.items[0].text.startsWith('Mеню') ||
-			res.items[0].text === botCommands.botWasRebooted) &&
+			res.items[0].text === botCommands.botWasRebooted ||
+			res.items[0].text.startsWith('Задание на')) &&
 		-res.items[0].from_id === +config['GROUP_ID']
 	);
 }
