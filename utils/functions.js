@@ -104,14 +104,14 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 					if (dayHomework.length > 0) {
 						const parsedHomework = mapHomeworkByLesson(dayHomework);
 
-						let message = `Задание на ${
-							isOneDay(dateWithOffset, getTomorrowDate())
-								? 'завтра'
-								: getDayMonthString(dateWithOffset)
-						}\n`;
-						botInstance.sendMessage(notifiableIds, message);
-
 						sendHomework(parsedHomework, botInstance, notifiableIds);
+
+						setTimeout(() => {
+							let message = `Задание на ${getTomorrowOrAfterTomorrowOrDateString(
+								dateWithOffset,
+							)}\n`;
+							botInstance.sendMessage(notifiableIds, message);
+						}, (dayHomework.length + 1) * 50);
 					}
 				}
 			}
@@ -119,6 +119,12 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 	} catch (e) {
 		console.error(e);
 	}
+}
+
+function getTomorrowOrAfterTomorrowOrDateString(date) {
+	if (isOneDay(date, getTomorrowDate())) return 'завтра';
+	else if (isOneDay(date, getDateWithOffset(2))) return 'послезавтра';
+	else return getDayMonthString(date);
 }
 
 function getNotifiableIds(students) {
@@ -159,7 +165,6 @@ function sendHomework(parsedHomework, botInstance, notifiableIds) {
 			let { homeworkMessage, attachments } = getHomeworkPayload(lesson, homework);
 
 			setTimeout(() => {
-				console.log('КОГО ОПОВЕЩАТЬ: ', notifiableIds);
 				botInstance.sendMessage(notifiableIds, homeworkMessage, attachments);
 			}, index++ * 15);
 		}
