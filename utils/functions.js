@@ -261,7 +261,16 @@ function cleanUserInfoFromSession(ctx) {
 	}
 }
 
+function isValidClassName(name) {
+	if (/(^\d{2})([A-Z]|[А-Я])/i.test(name) && name.match(/(^\d{2})([A-Z]|[А-Я])/i)[0] === name) {
+		const [_, digit] = name.match(/(^\d{2})([A-Z]|[А-Я])/i);
+		return +digit > 0 && +digit <= 11 && Number.isInteger(+digit);
+	}
+	return false;
+}
+
 module.exports = {
+	isValidClassName,
 	isToday,
 	getTomorrowDate,
 	notifyStudents,

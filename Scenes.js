@@ -27,7 +27,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		dayInMilliseconds,
 	} = require('bot-database/utils/functions'),
 	botCommands = require('./utils/botCommands.js'),
-	{ Roles, isValidClassName, Lessons, daysOfWeek } = require('bot-database/Models/utils.js'),
+	{ Roles, Lessons, daysOfWeek } = require('bot-database/Models/utils.js'),
 	VK_API = require('bot-database/VkAPI/VK_API.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(config['MONGODB_URI']),
@@ -45,6 +45,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		cleanSession,
 		calculateColumnsAmount,
 		mapListToKeyboard,
+		isValidClassName,
 	} = require('./utils/functions.js'),
 	fs = require('fs');
 
@@ -144,10 +145,8 @@ module.exports.registerScene = new Scene(
 			}
 
 			const spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
-			if (
-				/\d+([a-z]|[а-я])/i.test(spacelessClassName) &&
-				spacelessClassName.match(/\d+([a-z]|[а-я])/i)?.[0] === spacelessClassName
-			) {
+
+			if (isValidClassName(spacelessClassName)) {
 				const Class = await DataBase.getClassByName(spacelessClassName);
 				const Student = await DataBase.getStudentByVkId(userId);
 
@@ -1952,7 +1951,7 @@ module.exports.pickClass = new Scene(
 			classIndex = classIndex.toUpperCase();
 
 			if (isValidClassName(classIndex)) {
-				Class = await DataBase.getClassByName(name);
+				Class = await DataBase.getClassByName(classIndex);
 			} else if (!isNaN(classIndex)) {
 				Class = classes[classIndex - 1];
 			}
