@@ -261,15 +261,22 @@ function getDayWord(dayIndexFrom0To9) {
 	return dayIndexFrom0To9 > 4 ? 'дней' : 'дня';
 }
 
-const notifyAllInClass = async (botInstance, className, ...messagePayload) => {
+const notifyAllInClass = async (
+	{ bot: botInstance, message: { user_id } },
+	className,
+	...messagePayload
+) => {
 	const Class = await DataBase.getClassByName(className);
 
 	if (Class) {
 		const { students } = await Class.populate('students').execPopulate();
-		botInstance.sendMessage(
-			students.map(({ vkId }) => vkId),
-			...messagePayload,
-		);
+
+		setTimeout(() => {
+			botInstance.sendMessage(
+				students.filter(({ vkId }) => vkId !== user_id).map(({ vkId }) => vkId),
+				...messagePayload,
+			);
+		}, 50);
 	}
 };
 

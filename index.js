@@ -44,6 +44,23 @@ const stage = new Stage(...Object.values(Scenes));
 bot.use(session.middleware());
 bot.use(stage.middleware());
 
+bot.command(/.*/, async (ctx, next) => {
+	const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
+
+	if (Student) next();
+	else {
+		const { first_name: first_name, last_name: last_name } = await bot
+			.execute('users.get', { user_ids: [ctx.message.user_id] })
+			.then((res) => res[0]);
+
+		ctx.session.userId = ctx.message.user_id;
+		ctx.session.lastName = last_name;
+		ctx.session.firstName = first_name;
+
+		ctx.scene.enter('register');
+	}
+});
+
 bot.command(
 	['start', 'начать', 'help', 'помощь', botCommands.back, botCommands.no],
 	async (ctx) => {
@@ -79,20 +96,15 @@ bot.command(
 				}
 			} else {
 				const {
-					first_name: firstName,
-					last_name: lastName,
+					first_name: first_name,
+					last_name: last_name,
 				} = await bot
 					.execute('users.get', { user_ids: [ctx.message.user_id] })
 					.then((res) => res[0]);
 
-				student = await DataBase.createStudent(user_id, {
-					firstName,
-					lastName,
-				});
-				ctx.session.userId = student.vkId;
-				ctx.session.role = student.role;
-				ctx.session.secondName = student.secondName;
-				ctx.session.firstName = student.firstName;
+				ctx.session.userId = user_id;
+				ctx.session.secondName = last_name;
+				ctx.session.firstName = first_name;
 
 				ctx.scene.enter('register');
 			}

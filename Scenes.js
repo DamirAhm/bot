@@ -103,27 +103,12 @@ module.exports.registerScene = new Scene(
 	async (ctx) => {
 		const { userId } = ctx.session;
 
-		let Student = await DataBase.getStudentByVkId(userId);
-
-		if (!Student) {
-			Student = await DataBase.createStudent(userId);
-		}
-
-		if (Student.registered) {
-			ctx.reply(
-				'Вы уже зарегестрированны',
-				null,
-				await createDefaultKeyboard(ctx.session.role, ctx),
-			);
-			ctx.scene.enter('default');
-		} else {
-			ctx.scene.next();
-			ctx.reply(
-				'Введите имя класса в котором вы учитесь',
-				null,
-				Markup.keyboard([Markup.button(botCommands.checkExisting)]),
-			);
-		}
+		ctx.scene.next();
+		ctx.reply(
+			'Введите имя класса в котором вы учитесь',
+			null,
+			Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+		);
 	},
 	async (ctx) => {
 		try {
@@ -136,26 +121,33 @@ module.exports.registerScene = new Scene(
 				const classNames = await DataBase.getAllClasses().then((classes) =>
 					classes.map(({ name }) => name),
 				);
-
+				ctx.session.classNames = classNames;
 				ctx.reply(
 					mapListToMessage(classNames),
 					null,
 					classNames.length <= 40 ? mapListToKeyboard(classNames) : null,
 				);
+				return;
 			}
 
-			const spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
+			let spacelessClassName;
+
+			if (!isNaN(+body)) spacelessClassName = ctx.session.classNames[+body - 1].toUpperCase();
+			else spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
 
 			if (isValidClassName(spacelessClassName)) {
 				const Class = await DataBase.getClassByName(spacelessClassName);
-				const Student = await DataBase.getStudentByVkId(userId);
-
-				await Student.updateOne({ registered: true });
 
 				if (Class) {
-					await DataBase.addStudentToClass(userId, spacelessClassName);
+					const Student = await DataBase.createStudent(ctx.message.user_id, {
+						firstName: ctx.session.firstName,
+						lastName: ctx.session.lastName,
+						class_id: Class._id,
+					});
+					await Student.updateOne({ registered: true });
+
 					ctx.reply(
-						'Вы успешно зарегестрированны',
+						`Вы успешно зарегестрированны в ${spacelessClassName} классе`,
 						null,
 						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
@@ -1606,10 +1598,10 @@ module.exports.addAnnouncement = new Scene(
 	async (ctx) => {
 		try {
 			const {
-				message: { body: answer },
+				message: { body },
 			} = ctx;
 
-			if (answer.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
+			if (body.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
 				const {
 					newAnnouncement: { to, text, attachments },
 					Class: { name: className },
@@ -1625,27 +1617,22 @@ module.exports.addAnnouncement = new Scene(
 				);
 
 				if (res) {
-					ctx.scene.enter('default');
 					ctx.reply(
 						'Изменение в расписании успешно создано',
 						null,
 						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
+
 					if (isToday(to)) {
 						notifyAllInClass(
-							ctx.bot,
+							ctx,
 							className,
 							`На сегодня появилось новое изменение в расписании:\n ${text}`,
 							attachments,
 						);
 					}
 				} else {
-					ctx.scene.enter('default');
-					ctx.reply(
-						'Простите произошла ошибка',
-						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
-					);
+					ctx.scene.enter('error');
 				}
 			} else if (ctx.message.body.toLowerCase() === botCommands.no.toLowerCase()) {
 				ctx.scene.selectStep(2);
