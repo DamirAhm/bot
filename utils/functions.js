@@ -2,7 +2,7 @@ const { mapHomeworkByLesson } = require('bot-database/utils/functions');
 const { DataBase: DB } = require('bot-database/DataBase');
 const config = require('../config.js');
 const { monthsRP, createDefaultKeyboardSync } = require('./messagePayloading');
-const { Roles } = require('bot-database/Models/utils');
+const { Roles, Lessons } = require('bot-database/Models/utils');
 const botCommands = require('./botCommands');
 const Markup = require('node-vk-bot-api/lib/markup');
 
@@ -64,12 +64,15 @@ async function notifyAboutReboot(botInstance) {
 	}
 }
 function isStudentOnDefaultScene(res) {
-	return (
-		(res.items[0].text.startsWith('Mеню') ||
-			res.items[0].text === botCommands.botWasRebooted ||
-			res.items[0].text.startsWith('Задание на')) &&
-		-res.items[0].from_id === +config['GROUP_ID']
-	);
+	const messageMatches =
+		res.items[0].text.startsWith('Mеню') ||
+		res.items[0].text === botCommands.botWasRebooted ||
+		res.items[0].text.startsWith('Задание на') ||
+		new RegExp(`^(${Lessons.join('|')}):`, 'i').test(res.items[0].text);
+
+	const messageIsFromBot = -res.items[0].from_id === +config['GROUP_ID'];
+
+	return messageMatches && messageIsFromBot;
 }
 
 async function notifyStudents(botInstance) {
