@@ -60,9 +60,9 @@ const contributorOptions = [
 	{ label: botCommands.addHomework, payload: botCommands.addHomework, color: 'default' },
 	{ label: botCommands.addAnnouncement, payload: botCommands.addAnnouncement, color: 'default' },
 	{ label: botCommands.changeSchedule, payload: botCommands.changeSchedule, color: 'default' },
+	{ label: botCommands.addRedactor, payload: botCommands.addRedactor, color: 'default' },
 ];
 const adminOptions = [
-	{ label: botCommands.addRedactor, payload: botCommands.addRedactor, color: 'default' },
 	{ label: botCommands.removeRedactor, payload: botCommands.removeRedactor, color: 'default' },
 	{ label: botCommands.redactorsList, payload: botCommands.redactorsList, color: 'default' },
 	{ label: botCommands.addClass, payload: botCommands.addClass, color: 'default' },

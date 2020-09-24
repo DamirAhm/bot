@@ -18,6 +18,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		createBackKeyboard,
 		monthsRP,
 		notifyAllInClass,
+		createDefaultKeyboardSync,
 	} = require('./utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database/DataBase.js'),
 	{
@@ -887,14 +888,10 @@ module.exports.adminPanel = new Scene(
 
 			switch (ctx.message.body.trim()) {
 				case '1': {
-					ctx.scene.enter('addRedactor');
-					break;
-				}
-				case '2': {
 					ctx.scene.enter('removeRedactor');
 					break;
 				}
-				case '3': {
+				case '2': {
 					const Contributors = await DataBase.getAllContributors();
 
 					if (Contributors.length > 0) {
@@ -913,11 +910,11 @@ module.exports.adminPanel = new Scene(
 					ctx.scene.enter('default');
 					break;
 				}
-				case '4': {
+				case '3': {
 					ctx.scene.enter('createClass');
 					break;
 				}
-				case '5': {
+				case '4': {
 					const Classes = await DataBase.getAllClasses();
 
 					if (Classes.length > 0) {
@@ -934,10 +931,6 @@ module.exports.adminPanel = new Scene(
 						);
 					}
 					ctx.scene.enter('default');
-					break;
-				}
-				case botCommands.addRedactor: {
-					ctx.scene.enter('addRedactor');
 					break;
 				}
 				case botCommands.removeRedactor: {
@@ -1000,13 +993,24 @@ module.exports.adminPanel = new Scene(
 );
 module.exports.addRedactor = new Scene(
 	'addRedactor',
-	(ctx) => {
-		ctx.reply(
-			'Введите id пользователя, которого хотите сделать редактором',
-			null,
-			createBackKeyboard(),
-		);
-		ctx.scene.next();
+	async (ctx) => {
+		const role = ctx.session.role ?? (await DataBase.getRole(ctx.message.user_id));
+
+		if ([Roles.admin, Roles.contributor].includes(role)) {
+			ctx.reply(
+				'Введите id пользователя, которого хотите сделать редактором',
+				null,
+				createBackKeyboard(),
+			);
+			ctx.scene.next();
+		} else {
+			ctx.reply(
+				'У вас нет прав что бы добавлять редакторов',
+				null,
+				createDefaultKeyboardSync(role),
+			);
+			ctx.scene.enter('default');
+		}
 	},
 	async (ctx) => {
 		try {
@@ -1015,9 +1019,10 @@ module.exports.addRedactor = new Scene(
 			}
 			const {
 				message: { body },
-				scene: { leave, enter },
 			} = ctx;
 			const id = Number(body.trim());
+
+			const role = ctx.session.role ?? (await DataBase.getRole(ctx.message.user_id));
 
 			if (!isNaN(id)) {
 				let Student = await DataBase.getStudentByVkId(id);
@@ -1040,32 +1045,51 @@ module.exports.addRedactor = new Scene(
 					return;
 				}
 
-				if (!Student) {
-					const response = await vk.api('users.get', { user_ids: id });
+				if (role === Roles.admin) {
+					if (!Student) {
+						const response = await vk.api('users.get', { user_ids: id });
 
-					if (!response.error_code && response) {
-						const { first_name, last_name } = response[0];
-						Student = await DataBase.createStudent(id, {
-							firstName: first_name,
-							lastName: last_name,
-						});
+						if (!response.error_code && response) {
+							const { first_name, last_name } = response[0];
+							Student = await DataBase.createStudent(id, {
+								firstName: first_name,
+								lastName: last_name,
+							});
+						} else {
+							throw new Error(JSON.stringify(response));
+						}
+					}
+
+					await Student.updateOne({ role: Roles.contributor });
+
+					ctx.reply(
+						'Пользователь стал редактором',
+						null,
+						await createDefaultKeyboard(true, false),
+					);
+					ctx.scene.enter('default');
+				} else if (role === Roles.contributor) {
+					const { class: classId } = await DataBase.getStudentByVkId(ctx.message.user_id);
+					if (Student && Student.class.toString() === classId.toString()) {
+						await Student.updateOne({ role: Roles.contributor });
+
+						ctx.reply(
+							'Пользователь стал редактором',
+							null,
+							await createDefaultKeyboard(true, false),
+						);
+						ctx.scene.enter('default');
 					} else {
-						throw new Error(JSON.stringify(response));
+						ctx.reply(
+							'Что бы сделать пользователя редактором, он должен быть учеником вашего класса',
+							null,
+							await createDefaultKeyboard(true, false),
+						);
+						ctx.scene.enter('default');
 					}
 				}
-
-				Student.role = Roles.contributor;
-				await Student.save();
-
-				ctx.reply(
-					'Пользователь стал редактором',
-					null,
-					await createDefaultKeyboard(true, false),
-				);
-				ctx.scene.enter('default');
 			} else {
 				ctx.reply('Неверный id');
-				ctx.scene.enter('addRedactor');
 			}
 		} catch (e) {
 			ctx.scene.leave();
@@ -1078,7 +1102,7 @@ module.exports.removeRedactor = new Scene(
 	'removeRedactor',
 	(ctx) => {
 		ctx.reply(
-			'Введите id пользователя, которого хотите сделать редактором',
+			'Введите id пользователя, которого хотите лишить должности редактора',
 			null,
 			createBackKeyboard(),
 		);
@@ -1192,15 +1216,23 @@ module.exports.contributorPanel = new Scene(
 
 			switch (ctx.message.body.trim().toLowerCase()) {
 				case '1': {
-					ctx.scene.enter('addHomework');
+					ctx.scene.enter('addRedactor');
 					break;
 				}
 				case '2': {
-					ctx.scene.enter('addAnnouncement');
+					ctx.scene.enter('addHomework');
 					break;
 				}
 				case '3': {
+					ctx.scene.enter('addAnnouncement');
+					break;
+				}
+				case '4': {
 					ctx.scene.enter('changeSchedule');
+					break;
+				}
+				case botCommands.addRedactor: {
+					ctx.scene.enter('addRedactor');
 					break;
 				}
 				case botCommands.addHomework.toLowerCase(): {
