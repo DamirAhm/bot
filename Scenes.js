@@ -1216,22 +1216,22 @@ module.exports.contributorPanel = new Scene(
 
 			switch (ctx.message.body.trim().toLowerCase()) {
 				case '1': {
-					ctx.scene.enter('addRedactor');
-					break;
-				}
-				case '2': {
 					ctx.scene.enter('addHomework');
 					break;
 				}
-				case '3': {
+				case '2': {
 					ctx.scene.enter('addAnnouncement');
 					break;
 				}
-				case '4': {
+				case '3': {
 					ctx.scene.enter('changeSchedule');
 					break;
 				}
-				case botCommands.addRedactor: {
+				case '4': {
+					ctx.scene.enter('addRedactor');
+					break;
+				}
+				case botCommands.addRedactor.toLowerCase(): {
 					ctx.scene.enter('addRedactor');
 					break;
 				}
