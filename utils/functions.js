@@ -139,17 +139,18 @@ function getNotifiableIds(students) {
 		lastHomeworkCheck,
 		vkId,
 	} of students) {
-		if (notificationsEnabled) {
-			const [hours, mins] = notificationTime
-				.match(/([0-9]+):([0-9]+)/)
-				.slice(1)
-				.map(Number);
+		// if (notificationsEnabled) {
+		// 	const [hours, mins] = notificationTime
+		// 		.match(/([0-9]+):([0-9]+)/)
+		// 		.slice(1)
+		// 		.map(Number);
 
-			if (isReadyToNotificate(hours, mins, lastHomeworkCheck)) {
-				ids.push(vkId);
-				DataBase.changeLastHomeworkCheckDate(vkId, new Date());
-			}
-		}
+		// 	if (isReadyToNotificate(hours, mins, lastHomeworkCheck)) {
+		// 		ids.push(vkId);
+		// 		DataBase.changeLastHomeworkCheckDate(vkId, new Date());
+		// 	}
+		// }
+		ids.push(vkId);
 	}
 
 	return ids;

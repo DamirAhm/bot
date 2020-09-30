@@ -721,7 +721,7 @@ module.exports.settings = new Scene(
 					const [hrs, mins] = parseTime(body);
 
 					if (hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60) {
-						const res = await DataBase.changeSettings(ctx.session.user_id, {
+						const res = await DataBase.changeSettings(ctx.message.user_id, {
 							notificationTime: body,
 						});
 
