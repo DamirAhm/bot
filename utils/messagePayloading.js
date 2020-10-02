@@ -3,6 +3,7 @@ const config = require('../config.js');
 const Markup = require('node-vk-bot-api/lib/markup');
 const { DataBase: DB } = require('bot-database/DataBase');
 const botCommands = require('./botCommands');
+const { capitalize, translit, retranslit } = require('./functions.js');
 
 const DataBase = new DB(config['MONGODB_URI']);
 
@@ -242,8 +243,12 @@ const createUserInfo = ({
 	settings: { notificationsEnabled, notificationTime, daysForNotification },
 	className,
 	name,
+	cityName,
+	schoolNumber,
 }) => {
 	return `${name}
+	${botCommands.city}: ${capitalize(retranslit(cityName))}
+	${botCommands.schoolNumber}: ${schoolNumber}
     ${botCommands.class}: ${className}
     ${botCommands.role}: ${botCommands[role.toLowerCase()]}
     ${botCommands.settings}:
@@ -283,6 +288,7 @@ const notifyAllInClass = async (
 const lessonsList = mapListToMessage(Lessons, 0);
 
 module.exports = {
+	createDefaultKeyboardSync,
 	formMessage,
 	renderAdminMenu,
 	parseAttachmentsToVKString,
@@ -300,5 +306,4 @@ module.exports = {
 	createConfirmKeyboard,
 	createUserInfo,
 	monthsRP,
-	createDefaultKeyboardSync,
 };

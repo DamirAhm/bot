@@ -7,8 +7,11 @@ module.exports = {
 	contributor: 'Редактор',
 	student: 'Ученик',
 	class: 'Класс',
+	city: 'Город',
+	schoolNumber: 'Номер школы',
 
 	changeClass: 'Сменить класс',
+	changeSchool: 'Сменить школу',
 
 	settings: 'Настройки',
 	changeSettings: 'Изменить настройки',

@@ -1,16 +1,88 @@
 const { mapHomeworkByLesson } = require('bot-database/utils/functions');
 const { DataBase: DB } = require('bot-database/DataBase');
 const config = require('../config.js');
-const { monthsRP, createDefaultKeyboardSync } = require('./messagePayloading');
 const { Roles, Lessons } = require('bot-database/Models/utils');
 const botCommands = require('./botCommands');
 const Markup = require('node-vk-bot-api/lib/markup');
 
-const mapListToKeyboard = (list) => {
-	return Markup.keyboard(
-		list.map((value) => Markup.button(value)),
-		{ columns: calculateColumnsAmount(list.length) },
+const mapListToKeyboard = (list, { trailingButtons = [], leadingButtons = [] } = {}) => {
+	if ([trailingButtons, leadingButtons].every((btns) => Array.isArray(btns[0]) || !btns.length)) {
+		return Markup.keyboard(
+			[...leadingButtons, list.map((value) => Markup.button(value)), ...trailingButtons],
+			{ columns: calculateColumnsAmount(list.length) },
+		);
+	} else {
+		return Markup.keyboard(
+			[...leadingButtons, ...list.map((value) => Markup.button(value)), ...trailingButtons],
+			{ columns: calculateColumnsAmount(list.length) },
+		);
+	}
+};
+
+//! Копировал из messagePayloading потому что не работает из за циклических зависимостей
+//Родительный падеж
+const monthsRP = [
+	'января',
+	'февраля',
+	'марта',
+	'апреля',
+	'мая',
+	'июня',
+	'июля',
+	'августа',
+	'сентября',
+	'октября',
+	'ноября',
+	'декабря',
+];
+const userOptions = [
+	{
+		label: botCommands.checkHomework,
+		payload: 'checkHomework',
+		color: 'primary',
+	},
+	{
+		label: botCommands.checkAnnouncements,
+		payload: 'checkAnnouncements',
+		color: 'primary',
+	},
+	{
+		label: botCommands.checkSchedule,
+		payload: 'checkSchedule',
+		color: 'primary',
+	},
+	{
+		label: botCommands.settings,
+		payload: 'settings',
+		color: 'primary',
+	},
+	{
+		label: botCommands.giveFeedback,
+		payload: 'giveFeedback',
+		color: 'secondary',
+	},
+];
+const createDefaultKeyboardSync = (role) => {
+	let buttons = userOptions.map(({ label, payload, color }) =>
+		Markup.button(label, color, { button: payload }),
 	);
+
+	if ([Roles.contributor, Roles.admin].includes(role)) {
+		buttons.push(
+			Markup.button(botCommands.contributorPanel, 'primary', {
+				button: 'contributorPanel',
+			}),
+		);
+	}
+	if (role === Roles.admin) {
+		buttons.push(
+			Markup.button(botCommands.adminPanel, 'positive', {
+				button: 'adminMenu',
+			}),
+		);
+	}
+
+	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
 };
 
 const DataBase = new DB(config['MONGODB_URI']);
@@ -31,14 +103,127 @@ const dataForSceneInSession = [
 	'possibleLessons',
 	'homework',
 	'students',
+	'cityNames',
+	'cityName',
+	'changedCity',
 ];
+
+const ruToEngTranslits = {
+	а: 'a',
+	б: 'b',
+	в: 'v',
+	г: 'g',
+	д: 'd',
+	е: 'e',
+	ё: 'yo',
+	ж: 'zh',
+	з: 'z',
+	и: 'i',
+	й: 'y',
+	к: 'k',
+	л: 'l',
+	м: 'm',
+	н: 'n',
+	о: 'o',
+	п: 'p',
+	р: 'r',
+	с: 's',
+	т: 't',
+	у: 'u',
+	ф: 'f',
+	х: 'h',
+	ц: 'c',
+	ч: 'ch',
+	ш: 'sh',
+	щ: "sh'",
+	ъ: '',
+	ы: 'i',
+	ь: '',
+	э: 'e',
+	ю: 'yu',
+	я: 'ya',
+};
+const engToRuTranslits = {
+	a: 'а',
+	b: 'б',
+	v: 'в',
+	g: 'г',
+	d: 'д',
+	e: 'е',
+	yo: 'ё',
+	zh: 'ж',
+	z: 'з',
+	i: 'и',
+	y: 'й',
+	k: 'к',
+	l: 'л',
+	m: 'м',
+	n: 'н',
+	o: 'о',
+	p: 'п',
+	r: 'р',
+	s: 'с',
+	t: 'т',
+	u: 'у',
+	f: 'ф',
+	h: 'х',
+	c: 'ц',
+	ch: 'ч',
+	sh: 'ш',
+	"sh'": 'щ',
+	oo: 'у',
+	ee: 'и',
+	yu: 'ю',
+	ya: 'я',
+};
+function translit(rusWord) {
+	if (rusWord && typeof rusWord === 'string') {
+		return rusWord
+			.split('')
+			.map((w) => ruToEngTranslits[w.toLowerCase()] || w.toLowerCase())
+			.join('');
+	} else {
+		return '';
+	}
+}
+function retranslit(engWord) {
+	if (engWord && typeof engWord === 'string') {
+		if (/(ch|sh|zh|sh\'|yo|yu|ya|oo|ee).test(engWord)/) {
+			for (const i of ['ch', 'sh', 'zh', "sh'", 'yo', 'yu', 'ya', 'oo', 'ee']) {
+				engWord = engWord.replace(new RegExp(i, 'g'), engToRuTranslits[i]);
+			}
+		}
+		for (const i of Object.keys(engToRuTranslits)) {
+			engWord = engWord.replace(new RegExp(i, 'g'), engToRuTranslits[i]);
+		}
+
+		return engWord;
+	} else {
+		return '';
+	}
+}
+
+const capitalize = (str) => (str ? str[0].toUpperCase() + str.slice(1) : '');
+
+function parseSchoolName(schoolName) {
+	const match = schoolName?.match(/^([a-z]+):(\d+)/);
+	if (match != null) {
+		const [_, city, number] = match;
+
+		if (!isNaN(+number)) {
+			return [city, +number];
+		} else {
+			return null;
+		}
+	}
+	return null;
+}
 
 async function notifyAboutReboot(botInstance) {
 	try {
 		const studentsIdsAndRoles = await DataBase.getAllStudents().then((students) =>
 			students.map(({ vkId, role }) => ({ vkId, role })),
 		);
-
 		for (const { role, vkId } of studentsIdsAndRoles) {
 			const res = await botInstance.execute('messages.getHistory', {
 				count: 1,
@@ -53,7 +238,7 @@ async function notifyAboutReboot(botInstance) {
 							[vkId],
 							botCommands.botWasRebooted,
 							null,
-							await createDefaultKeyboardSync(role),
+							createDefaultKeyboardSync(role),
 						),
 					50,
 				);
@@ -277,8 +462,24 @@ function isValidClassName(name) {
 	}
 	return false;
 }
+function isValidCityName(name) {
+	return /^([а-я]|[a-z])+^/i.test(name);
+}
+function isValidSchoolNumber(number) {
+	if (!isNaN(+number)) {
+		return +number >= 0 && +number % 1 === 0;
+	} else return false;
+}
 
 module.exports = {
+	isValidCityName,
+	isValidSchoolNumber,
+	parseSchoolName,
+	capitalize,
+	ruToEngTranslits,
+	engToRuTranslits,
+	retranslit,
+	translit,
 	isValidClassName,
 	isToday,
 	getTomorrowDate,

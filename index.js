@@ -28,9 +28,7 @@ DataBase.connect(
 		server.listen(process.env.PORT || 1337);
 		bot.startPolling();
 
-		if (process.env.NODE_ENV === 'production') {
-			notifyAboutReboot(bot);
-		}
+		notifyAboutReboot(bot);
 
 		notifyStudents(bot);
 		setInterval(() => notifyStudents(bot), 1000 * 60);
@@ -62,7 +60,7 @@ bot.command(/.*/, async (ctx, next) => {
 });
 
 bot.command(
-	['start', 'начать', 'help', 'помощь', botCommands.back, botCommands.no],
+	['start', 'начать', 'help', 'помощь', 'меню', botCommands.back, botCommands.no],
 	async (ctx) => {
 		try {
 			const {

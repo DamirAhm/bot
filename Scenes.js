@@ -1,5 +1,4 @@
 const path = require('path');
-
 const Scene = require('node-vk-bot-api/lib/scene'),
 	config = require('./config.js'),
 	{
@@ -47,6 +46,11 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		calculateColumnsAmount,
 		mapListToKeyboard,
 		isValidClassName,
+		parseSchoolName,
+		retranslit,
+		capitalize,
+		translit,
+		isValidCityName,
 	} = require('./utils/functions.js'),
 	fs = require('fs');
 
@@ -56,6 +60,8 @@ const changables = {
 	notificationTime: 'notificationTime',
 	notificationsEnabled: 'notificationsEnabled',
 	daysForNotification: 'daysForNotification',
+	school: 'school',
+	city: 'city',
 };
 
 const isAdmin = async (ctx) => {
@@ -83,11 +89,22 @@ const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 const timeRegExp = /[0-9]+:[0-9]+/;
 
 module.exports.errorScene = new Scene('error', async (ctx) => {
-	ctx.reply(
-		'Простите произошла ошибка',
-		null,
-		await createDefaultKeyboard(ctx.session.role, ctx),
-	);
+	const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
+
+	if (Student && Student.registered) {
+		ctx.reply(
+			'Простите произошла ошибка',
+			null,
+			await createDefaultKeyboard(ctx.session.role, ctx),
+		);
+		ctx.scene.enter('default');
+	} else {
+		ctx.reply('Простите произошла ошибка');
+
+		setTimeout(() => {
+			ctx.scene.enter('register');
+		}, 75);
+	}
 });
 
 module.exports.startScene = new Scene('start', async (ctx) => {
@@ -102,14 +119,111 @@ module.exports.startScene = new Scene('start', async (ctx) => {
 module.exports.registerScene = new Scene(
 	'register',
 	async (ctx) => {
-		const { userId } = ctx.session;
-
 		ctx.scene.next();
 		ctx.reply(
-			'Введите имя класса в котором вы учитесь',
+			'Введите название города в котором вы учитесь',
 			null,
 			Markup.keyboard([Markup.button(botCommands.checkExisting)]),
 		);
+	},
+	async (ctx) => {
+		try {
+			let { body } = ctx.message;
+			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
+				const cityNames = await getCityNames();
+
+				ctx.session.cityNames = cityNames;
+
+				ctx.reply(
+					'Выберите свой город\n' + mapListToMessage(cityNames.map(capitalize)),
+					null,
+					mapListToKeyboard(cityNames.map(capitalize)),
+				);
+			} else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
+				const cityNames = await getCityNames();
+
+				if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
+					let cityName;
+
+					if (!isNaN(+body)) cityName = cityNames[+body - 1];
+					else cityName = body.toLowerCase();
+
+					ctx.session.cityName = cityName;
+
+					ctx.scene.next();
+					ctx.reply(
+						'Введите номер школы в которой вы учитесь',
+						null,
+						Markup.keyboard(
+							cityNames.includes(cityName.toLowerCase())
+								? [Markup.button(botCommands.checkExisting)]
+								: [],
+						),
+					);
+				} else {
+					ctx.reply('Введите название русскими или английскими буквами или цифру города');
+				}
+			} else {
+				ctx.reply('Введите название русскими или английскими буквами');
+			}
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
+	},
+	async (ctx) => {
+		try {
+			const { body } = ctx.message;
+
+			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
+				const schoolNumbers = await getSchoolNumbers(ctx.session.cityName);
+				if (schoolNumbers.length) {
+					ctx.reply(
+						'Выберите свою школу\n' + schoolNumbers.join('\n'),
+						null,
+						mapListToKeyboard(schoolNumbers),
+					);
+				} else {
+					ctx.reply(
+						'В вашем городе не создано еще ни одной школы ¯_(ツ)_/¯',
+						null,
+						Markup.keyboard([]),
+					);
+				}
+			} else if (/(\d)+/i.test(body)) {
+				const schoolNumbers = await getSchoolNumbers(ctx.session.cityName);
+				if (!isNaN(+body)) {
+					const schoolNumber = body;
+
+					if (!schoolNumbers.includes(schoolNumber)) {
+						const newSchool = await DataBase.createSchool(
+							`${translit(ctx.session.cityName)}:${body}`,
+						);
+
+						if (!newSchool) {
+							ctx.session.schoolNumber = body;
+							ctx.session.schoolName = `${translit(ctx.session.cityName)}:${body}`;
+						} else {
+							throw new Error('Не удалось создать школу');
+						}
+					}
+
+					ctx.scene.next();
+					ctx.reply(
+						'Введите имя класса в котором вы учитесь',
+						null,
+						Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+					);
+				} else {
+					ctx.reply('Введите номер школы цифрами');
+				}
+			} else {
+				ctx.reply('Введите номер школы цифрами');
+			}
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
 	},
 	async (ctx) => {
 		try {
@@ -119,10 +233,12 @@ module.exports.registerScene = new Scene(
 			const { userId } = ctx.session;
 
 			if (body === botCommands.checkExisting) {
-				const classNames = await DataBase.getAllClasses().then((classes) =>
-					classes.map(({ name }) => name),
-				);
+				const classNames = await DataBase.getAllClasses(
+					`${ctx.session.schoolName}`,
+				).then((classes) => classes.map((Class) => (Class ? Class.name : null)));
+
 				ctx.session.classNames = classNames;
+
 				ctx.reply(
 					mapListToMessage(classNames),
 					null,
@@ -137,28 +253,41 @@ module.exports.registerScene = new Scene(
 			else spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
 
 			if (isValidClassName(spacelessClassName)) {
-				const Class = await DataBase.getClassByName(spacelessClassName);
+				const Class = await DataBase.getClassByName(
+					spacelessClassName,
+					ctx.session.schoolName,
+				);
 
 				if (Class) {
+					//! Убрал имя школы их схемы ученика
 					const Student = await DataBase.createStudent(ctx.message.user_id, {
 						firstName: ctx.session.firstName,
 						lastName: ctx.session.lastName,
 						class_id: Class._id,
+						registered: true,
 					});
-					await Student.updateOne({ registered: true });
+
+					ctx.session.role = Student.role;
 
 					ctx.reply(
-						`Вы успешно зарегестрированны в ${spacelessClassName} классе`,
+						`Вы успешно зарегестрированны в ${spacelessClassName} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
 						null,
 						await createDefaultKeyboard(ctx.session.role, ctx),
 					);
 					ctx.scene.enter('default');
 				} else {
-					const Class = await DataBase.createClass(spacelessClassName);
+					const Class = await DataBase.createClass(
+						spacelessClassName,
+						ctx.session.schoolName,
+					);
 					if (Class) {
-						await DataBase.addStudentToClass(userId, spacelessClassName);
+						await DataBase.addStudentToClass(
+							userId,
+							spacelessClassName,
+							ctx.session.schoolName,
+						);
 						ctx.reply(
-							'Вы успешно зарегестрированны',
+							`Вы успешно зарегестрированны в ${spacelessClassName} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
 							null,
 							await createDefaultKeyboard(ctx.session.role, ctx),
 						);
@@ -168,6 +297,8 @@ module.exports.registerScene = new Scene(
 			} else {
 				ctx.reply('Неверное имя класса');
 			}
+
+			cleanDataForSceneFromSession(ctx);
 		} catch (e) {
 			console.error(e);
 			ctx.scene.enter('error');
@@ -656,6 +787,7 @@ module.exports.settings = new Scene(
 							Markup.button(botCommands.changeClass, 'primary'),
 							Markup.button(botCommands.changeDaysForNotification, 'primary'),
 						],
+						[Markup.button(botCommands.changeSchool, 'primary')],
 					]),
 				);
 			} else if (body === botCommands.back) {
@@ -674,21 +806,40 @@ module.exports.settings = new Scene(
 				message: { body },
 			} = ctx;
 
-			if (body === botCommands.disableNotifications) {
-				await disableNotificationsAction(ctx);
-			} else if (body === botCommands.enbleNotifications) {
-				await enableNotificationsAction(ctx);
-			} else if (body === botCommands.changeNotificationTime) {
-				changeNotificationTimeAction(ctx);
-			} else if (body === botCommands.changeClass) {
-				changeClassAction(ctx);
-			} else if (body === botCommands.changeDaysForNotification) {
-				enterDayIndexesAction(ctx);
-			} else if (body === botCommands.back) {
-				ctx.scene.selectStep(1);
-				await sendStudentInfo(ctx);
-			} else {
-				ctx.reply(botCommands.notUnderstood);
+			switch (body.toLowerCase()) {
+				case botCommands.disableNotifications.toLowerCase(): {
+					await disableNotificationsAction(ctx);
+					break;
+				}
+				case botCommands.enbleNotifications.toLowerCase(): {
+					await enableNotificationsAction(ctx);
+					break;
+				}
+				case botCommands.changeNotificationTime.toLowerCase(): {
+					changeNotificationTimeAction(ctx);
+					break;
+				}
+				case botCommands.changeSchool.toLowerCase(): {
+					changeSchoolAction(ctx);
+					break;
+				}
+				case botCommands.changeClass.toLowerCase(): {
+					changeClassAction(ctx);
+					break;
+				}
+				case botCommands.changeDaysForNotification.toLowerCase(): {
+					enterDayIndexesAction(ctx);
+					break;
+				}
+				case botCommands.back.toLowerCase(): {
+					ctx.scene.selectStep(1);
+					await sendStudentInfo(ctx);
+					break;
+				}
+				default: {
+					ctx.reply(botCommands.notUnderstood);
+					break;
+				}
 			}
 		} catch (e) {
 			console.error(e);
@@ -715,95 +866,158 @@ module.exports.settings = new Scene(
 						],
 					]),
 				);
-			} else if (ctx.session.changed === changables.notificationTime) {
-				body = body.replace(/\./g, ':');
-				if (timeRegExp.test(body)) {
-					const [hrs, mins] = parseTime(body);
+			} else if (ctx.session.changed) {
+				switch (ctx.session.changed) {
+					case changables.notificationTime: {
+						body = body.replace(/\./g, ':');
+						if (timeRegExp.test(body)) {
+							const [hrs, mins] = parseTime(body);
 
-					if (hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60) {
+							if (hrs >= 0 && hrs < 24 && mins >= 0 && mins < 60) {
+								const res = await DataBase.changeSettings(ctx.message.user_id, {
+									notificationTime: body,
+								});
+
+								if (res) {
+									ctx.reply(
+										'Время получения уведомлений успешно изменено на ' + body,
+										null,
+										await createDefaultKeyboard(ctx.session.role, ctx),
+									);
+									setTimeout(async () => {
+										ctx.scene.enter('default');
+									}, 50);
+								} else {
+									ctx.scene.enter('default');
+									ctx.reply(
+										'Простите не удалось изменить настройки, попробуйте позже',
+										null,
+										await createDefaultKeyboard(ctx.session.role, ctx),
+									);
+								}
+							} else {
+								ctx.reply(
+									'Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ',
+								);
+							}
+						} else {
+							ctx.reply(
+								'Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ',
+							);
+						}
+						break;
+					}
+					case changables.class: {
+						if (ctx.session.Class) {
+							const res = await DataBase.changeClass(
+								ctx.message.user_id,
+								ctx.session.Class.name,
+								await getSchoolName(ctx),
+							);
+
+							if (res) {
+								ctx.reply(
+									`Класс успешно изменен на ${ctx.session.Class.name}`,
+									null,
+									await createDefaultKeyboard(ctx.session.role, ctx),
+								);
+								setTimeout(() => {
+									ctx.scene.enter('default');
+								}, 50);
+							} else {
+								ctx.reply(
+									`К сожалению не удалось сменить класс`,
+									null,
+									await createDefaultKeyboard(ctx.session.role, ctx),
+								);
+
+								changeClassAction(ctx);
+							}
+						} else {
+							ctx.reply(
+								`Не удалось сменить класс на ${ctx.session.Class.name}`,
+								null,
+								await createDefaultKeyboard(ctx.session.role, ctx),
+							);
+
+							changeClassAction(ctx);
+						}
+						break;
+					}
+					case changables.school: {
+						if (ctx.session.Class && ctx.session.schoolName) {
+							const res = await DataBase.changeClass(
+								ctx.message.user_id,
+								ctx.session.Class.name,
+								ctx.session.schoolName,
+							);
+
+							if (res) {
+								ctx.reply(
+									`Школа успешно изменена на ${capitalize(
+										ctx.session.schoolNumber,
+									)} ${
+										ctx.session.changedCity
+											? `школу города ${ctx.session.cityName}`
+											: ''
+									}`,
+									null,
+									await createDefaultKeyboard(ctx.session.role, ctx),
+								);
+								setTimeout(() => {
+									ctx.scene.enter('default');
+								}, 50);
+							} else {
+								ctx.reply(
+									`К сожалению не удалось сменить школу`,
+									null,
+									await createDefaultKeyboard(ctx.session.role, ctx),
+								);
+
+								changeClassAction(ctx);
+							}
+						} else {
+							ctx.reply(
+								`Не удалось сменить школу на ${ctx.session.Class.name}`,
+								null,
+								await createDefaultKeyboard(ctx.session.role, ctx),
+							);
+
+							changeClassAction(ctx);
+						}
+						break;
+					}
+					case changables.daysForNotification: {
+						const { enteredDayIndexes } = ctx.session;
+
 						const res = await DataBase.changeSettings(ctx.message.user_id, {
-							notificationTime: body,
+							daysForNotification: enteredDayIndexes,
 						});
 
 						if (res) {
-							ctx.scene.enter('default');
 							ctx.reply(
-								'Время получения уведомлений успешно изменено на ' + body,
+								`Дни оповещений успешно изменены на ${enteredDayIndexes.join(
+									', ',
+								)}`,
 								null,
 								await createDefaultKeyboard(ctx.session.role, ctx),
 							);
+							setTimeout(() => {
+								ctx.scene.enter('default');
+							}, 50);
 						} else {
-							ctx.scene.enter('default');
 							ctx.reply(
-								'Простите не удалось изменить настройки, попробуйте позже',
+								`К сожалению не удалось сменить дни оповещений, попробуйте позже`,
 								null,
 								await createDefaultKeyboard(ctx.session.role, ctx),
 							);
+							ctx.scene.enter('default');
 						}
-					} else {
-						ctx.reply(
-							'Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ',
-						);
+						break;
 					}
-				} else {
-					ctx.reply(
-						'Проверьте правильность введенного времени, оно должно быть в формате ЧЧ:ММ',
-					);
 				}
-			} else if (ctx.session.changed === changables.class) {
-				if (ctx.session.Class) {
-					const res = await DataBase.changeClass(
-						ctx.message.user_id,
-						ctx.session.Class.name,
-					);
-
-					if (res) {
-						ctx.reply(
-							`Класс успешно изменен на ${ctx.session.Class.name}`,
-							null,
-							await createDefaultKeyboard(ctx.session.role, ctx),
-						);
-						ctx.scene.enter('default');
-					} else {
-						ctx.reply(
-							`К сожалению не удалось сменить класс на ${ctx.session.Class.name}`,
-							null,
-							await createDefaultKeyboard(ctx.session.role, ctx),
-						);
-
-						changeClassAction(ctx);
-					}
-				} else {
-					ctx.reply(
-						`Не удалось сменить класс на ${ctx.session.Class.name}`,
-						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
-					);
-
-					changeClassAction(ctx);
-				}
-			} else if (ctx.session.changed === changables.daysForNotification) {
-				const { enteredDayIndexes } = ctx.session;
-
-				const res = await DataBase.changeSettings(ctx.message.user_id, {
-					daysForNotification: enteredDayIndexes,
-				});
-
-				if (res) {
-					ctx.reply(
-						`Дни оповещений успешно изменены на ${enteredDayIndexes.join(', ')}`,
-						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
-					);
-					ctx.scene.enter('default');
-				} else {
-					ctx.reply(
-						`К сожалению не удалось сменить дни оповещений, попробуйте позже`,
-						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
-					);
-					ctx.scene.enter('default');
-				}
+			} else {
+				throw new Error('Ничего не изменилось ¯_(ツ)_/¯');
 			}
 
 			cleanDataForSceneFromSession(ctx);
@@ -892,7 +1106,9 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case '2': {
-					const Contributors = await DataBase.getAllContributors();
+					const Contributors = await DataBase.getAllContributors(
+						await getSchoolName(ctx),
+					);
 
 					if (Contributors.length > 0) {
 						const classesStr = mapListToMessage(mapStudentToPreview(Contributors));
@@ -915,10 +1131,12 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case '4': {
-					const Classes = await DataBase.getAllClasses();
+					const Classes = await DataBase.getAllClasses(await getSchoolName(ctx));
 
 					if (Classes.length > 0) {
-						const classesStr = mapListToMessage(Classes.map(({ name }) => name));
+						const classesStr = mapListToMessage(
+							Classes.map((Class) => (Class ? Class.name : null)),
+						);
 
 						const message = 'Список всех классов\n\t' + classesStr;
 
@@ -938,7 +1156,9 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case botCommands.redactorsList: {
-					const Contributors = await DataBase.getAllContributors();
+					const Contributors = await DataBase.getAllContributors(
+						await getSchoolName(ctx),
+					);
 
 					if (Contributors.length > 0) {
 						const classesStr = mapListToMessage(mapStudentToPreview(Contributors));
@@ -961,10 +1181,12 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case botCommands.classList: {
-					const Classes = await DataBase.getAllClasses();
+					const Classes = await DataBase.getAllClasses(await getSchoolName(ctx));
 
 					if (Classes.length > 0) {
-						const classesStr = mapListToMessage(Classes.map(({ name }) => name));
+						const classesStr = mapListToMessage(
+							Classes.map((Class) => (Class ? Class.name : null)),
+						);
 
 						const message = 'Список всех классов\n\t' + classesStr;
 
@@ -1054,6 +1276,7 @@ module.exports.addRedactor = new Scene(
 							Student = await DataBase.createStudent(id, {
 								firstName: first_name,
 								lastName: last_name,
+								registered: false,
 							});
 						} else {
 							throw new Error(JSON.stringify(response));
@@ -1166,32 +1389,36 @@ module.exports.createClass = new Scene(
 		ctx.reply('Введите имя класса (цифра буква)', null, createBackKeyboard());
 		ctx.scene.next();
 	},
-	(ctx) => {
-		if (ctx.message.body.trim() === botCommands.back) {
-			ctx.scene.enter('default');
-		}
-		const {
-			message: { body },
-			scene: { leave, enter },
-		} = ctx;
-		const spacelessClassName = body.replace(/\s*/g, '');
-		if (/\d+([a-z]|[а-я])/i.test(spacelessClassName)) {
-			DataBase.createClass(spacelessClassName)
-				.then((result) => {
-					if (result) {
-						ctx.reply('Класс успешно создан');
-						ctx.scene.enter('default');
-					} else {
-						ctx.reply('Создание класса не удалось');
-					} //исправить (вынести в функцию\превратить старт в сцену\еще что то)
-				})
-				.catch((err) => {
-					console.error(err);
-					ctx.reply('Что то пошло не так попробуйте позже');
-				});
-		} else {
-			enter('createClass');
-			ctx.reply('Неправильный формат ввода (должна быть цифра и потом буква)');
+	async (ctx) => {
+		try {
+			if (ctx.message.body.trim() === botCommands.back) {
+				ctx.scene.enter('default');
+			}
+			const {
+				message: { body },
+				scene: { leave, enter },
+			} = ctx;
+			const spacelessClassName = body.replace(/\s*/g, '');
+			if (/\d+([a-z]|[а-я])/i.test(spacelessClassName)) {
+				const Class = await DataBase.createClass(
+					spacelessClassName,
+					await DataBase.getSchoolForStudent(ctx.message.user_id).then((School) =>
+						School ? School.name : null,
+					),
+				);
+				if (Class) {
+					ctx.reply('Класс успешно создан');
+					ctx.scene.enter('default');
+				} else {
+					ctx.reply('Создание класса не удалось');
+				} //TODO исправить (вынести в функцию\превратить старт в сцену\еще что то)
+			} else {
+				enter('createClass');
+				ctx.reply('Неправильный формат ввода (должна быть цифра и потом буква)');
+			}
+		} catch (err) {
+			console.error(err);
+			ctx.reply('Что то пошло не так попробуйте позже');
 		}
 	},
 );
@@ -1454,7 +1681,10 @@ module.exports.addHomework = new Scene(
 				ctx.session.Class = undefined;
 
 				const res = await DataBase.addHomework(
-					className,
+					{
+						className,
+						schoolName: await getSchoolName(ctx),
+					},
 					lesson,
 					{ text, attachments },
 					ctx.message.user_id,
@@ -1641,7 +1871,10 @@ module.exports.addAnnouncement = new Scene(
 				ctx.session.Class = undefined;
 
 				const res = await DataBase.addAnnouncement(
-					className,
+					{
+						className,
+						schoolName: await getSchoolName(ctx),
+					},
 					{ text, attachments },
 					to,
 					false,
@@ -1914,15 +2147,321 @@ module.exports.changeSchedule = new Scene(
 	},
 );
 
+module.exports.pickSchool = new Scene(
+	'pickSchool',
+	async (ctx) => {
+		try {
+			const keyboard = (await getSchoolName(ctx))
+				? createConfirmKeyboard([[Markup.button(botCommands.back, 'negative')]])
+				: Markup.keyboard([
+						[Markup.button(botCommands.yes, 'positive')],
+						[Markup.button(botCommands.back, 'negative')],
+				  ]);
+
+			ctx.scene.next();
+			ctx.reply('Хотите ли вы поменять город?', null, keyboard);
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
+	},
+	async (ctx) => {
+		try {
+			const { body } = ctx.message;
+
+			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				ctx.scene.enter(ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0);
+				return;
+			}
+
+			if (body.toLowerCase() === botCommands.yes.toLowerCase()) {
+				ctx.session.changedCity = true;
+
+				ctx.scene.selectStep(2);
+				ctx.reply(
+					'Введите название своего города',
+					null,
+					Markup.keyboard([
+						[Markup.button(botCommands.checkExisting)],
+						[Markup.button(botCommands.back, 'negative')],
+					]),
+				);
+			} else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
+				ctx.session.cityName = retranslit(parseSchoolName(await getSchoolName(ctx))[0]);
+				ctx.scene.selectStep(3);
+				ctx.reply(
+					'Введите номер своей школы',
+					null,
+					Markup.keyboard([
+						[Markup.button(botCommands.checkExisting)],
+						[Markup.button(botCommands.back, 'negative')],
+					]),
+				);
+			} else {
+				ctx.reply('Ответьте да или нет');
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	},
+	async (ctx) => {
+		try {
+			let { body } = ctx.message;
+
+			if (ctx.message.body === botCommands.back) {
+				ctx.reply(
+					'Хотите ли вы поменять город?',
+					null,
+					createConfirmKeyboard([[Markup.button(botCommands.back, 'negative')]]),
+				);
+				ctx.scene.selectStep(1);
+				return;
+			}
+
+			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
+				const cityNames = await getCityNames();
+
+				ctx.session.cityNames = cityNames;
+
+				ctx.reply(
+					'Выберите свой город\n' + mapListToMessage(cityNames.map(capitalize)),
+					null,
+					mapListToKeyboard(cityNames.map(capitalize), {
+						trailingButtons: [[Markup.button(botCommands.back, 'negative')]],
+					}),
+				);
+			} else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
+				const cityNames = await getCityNames();
+
+				if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
+					let cityName;
+
+					if (!isNaN(+body)) cityName = cityNames[+body - 1];
+					else cityName = body.toLowerCase();
+
+					ctx.session.cityName = cityName;
+
+					ctx.scene.next();
+					ctx.reply(
+						'Введите номер школы в которой вы учитесь',
+						null,
+						Markup.keyboard([
+							cityNames.includes(cityName.toLowerCase())
+								? [Markup.button(botCommands.checkExisting)]
+								: [],
+							[Markup.button(botCommands.back, 'negative')],
+						]),
+					);
+				} else {
+					ctx.reply('Введите название русскими или английскими буквами или цифру города');
+				}
+			} else {
+				ctx.reply('Введите название русскими или английскими буквами');
+			}
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
+	},
+	async (ctx) => {
+		try {
+			const { body } = ctx.message;
+
+			if (ctx.message.body === botCommands.back) {
+				if (ctx.session.changedCity) {
+					ctx.scene.selectStep(2);
+					ctx.reply(
+						'Введите название своего города',
+						null,
+						Markup.keyboard([
+							(await getCityNames()).length > 0
+								? [Markup.button(botCommands.checkExisting)]
+								: [],
+							[Markup.button(botCommands.back, 'negative')],
+						]),
+					);
+				} else {
+					ctx.reply(
+						'Хотите ли вы поменять город?',
+						null,
+						createConfirmKeyboard([[Markup.button(botCommands.back, 'negative')]]),
+					);
+					ctx.scene.selectStep(1);
+				}
+				return;
+			}
+
+			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
+				const schoolNumbers = await getSchoolNumbers(translit(ctx.session.cityName));
+
+				if (schoolNumbers.length) {
+					ctx.reply(
+						'Выберите свою школу\n' + schoolNumbers.join('\n'),
+						null,
+						mapListToKeyboard(schoolNumbers, {
+							trailingButtons: [[Markup.button(botCommands.back, 'negative')]],
+						}),
+					);
+				} else {
+					ctx.reply(
+						'В вашем городе не создано еще ни одной школы ¯_(ツ)_/¯',
+						null,
+						Markup.keyboard([]),
+					);
+				}
+			} else if (/(\d)+/i.test(body)) {
+				const schoolNumbers = await getSchoolNumbers(translit(ctx.session.cityName));
+				if (!isNaN(+body)) {
+					const schoolNumber = +body;
+
+					if (!schoolNumbers.includes(schoolNumber)) {
+						const newSchool = await DataBase.createSchool(
+							`${translit(ctx.session.cityName)}:${body}`,
+						);
+
+						if (newSchool) {
+							ctx.session.schoolNumber = body;
+							ctx.session.schoolName = `${translit(ctx.session.cityName)}:${body}`;
+						} else {
+							throw new Error('Не удалось создать школу');
+						}
+					} else {
+						ctx.session.schoolNumber = body;
+						ctx.session.schoolName = `${translit(ctx.session.cityName)}:${body}`;
+					}
+
+					let keys;
+
+					if ((await DataBase.getClassesForSchool(ctx.session.schoolName)).length > 0) {
+						keys = [
+							[Markup.button(botCommands.checkExisting)],
+							[Markup.button(botCommands.back, 'negative')],
+						];
+					} else {
+						keys = [[Markup.button(botCommands.back, 'negative')]];
+					}
+
+					ctx.scene.next();
+					ctx.reply(
+						'Введите имя класса в котором вы учитесь',
+						null,
+						Markup.keyboard(keys),
+					);
+				} else {
+					ctx.reply('Введите номер школы цифрами');
+				}
+			} else {
+				ctx.reply('Введите номер школы цифрами');
+			}
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
+	},
+	async (ctx) => {
+		try {
+			const {
+				message: { body },
+			} = ctx;
+
+			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
+				const cityNames = await getCityNames();
+
+				ctx.scene.selectStep(3);
+				ctx.reply(
+					'Введите номер школы в которой вы учитесь',
+					null,
+					Markup.keyboard([
+						cityNames.includes(ctx.session.cityName.toLowerCase())
+							? [Markup.button(botCommands.checkExisting)]
+							: [],
+						[Markup.button(botCommands.back, 'negative')],
+					]),
+				);
+				return;
+			}
+
+			if (body === botCommands.checkExisting) {
+				const classNames = await DataBase.getAllClasses(
+					`${ctx.session.schoolName}`,
+				).then((classes) => classes.map((Class) => (Class ? Class.name : null)));
+
+				if (classNames.length > 0) {
+					ctx.session.classNames = classNames;
+
+					ctx.reply(
+						mapListToMessage(classNames),
+						null,
+						classNames.length <= 40
+							? mapListToKeyboard(classNames, {
+									trailingButtons: [
+										[Markup.button(botCommands.back, 'negative')],
+									],
+							  })
+							: null,
+					);
+					return;
+				}
+			}
+
+			let spacelessClassName;
+
+			if (!isNaN(+body)) spacelessClassName = ctx.session.classNames[+body - 1].toUpperCase();
+			else spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
+
+			if (isValidClassName(spacelessClassName)) {
+				const Class = await DataBase.getClassByName(
+					spacelessClassName,
+					ctx.session.schoolName,
+				);
+
+				if (Class) {
+					ctx.session.schoolName = ctx.session.schoolName;
+					ctx.session.Class = Class;
+				} else {
+					const Class = await DataBase.createClass(
+						spacelessClassName,
+						ctx.session.schoolName,
+					);
+					if (Class) {
+						ctx.session.schoolName = ctx.session.schoolName;
+						ctx.session.Class = Class;
+					} else {
+						throw new Error('Не удалось создать класс при его смене');
+					}
+				}
+
+				ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
+			} else {
+				ctx.reply('Неверное имя класса');
+			}
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
+	},
+);
 module.exports.pickClass = new Scene(
 	'pickClass',
 	async (ctx) => {
 		try {
-			const Classes = await DataBase.getAllClasses();
+			const Classes = await DataBase.getAllClasses(
+				await DataBase.getSchoolForStudent(ctx.message.user_id).then((school) =>
+					school ? school.name : null,
+				),
+			);
 			if (Classes.length > 0) {
+				if (Classes.length === 1) {
+					ctx.session.Class = Classes[0];
+					ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
+					return;
+				}
+
 				ctx.session.classes = Classes;
 
-				const classesStr = mapListToMessage(Classes.map(({ name }) => name));
+				const classesStr = mapListToMessage(
+					Classes.map((Class) => (Class ? Class.name : null)),
+				);
 
 				const message = (ctx.session.pickFor ?? 'Выберите класс') + classesStr;
 
@@ -1962,7 +2501,11 @@ module.exports.pickClass = new Scene(
 			let { classes } = ctx.session;
 
 			if (!classes) {
-				classes = await DataBase.getAllClasses();
+				classes = await DataBase.getAllClasses(
+					await DataBase.getSchoolForStudent(ctx.message.user_id).then((School) =>
+						School ? School.name : null,
+					),
+				);
 			}
 
 			let Class;
@@ -1970,17 +2513,22 @@ module.exports.pickClass = new Scene(
 			classIndex = classIndex.toUpperCase();
 
 			if (isValidClassName(classIndex)) {
-				Class = await DataBase.getClassByName(classIndex);
-			} else if (!isNaN(classIndex)) {
+				Class = await DataBase.getClassByName(
+					classIndex,
+					await DataBase.getSchoolForStudent(ctx.message.user_id).then((School) =>
+						School ? School.name : null,
+					),
+				);
+			} else if (!isNaN(+classIndex) && +classIndex < classes.length) {
 				Class = classes[classIndex - 1];
 			}
 
-			if (Class) {
-				ctx.session.Class = Class;
-				ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
-			} else {
-				ctx.reply('Неверное имя класса');
+			if (!Class) {
+				Class = await DataBase.createClass(classIndex, await getSchoolName(ctx));
 			}
+
+			ctx.session.Class = Class;
+			ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
 
 			cleanSession(ctx);
 		} catch (e) {
@@ -2026,18 +2574,50 @@ module.exports.enterDayIndexes = new Scene(
 	},
 );
 
+async function getCityNames() {
+	const schools = await DataBase.getAllSchools();
+	const cityNames = [
+		...new Set(
+			schools.map(({ name: schoolName }) => retranslit(parseSchoolName(schoolName)[0])),
+		),
+	];
+
+	return cityNames;
+}
+async function getSchoolNumbers(cityName) {
+	const schools = await DataBase.getSchoolsForCity(cityName);
+	const schoolNumbers = [
+		...new Set(schools.map(({ name: schoolName }) => parseSchoolName(schoolName)[1])),
+	];
+
+	return schoolNumbers;
+}
+
+async function getSchoolName(ctx) {
+	return await DataBase.getSchoolForStudent(ctx.message.user_id).then((school) =>
+		school ? school.name : null,
+	);
+}
+
 async function sendStudentInfo(ctx) {
 	if (!ctx.session.Student) {
 		ctx.session.Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 	}
 
-	const { role, class: Class, settings, firstName, secondName } = ctx.session.Student;
-	let className;
+	const { role, class: classId, settings, firstName, secondName } = ctx.session.Student;
+	let className, cityName, schoolNumber;
 
-	if (Class) {
-		className = await DataBase.getClassBy_Id(Class).then(({ name }) => name);
+	if (classId) {
+		const Class = await DataBase.getClassBy_Id(classId);
+
+		className = Class.name || 'Нету';
+		if (!Class) {
+			[cityName, schoolNumber] = ['Нету', 'Нету'];
+		} else {
+			[cityName = 'Нету', schoolNumber = 'Нету'] = parseSchoolName(Class.schoolName);
+		}
 	} else {
-		className = 'Нету';
+		[cityName, schoolNumber, className] = ['Нету', 'Нету', 'Нету'];
 	}
 
 	const message = createUserInfo({
@@ -2045,6 +2625,8 @@ async function sendStudentInfo(ctx) {
 		className,
 		settings,
 		name: firstName + ' ' + secondName,
+		cityName,
+		schoolNumber,
 	});
 
 	ctx.reply(
@@ -2054,6 +2636,20 @@ async function sendStudentInfo(ctx) {
 	);
 }
 
+function changeSchoolAction(ctx) {
+	if (ctx.session) {
+		ctx.session.nextScene = 'settings';
+		ctx.session.step = 3;
+		ctx.session.pickFor = 'Выберите школу \n';
+		ctx.session.backScene = 'contributorPanel';
+		ctx.session.backStep = 1;
+		ctx.session.changed = changables.school;
+		ctx.scene.enter('pickSchool');
+	} else {
+		console.log('Theres is no session in context');
+		ctx.scene.enter('error');
+	}
+}
 function changeClassAction(ctx) {
 	if (ctx.session) {
 		ctx.session.nextScene = 'settings';
@@ -2068,6 +2664,7 @@ function changeClassAction(ctx) {
 		ctx.scene.enter('error');
 	}
 }
+
 function enterDayIndexesAction(ctx) {
 	if (ctx.session) {
 		ctx.session.nextScene = 'settings';
