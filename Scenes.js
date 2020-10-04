@@ -447,6 +447,11 @@ module.exports.checkHomework = new Scene(
 	'checkHomework',
 	async (ctx) => {
 		try {
+			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
+				ctx.scene.enter('default');
+				return;
+			}
+
 			const needToPickClass = await isAdmin(ctx);
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'checkHomework';
@@ -641,6 +646,12 @@ module.exports.checkAnnouncements = new Scene(
 	async (ctx) => {
 		try {
 			const needToPickClass = await isAdmin(ctx);
+
+			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
+				ctx.scene.enter('default');
+				return;
+			}
+
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'checkAnnouncements';
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть обьявления \n';
@@ -683,7 +694,7 @@ module.exports.checkAnnouncements = new Scene(
 				message: { body },
 			} = ctx;
 
-			if (body === botCommands.back) {
+			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
 				const isPickedClass = await isAdmin(ctx);
 				if (isPickedClass) {
 					ctx.session.Class = undefined;
@@ -1635,7 +1646,7 @@ module.exports.addHomework = new Scene(
 
 				if (validateDate(month, day, year)) {
 					const date = new Date(year, month - 1, day);
-
+					console.log(date, year, month, day);
 					if (date.getTime() >= Date.now()) {
 						ctx.session.newHomework.to = date;
 					} else {

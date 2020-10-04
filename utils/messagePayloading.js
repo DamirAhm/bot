@@ -271,7 +271,8 @@ const notifyAllInClass = async (
 	className,
 	...messagePayload
 ) => {
-	const Class = await DataBase.getClassByName(className);
+	const { name: schoolName } = await DataBase.getSchoolForStudent(user_id);
+	const Class = await DataBase.getClassByName(className, schoolName);
 
 	if (Class) {
 		const { students } = await Class.populate('students').execPopulate();

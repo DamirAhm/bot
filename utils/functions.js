@@ -288,7 +288,10 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 
 				if (notifiableIds.length > 0) {
 					const dateWithOffset = getDateWithOffset(dayOffset);
-					const dayHomework = await DataBase.getHomeworkByDate(Class, dateWithOffset);
+					const dayHomework = await DataBase.getHomeworkByDate(
+						{ classNameOrInstance: Class, schoolName: Class.schoolName },
+						dateWithOffset,
+					);
 
 					if (dayHomework.length > 0) {
 						const parsedHomework = mapHomeworkByLesson(dayHomework);
