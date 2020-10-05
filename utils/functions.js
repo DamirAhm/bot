@@ -250,11 +250,10 @@ async function notifyAboutReboot(botInstance) {
 }
 function isStudentOnDefaultScene(res) {
 	const messageMatches =
-		res.items[0].text.startsWith('Mеню') ||
+		res.items[0].text.startsWith('Меню') ||
 		res.items[0].text === botCommands.botWasRebooted ||
 		res.items[0].text.startsWith('Задание на') ||
 		new RegExp(`^(${Lessons.join('|')}):`, 'i').test(res.items[0].text);
-
 	const messageIsFromBot = -res.items[0].from_id === +config['GROUP_ID'];
 
 	return messageMatches && messageIsFromBot;
@@ -279,12 +278,15 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 				students.map(({ settings }) => settings.daysForNotification).flat(),
 			);
 
+			let notified = [];
+
 			for (const dayOffset of daysOffsets) {
 				const notifiableIds = getNotifiableIds(
 					students.filter(({ settings }) =>
 						settings.daysForNotification.includes(dayOffset),
 					),
 				);
+				notified = notified.concat(notifiableIds);
 
 				if (notifiableIds.length > 0) {
 					const dateWithOffset = getDateWithOffset(dayOffset);
@@ -307,6 +309,10 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 					}
 				}
 			}
+
+			for await (const vkId of notified) {
+				DataBase.changeLastHomeworkCheckDate(vkId, new Date());
+			}
 		}
 	} catch (e) {
 		console.error(e);
@@ -326,16 +332,13 @@ function getNotifiableIds(students) {
 		settings: { notificationsEnabled, notificationTime },
 		lastHomeworkCheck,
 		vkId,
+		fullName,
 	} of students) {
 		if (notificationsEnabled) {
-			const [hours, mins] = notificationTime
-				.match(/([0-9]+):([0-9]+)/)
-				.slice(1)
-				.map(Number);
+			const [_, hours, mins] = notificationTime.match(/([0-9]+):([0-9]+)/).map(Number);
 
 			if (isReadyToNotificate(hours, mins, lastHomeworkCheck)) {
 				ids.push(vkId);
-				DataBase.changeLastHomeworkCheckDate(vkId, new Date());
 			}
 		}
 	}

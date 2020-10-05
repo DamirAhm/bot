@@ -314,7 +314,7 @@ module.exports.defaultScene = new Scene(
 				ctx.session.userId = ctx.message.user_id;
 			}
 			ctx.reply(
-				createDefaultMenu(),
+				await createDefaultMenu(ctx.message.user_id),
 				null,
 				await createDefaultKeyboard(ctx.session.role, ctx),
 			);
@@ -1138,7 +1138,7 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case '3': {
-					ctx.scene.enter('createClass');
+					ctx.scene.enter('addClass');
 					break;
 				}
 				case '4': {
@@ -1167,49 +1167,15 @@ module.exports.adminPanel = new Scene(
 					break;
 				}
 				case botCommands.redactorsList: {
-					const Contributors = await DataBase.getAllContributors(
-						await getSchoolName(ctx),
-					);
-
-					if (Contributors.length > 0) {
-						const classesStr = mapListToMessage(mapStudentToPreview(Contributors));
-
-						const message = 'Список всех редакторов\n\t' + classesStr;
-
-						ctx.reply(message, null, await createDefaultKeyboard(true));
-					} else {
-						ctx.reply(
-							'Не существует ни одного редактора',
-							null,
-							await createDefaultKeyboard(true),
-						);
-					}
-					ctx.scene.enter('default');
+					ctx.scene.enter('redactorsList');
 					break;
 				}
 				case botCommands.addClass: {
-					ctx.scene.enter('createClass');
+					ctx.scene.enter('addClass');
 					break;
 				}
 				case botCommands.classList: {
-					const Classes = await DataBase.getAllClasses(await getSchoolName(ctx));
-
-					if (Classes.length > 0) {
-						const classesStr = mapListToMessage(
-							Classes.map((Class) => (Class ? Class.name : null)),
-						);
-
-						const message = 'Список всех классов\n\t' + classesStr;
-
-						ctx.reply(message, null, await createDefaultKeyboard(true, false));
-					} else {
-						ctx.reply(
-							'Не существует ни одного класса',
-							null,
-							await createDefaultKeyboard(true, false),
-						);
-					}
-					ctx.scene.enter('default');
+					ctx.scene.enter('classList');
 					break;
 				}
 				default: {
@@ -1224,6 +1190,35 @@ module.exports.adminPanel = new Scene(
 		}
 	},
 );
+module.exports.classList = new Scene('classList', async (ctx) => {
+	const Classes = await DataBase.getAllClasses(await getSchoolName(ctx));
+
+	if (Classes.length > 0) {
+		const classesStr = mapListToMessage(Classes.map((Class) => (Class ? Class.name : null)));
+
+		const message = 'Список всех классов\n\t' + classesStr;
+
+		ctx.reply(message, null, await createDefaultKeyboard(true, false));
+	} else {
+		ctx.reply('Не существует ни одного класса', null, await createDefaultKeyboard(true, false));
+	}
+	ctx.scene.enter('default');
+});
+module.exports.redactorsList = new Scene('redactorsList', async (ctx) => {
+	const Contributors = await DataBase.getAllContributors(await getSchoolName(ctx));
+
+	if (Contributors.length > 0) {
+		const classesStr = mapListToMessage(mapStudentToPreview(Contributors));
+
+		const message = 'Список всех редакторов\n\t' + classesStr;
+
+		ctx.reply(message, null, await createDefaultKeyboard(true));
+	} else {
+		ctx.reply('Не существует ни одного редактора', null, await createDefaultKeyboard(true));
+	}
+
+	ctx.scene.enter('default');
+});
 module.exports.addRedactor = new Scene(
 	'addRedactor',
 	async (ctx) => {
@@ -1394,8 +1389,8 @@ module.exports.removeRedactor = new Scene(
 		}
 	},
 );
-module.exports.createClass = new Scene(
-	'createClass',
+module.exports.addClass = new Scene(
+	'addClass',
 	(ctx) => {
 		ctx.reply('Введите имя класса (цифра буква)', null, createBackKeyboard());
 		ctx.scene.next();
@@ -1424,7 +1419,7 @@ module.exports.createClass = new Scene(
 					ctx.reply('Создание класса не удалось');
 				} //TODO исправить (вынести в функцию\превратить старт в сцену\еще что то)
 			} else {
-				enter('createClass');
+				enter('addClass');
 				ctx.reply('Неправильный формат ввода (должна быть цифра и потом буква)');
 			}
 		} catch (err) {

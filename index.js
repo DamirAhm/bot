@@ -4,11 +4,16 @@ const VkBot = require('node-vk-bot-api'),
 	Stage = require('node-vk-bot-api/lib/stage'),
 	{ TOKEN, MONGODB_URI, VK_API_KEY, GROUP_ID, ALBUM_ID } = require('./config.js'),
 	{ DataBase: DB } = require('bot-database/DataBase.js'),
-	VK_API = require('bot-database/VkAPI/VK_API'),
+	{ VK_API, Roles } = require('bot-database'),
 	Scenes = require('./Scenes.js'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
-	{ notifyStudents, notifyAboutReboot } = require('./utils/functions');
+	{ notifyStudents, notifyAboutReboot } = require('./utils/functions'),
+	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
+
+const userOptionsMessageTexts = userOptions.map(({ label }) => label);
+const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
+const adminOptionsMessageTexts = adminOptions.map(({ label }) => label);
 
 const DataBase = new DB(MONGODB_URI);
 const server = http.createServer(requestListener);
@@ -59,74 +64,42 @@ bot.command(/.*/, async (ctx, next) => {
 	}
 });
 
-bot.command(
-	['start', 'начать', 'help', 'помощь', 'меню', botCommands.back, botCommands.no],
-	async (ctx) => {
-		try {
-			const {
-				message: { user_id },
-			} = ctx;
-			let student = await DataBase.getStudentByVkId(user_id);
-
-			if (student) {
-				if (!student.firstName || !student.secondName || !student.fullName) {
-					const { first_name, last_name } = await vk
-						.getUser(user_id)
-						.then((res) => res[0]);
-					student.firstName = first_name;
-					student.secondName = last_name;
-					student.secondName = first_name + ' ' + last_name;
-
-					await student.save();
-				}
-
-				ctx.session.userId = student.vkId;
-				ctx.session.role = student.role;
-				ctx.session.secondName = student.secondName;
-				ctx.session.firstName = student.firstName;
-				ctx.session.fullName = student.fullName;
-
-				if (student.registered) {
-					ctx.scene.enter('default');
-				} else {
-					ctx.reply('Привет ' + student.firstName + ' ' + student.lastName);
-					ctx.scene.enter('register');
-				}
-			} else {
-				const {
-					first_name: first_name,
-					last_name: last_name,
-				} = await bot
-					.execute('users.get', { user_ids: [ctx.message.user_id] })
-					.then((res) => res[0]);
-
-				ctx.session.userId = user_id;
-				ctx.session.secondName = last_name;
-				ctx.session.firstName = first_name;
-
-				ctx.scene.enter('register');
-			}
-		} catch (e) {
-			console.error(e.message);
-			throw new Error(e);
-		}
-	},
-);
-
-bot.command(botCommands.adminPanel, (ctx) => ctx.scene.enter('adminPanel'));
-bot.command(botCommands.contributorPanel, (ctx) => ctx.scene.enter('contributorPanel'));
 bot.command(botCommands.back, (ctx) => ctx.scene.enter('default'));
 bot.command(botCommands.toStart, (ctx) => ctx.scene.enter('default'));
 
-bot.command(botCommands.checkHomework, (ctx) => ctx.scene.enter('checkHomework'));
-bot.command(botCommands.checkAnnouncements, (ctx) => ctx.scene.enter('checkAnnouncements'));
-bot.command(botCommands.checkSchedule, (ctx) => ctx.scene.enter('checkSchedule'));
+bot.command(/.+/, async (ctx) => {
+	const role = await DataBase.getRole(ctx.message.user_id);
 
-bot.command(botCommands.settings, (ctx) => ctx.scene.enter('settings'));
+	if (userOptionsMessageTexts.includes(ctx.message.body)) {
+		const option = userOptions.find(({ label }) => label === ctx.message.body);
 
-bot.command(botCommands.giveFeedback, (ctx) => ctx.scene.enter('giveFeedback'));
+		if (option) {
+			ctx.scene.enter(option.payload);
+			return;
+		}
+	} else if (
+		contributorOptionsMessageTexts.includes(ctx.message.body) &&
+		[Roles.contributor, Roles.admin].includes(role)
+	) {
+		const option = contributorOptions.find(({ label }) => label === ctx.message.body);
+		if (option) {
+			ctx.scene.enter(option.payload);
+			return;
+		}
+	} else if (
+		adminOptionsMessageTexts.includes(ctx.message.body) &&
+		[Roles.admin].includes(role)
+	) {
+		const option = adminOptions.find(({ label }) => label === ctx.message.body);
 
-bot.command(/.+/, (ctx) => ctx.reply(botCommands.notUnderstood));
+		if (option) {
+			ctx.scene.enter(option.payload);
+			return;
+		}
+	}
+
+	ctx.reply(botCommands.notUnderstood);
+});
 
 function requestListener(req, res) {
 	res.writeHead(200);

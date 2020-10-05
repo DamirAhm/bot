@@ -55,19 +55,31 @@ const userOptions = [
 		payload: 'giveFeedback',
 		color: 'secondary',
 	},
+	{
+		label: botCommands.contributorPanel,
+		payload: 'contributorPanel',
+		color: 'primary',
+		roles: [Roles.contributor, Roles.admin],
+	},
+	{
+		label: botCommands.adminPanel,
+		payload: 'adminPanel',
+		color: 'positive',
+		role: [Roles.admin],
+	},
 ];
 
 const contributorOptions = [
-	{ label: botCommands.addHomework, payload: botCommands.addHomework, color: 'default' },
-	{ label: botCommands.addAnnouncement, payload: botCommands.addAnnouncement, color: 'default' },
-	{ label: botCommands.changeSchedule, payload: botCommands.changeSchedule, color: 'default' },
-	{ label: botCommands.addRedactor, payload: botCommands.addRedactor, color: 'default' },
+	{ label: botCommands.addHomework, payload: 'addHomework', color: 'default' },
+	{ label: botCommands.addAnnouncement, payload: 'addAnnouncement', color: 'default' },
+	{ label: botCommands.changeSchedule, payload: 'changeSchedule', color: 'default' },
+	{ label: botCommands.addRedactor, payload: 'addRedactor', color: 'default' },
 ];
 const adminOptions = [
-	{ label: botCommands.removeRedactor, payload: botCommands.removeRedactor, color: 'default' },
-	{ label: botCommands.redactorsList, payload: botCommands.redactorsList, color: 'default' },
-	{ label: botCommands.addClass, payload: botCommands.addClass, color: 'default' },
-	{ label: botCommands.classList, payload: botCommands.classList, color: 'default' },
+	{ label: botCommands.removeRedactor, payload: 'removeRedactor', color: 'default' },
+	{ label: botCommands.redactorsList, payload: 'redactorsList', color: 'default' },
+	{ label: botCommands.addClass, payload: 'addClass', color: 'default' },
+	{ label: botCommands.classList, payload: 'classList', color: 'default' },
 ];
 
 const mapListToMessage = (list, startIndex = 1) => {
@@ -86,7 +98,7 @@ const renderAdminMenu = () => {
 };
 const renderAdminMenuKeyboard = () => {
 	const buttons = adminOptions.reduce((acc, c) => {
-		const button = Markup.button(c.payload, 'primary');
+		const button = Markup.button(c.label, 'primary');
 		if (acc.length === 0 || acc[acc.length - 1].length >= 2) {
 			acc.push([button]);
 		} else if (acc[acc.length - 1].length < 2) {
@@ -111,7 +123,7 @@ const renderContributorMenu = () => {
 const renderContributorMenuKeyboard = () => {
 	try {
 		const buttons = contributorOptions.map((opt, i) => [
-			Markup.button(opt.payload, 'default', { button: opt.payload }),
+			Markup.button(opt.label, 'default', { button: opt.payload }),
 		]);
 
 		buttons.push([Markup.button('Назад', 'negative', { button: 'back' })]);
@@ -144,33 +156,24 @@ const parseAttachmentsToVKString = (attachments) => {
 	}
 };
 
-const createDefaultMenu = () => {
-	return formMessage('Меню:', ...userOptions.map(({ label }, i) => `${i + 1}. ${label}`));
+const createDefaultMenu = async (user_id) => {
+	const role = await DataBase.getRole(user_id);
+
+	const trueOptions = userOptions.filter(({ roles }) => !roles || roles.includes(role));
+
+	return formMessage('Меню:', ...trueOptions.map(({ label }, i) => `${i + 1}. ${label}`));
 };
 const createDefaultKeyboard = async (role, ctx) => {
 	try {
-		let buttons = userOptions.map(({ label, payload, color }) =>
-			Markup.button(label, color, { button: payload }),
-		);
-
 		if (!role) {
 			role = await DataBase.getRole(ctx.message.user_id);
 		}
 
-		if ([Roles.contributor, Roles.admin].includes(role)) {
-			buttons.push(
-				Markup.button(botCommands.contributorPanel, 'primary', {
-					button: 'contributorPanel',
-				}),
-			);
-		}
-		if (role === Roles.admin) {
-			buttons.push(
-				Markup.button(botCommands.adminPanel, 'positive', {
-					button: 'adminMenu',
-				}),
-			);
-		}
+		const trueOptions = userOptions.filter(({ roles }) => !roles || roles.includes(role));
+
+		let buttons = trueOptions.map(({ label, payload, color }) =>
+			Markup.button(label, color, { button: payload }),
+		);
 
 		return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
 	} catch (e) {
@@ -307,4 +310,7 @@ module.exports = {
 	createConfirmKeyboard,
 	createUserInfo,
 	monthsRP,
+	userOptions,
+	contributorOptions,
+	adminOptions,
 };
