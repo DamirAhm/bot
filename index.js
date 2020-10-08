@@ -3,13 +3,17 @@ const VkBot = require('node-vk-bot-api'),
 	Session = require('node-vk-bot-api/lib/session'),
 	Stage = require('node-vk-bot-api/lib/stage'),
 	{ TOKEN, MONGODB_URI, VK_API_KEY, GROUP_ID, ALBUM_ID } = require('./config.js'),
-	{ DataBase: DB } = require('bot-database/DataBase.js'),
-	{ VK_API, Roles } = require('bot-database'),
+	{ VK_API, Roles, DataBase: DB } = require('bot-database'),
 	Scenes = require('./Scenes.js'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
 	{ notifyStudents, notifyAboutReboot } = require('./utils/functions'),
-	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
+	{
+		userOptions,
+		contributorOptions,
+		adminOptions,
+		parseAttachmentsToVKString,
+	} = require('./utils/messagePayloading');
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
 const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
@@ -39,8 +43,6 @@ DataBase.connect(
 		setInterval(() => notifyStudents(bot), 1000 * 60);
 	},
 );
-
-const vk = new VK_API([VK_API_KEY, GROUP_ID, ALBUM_ID]);
 
 const session = new Session();
 const stage = new Stage(...Object.values(Scenes));

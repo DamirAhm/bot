@@ -7,7 +7,8 @@ module.exports = {
 	MONGODB_URI:
 		'mongodb+srv://Damir:CLv4QEJJrfZp4BC0@botdata-sp9px.mongodb.net/prod?retryWrites=true&w=majority',
 	REMIND_AFTER: 10800000,
-	VK_API_KEY: 'eef7c13feef7c13feef7c13f2aee84a0dceeef7eef7c13fb1d95fef2a92c7da17fff916',
+	VK_API_KEY:
+		'976aebf45136963ef29f6e0c2ac0e8acc6c8e601926c1b33e309545857100b074e69e3b18794c71c9ea2f',
 	ALBUM_ID: process.env.NODE_ENV === 'production' ? '273118190' : '276538163',
 	GROUP_ID: process.env.NODE_ENV === 'production' ? '187672009' : '198810996',
 	MONGODB_TEST_URI: 'mongodb://localhost:27017/test',

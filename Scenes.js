@@ -1551,7 +1551,7 @@ module.exports.addHomework = new Scene(
 			const { body, attachments } = getTextsAndAttachmentsFromForwarded(message);
 
 			if (attachments.every((att) => att.type === 'photo')) {
-				const parsedAttachments = mapAttachmentsToObject(attachments);
+				const parsedAttachments = await mapAttachmentsToObject(attachments);
 
 				ctx.session.newHomework = {
 					text: body,
@@ -1783,7 +1783,7 @@ module.exports.addAnnouncement = new Scene(
 			const { body, attachments } = getTextsAndAttachmentsFromForwarded(message);
 
 			if (attachments.every((att) => att.type === 'photo')) {
-				const parsedAttachments = mapAttachmentsToObject(attachments);
+				const parsedAttachments = await mapAttachmentsToObject(attachments);
 
 				ctx.session.newAnnouncement = { text: body, attachments: parsedAttachments };
 
@@ -2787,12 +2787,18 @@ function getLengthOfHomeworkWeek() {
 	return date >= 5 ? 6 : 7 - date;
 }
 
-function mapAttachmentsToObject(attachments) {
-	return attachments.map((att) => ({
-		value: parseAttachmentsToVKString(att),
-		url: findMaxPhotoResolution(att[att.type]),
-		album_id: att[att.type].album_id,
-	}));
+async function mapAttachmentsToObject(attachments) {
+	const mappedAttachments = [];
+
+	for (const att of attachments) {
+		mappedAttachments.push({
+			value: await parseAttachmentsToVKString(att),
+			url: findMaxPhotoResolution(att[att.type]),
+			album_id: att[att.type].album_id,
+		});
+	}
+
+	return mappedAttachments;
 }
 
 function getTextsAndAttachmentsFromForwarded({ body = '', attachments = [], fwd_messages = [] }) {

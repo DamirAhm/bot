@@ -1,11 +1,15 @@
+const path = require('path');
 const { Lessons, Roles } = require('bot-database/Models/utils');
 const config = require('../config.js');
 const Markup = require('node-vk-bot-api/lib/markup');
-const { DataBase: DB } = require('bot-database/DataBase');
+const { DataBase: DB, VK_API } = require('bot-database');
 const botCommands = require('./botCommands');
 const { capitalize, translit, retranslit } = require('./functions.js');
+const { download } = require('./savePhoto');
+const fs = require('fs');
 
 const DataBase = new DB(config['MONGODB_URI']);
+const VK = new VK_API(config['VK_API_KEY'], config['GROUP_ID'], config['ALBUM_ID']);
 
 const contentPropertyNames = {
 	to: 'Дата',
@@ -135,24 +139,56 @@ const renderContributorMenuKeyboard = () => {
 	}
 };
 
-const parseAttachmentsToVKString = (attachments) => {
-	if (Array.isArray(attachments) && attachments.every((att) => att.type && att[att.type])) {
-		return attachments.map(
-			(att) =>
-				`${att.type}${att[att.type].owner_id}_${att[att.type].id}${
-					att[att.type].access_key ? '_' + att[att.type].access_key : ''
-				}`,
-		);
-	} else if (attachments.type && attachments[attachments.type]) {
-		return `${attachments.type}${attachments[attachments.type].owner_id}_${
-			attachments[attachments.type].id
-		}${
-			attachments[attachments.type].access_key
-				? '_' + attachments[attachments.type].access_key
-				: ''
-		}`;
-	} else {
-		throw new TypeError('Wrong attachments type');
+const filenameRegExp = /.*\/(.*(\.jpg|\.png|\.gif|\.webp|\.jpeg|\.avif))$/;
+const getFileName = (href) => href.match(filenameRegExp)?.[1];
+const findMaxResolution = (photo) => {
+	const maxRes = Math.max(
+		...Object.keys(photo)
+			.filter((key) => key.startsWith('photo'))
+			.map((key) => key.match(/^photo_(\d*)/)[1])
+			.map(Number),
+	);
+
+	return photo['photo_' + maxRes];
+};
+
+const parseAttachmentsToVKString = async (attachments) => {
+	try {
+		if (
+			Array.isArray(attachments) &&
+			attachments.every((att) => att.type && att[att.type] && att.type === 'photo')
+		) {
+			const parsedAttachments = [];
+
+			for (const att of attachments) {
+				const maxResHref = findMaxResolution(att.photo);
+				const filename = path.join(__dirname, '../', 'uploads', getFileName(maxResHref));
+				await download(maxResHref, filename);
+
+				const photo = await VK.uploadPhotoToAlbum(fs.createReadStream(filename)).then(
+					(photos) => photos[0],
+				);
+
+				parsedAttachments.push(`photo${photo.owner_id}_${photo.id}`);
+			}
+
+			return parsedAttachments;
+		} else if (attachments.type && attachments[attachments.type]) {
+			const maxResHref = findMaxResolution(attachments.photo);
+			const filename = path.join(__dirname, '../', 'uploads', getFileName(maxResHref));
+
+			await download(maxResHref, filename);
+
+			const photo = await VK.uploadPhotoToAlbum(fs.createReadStream(filename)).then(
+				(photos) => photos[0],
+			);
+
+			return `photo${photo.owner_id}_${photo.id}`;
+		} else {
+			throw new TypeError('Wrong attachments type');
+		}
+	} catch (e) {
+		console.error('Cant load file');
 	}
 };
 

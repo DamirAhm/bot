@@ -1,7 +1,7 @@
 const { mapHomeworkByLesson } = require('bot-database/utils/functions');
 const { DataBase: DB } = require('bot-database/DataBase');
 const config = require('../config.js');
-const { Roles, Lessons } = require('bot-database/Models/utils');
+const { Roles, Lessons } = require('bot-database');
 const botCommands = require('./botCommands');
 const Markup = require('node-vk-bot-api/lib/markup');
 
@@ -273,6 +273,7 @@ async function notifyStudents(botInstance) {
 async function sendHomeworkToClassStudents(Class, botInstance) {
 	try {
 		const { students } = await DataBase.populate(Class);
+
 		if (students?.length) {
 			const daysOffsets = new Set(
 				students.map(({ settings }) => settings.daysForNotification).flat(),

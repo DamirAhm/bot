@@ -22,12 +22,14 @@
     "body-parser": "^1.19.0",
     "bot-database": "^2.0.19",
     "express": "^4.17.1",
+    "form-data": "^3.0.0",
     "jest": "^25.3.0",
     "mongoose": "^5.9.4",
     "mongoose-autopopulate": "^0.12.0",
     "node-cron": "^2.0.3",
     "node-fetch": "^2.6.0",
     "node-vk-bot-api": "^3.3.3",
+    "superagent": "^6.1.0",
     "supervisor": "^0.12.0",
     "uuid4": "^1.1.4"
   }
