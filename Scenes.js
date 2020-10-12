@@ -65,24 +65,14 @@ const changables = {
 };
 
 const isAdmin = async (ctx) => {
-	if (ctx?.session?.role !== undefined) {
-		return ctx?.session.role === Roles.admin;
-	} else {
-		let role = await DataBase.getRole(ctx.message.user_id);
-		ctx.session.role = role;
+	let role = await DataBase.getRole(ctx.message.user_id);
 
-		return role === Roles.admin;
-	}
+	return role === Roles.admin;
 };
 const isContributor = async (ctx) => {
-	if (ctx?.session?.role !== undefined) {
-		return [Roles.admin, Roles.contributor].includes(ctx.session.role);
-	} else {
-		let role = await DataBase.getRole(ctx.message.user_id);
-		ctx.session.role = role;
+	let role = await DataBase.getRole(ctx.message.user_id);
 
-		return [Roles.admin, Roles.contributor].includes(role);
-	}
+	return [Roles.admin, Roles.contributor].includes(role);
 };
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
@@ -92,11 +82,7 @@ module.exports.errorScene = new Scene('error', async (ctx) => {
 	const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 
 	if (Student && Student.registered) {
-		ctx.reply(
-			'Простите произошла ошибка',
-			null,
-			await createDefaultKeyboard(ctx.session.role, ctx),
-		);
+		ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(undefined, ctx));
 		ctx.scene.enter('default');
 	} else {
 		ctx.reply('Простите произошла ошибка');
@@ -111,7 +97,7 @@ module.exports.startScene = new Scene('start', async (ctx) => {
 	ctx.reply(
 		`Привет ${ctx.session.firstName} ${ctx.session.secondName}`,
 		null,
-		await createDefaultKeyboard(ctx.session.role, ctx),
+		await createDefaultKeyboard(undefined, ctx),
 	);
 	ctx.scene.enter('default');
 });
@@ -267,12 +253,10 @@ module.exports.registerScene = new Scene(
 						registered: true,
 					});
 
-					ctx.session.role = Student.role;
-
 					ctx.reply(
 						`Вы успешно зарегестрированны в ${spacelessClassName} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
 						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
+						await createDefaultKeyboard(undefined, ctx),
 					);
 					ctx.scene.enter('default');
 				} else {
@@ -289,7 +273,7 @@ module.exports.registerScene = new Scene(
 						ctx.reply(
 							`Вы успешно зарегестрированны в ${spacelessClassName} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
 							null,
-							await createDefaultKeyboard(ctx.session.role, ctx),
+							await createDefaultKeyboard(undefined, ctx),
 						);
 						ctx.scene.enter('default');
 					}
@@ -316,7 +300,7 @@ module.exports.defaultScene = new Scene(
 			ctx.reply(
 				await createDefaultMenu(ctx.message.user_id),
 				null,
-				await createDefaultKeyboard(ctx.session.role, ctx),
+				await createDefaultKeyboard(undefined, ctx),
 			);
 
 			ctx.scene.next();
@@ -411,17 +395,13 @@ module.exports.checkSchedule = new Scene('checkSchedule', async (ctx) => {
 						ctx.reply(
 							'Для данного класса пока что не существует расписания',
 							null,
-							await createDefaultKeyboard(ctx.session.role, ctx),
+							await createDefaultKeyboard(undefined, ctx),
 						);
 						setTimeout(() => {
 							ctx.scene.enter('default');
 						}, 50);
 					} else {
-						ctx.reply(
-							message,
-							null,
-							await createDefaultKeyboard(ctx.session.role, ctx),
-						);
+						ctx.reply(message, null, await createDefaultKeyboard(undefined, ctx));
 						setTimeout(() => {
 							ctx.scene.enter('default');
 						}, 50);
@@ -512,9 +492,6 @@ module.exports.checkHomework = new Scene(
 				body.toLowerCase() === botCommands.thisWeek.toLowerCase() ||
 				body.toLowerCase() === botCommands.nextWeek.toLowerCase()
 			) {
-				if (!ctx.session.role)
-					ctx.session.role = await DataBase.getRole(ctx.message.user_id);
-
 				const messageDelay = 50;
 
 				const today = new Date();
@@ -619,11 +596,7 @@ module.exports.checkHomework = new Scene(
 
 						let message = `Задание на ${date.getDate()} ${monthsRP[date.getMonth()]}\n`;
 
-						ctx.reply(
-							message,
-							null,
-							await createDefaultKeyboard(ctx.session.role, ctx),
-						);
+						ctx.reply(message, null, await createDefaultKeyboard(undefined, ctx));
 
 						sendHomework(parsedHomework, ctx.bot, [ctx.message.user_id]);
 
@@ -893,7 +866,7 @@ module.exports.settings = new Scene(
 									ctx.reply(
 										'Время получения уведомлений успешно изменено на ' + body,
 										null,
-										await createDefaultKeyboard(ctx.session.role, ctx),
+										await createDefaultKeyboard(undefined, ctx),
 									);
 									setTimeout(async () => {
 										ctx.scene.enter('default');
@@ -903,7 +876,7 @@ module.exports.settings = new Scene(
 									ctx.reply(
 										'Простите не удалось изменить настройки, попробуйте позже',
 										null,
-										await createDefaultKeyboard(ctx.session.role, ctx),
+										await createDefaultKeyboard(undefined, ctx),
 									);
 								}
 							} else {
@@ -930,7 +903,7 @@ module.exports.settings = new Scene(
 								ctx.reply(
 									`Класс успешно изменен на ${ctx.session.Class.name}`,
 									null,
-									await createDefaultKeyboard(ctx.session.role, ctx),
+									await createDefaultKeyboard(undefined, ctx),
 								);
 								setTimeout(() => {
 									ctx.scene.enter('default');
@@ -939,7 +912,7 @@ module.exports.settings = new Scene(
 								ctx.reply(
 									`К сожалению не удалось сменить класс`,
 									null,
-									await createDefaultKeyboard(ctx.session.role, ctx),
+									await createDefaultKeyboard(undefined, ctx),
 								);
 
 								changeClassAction(ctx);
@@ -948,7 +921,7 @@ module.exports.settings = new Scene(
 							ctx.reply(
 								`Не удалось сменить класс на ${ctx.session.Class.name}`,
 								null,
-								await createDefaultKeyboard(ctx.session.role, ctx),
+								await createDefaultKeyboard(undefined, ctx),
 							);
 
 							changeClassAction(ctx);
@@ -973,7 +946,7 @@ module.exports.settings = new Scene(
 											: ''
 									}`,
 									null,
-									await createDefaultKeyboard(ctx.session.role, ctx),
+									await createDefaultKeyboard(undefined, ctx),
 								);
 								setTimeout(() => {
 									ctx.scene.enter('default');
@@ -982,7 +955,7 @@ module.exports.settings = new Scene(
 								ctx.reply(
 									`К сожалению не удалось сменить школу`,
 									null,
-									await createDefaultKeyboard(ctx.session.role, ctx),
+									await createDefaultKeyboard(undefined, ctx),
 								);
 
 								changeClassAction(ctx);
@@ -991,7 +964,7 @@ module.exports.settings = new Scene(
 							ctx.reply(
 								`Не удалось сменить школу на ${ctx.session.Class.name}`,
 								null,
-								await createDefaultKeyboard(ctx.session.role, ctx),
+								await createDefaultKeyboard(undefined, ctx),
 							);
 
 							changeClassAction(ctx);
@@ -1011,7 +984,7 @@ module.exports.settings = new Scene(
 									', ',
 								)}`,
 								null,
-								await createDefaultKeyboard(ctx.session.role, ctx),
+								await createDefaultKeyboard(undefined, ctx),
 							);
 							setTimeout(() => {
 								ctx.scene.enter('default');
@@ -1020,7 +993,7 @@ module.exports.settings = new Scene(
 							ctx.reply(
 								`К сожалению не удалось сменить дни оповещений, попробуйте позже`,
 								null,
-								await createDefaultKeyboard(ctx.session.role, ctx),
+								await createDefaultKeyboard(undefined, ctx),
 							);
 							ctx.scene.enter('default');
 						}
@@ -1084,7 +1057,7 @@ module.exports.giveFeedback = new Scene(
 					ctx.reply(
 						'Спасибо за отзыв',
 						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
+						await createDefaultKeyboard(undefined, ctx),
 					);
 					ctx.scene.enter('default');
 				},
@@ -1101,7 +1074,11 @@ module.exports.adminPanel = new Scene(
 			ctx.reply(renderAdminMenu(), null, renderAdminMenuKeyboard());
 		} else {
 			ctx.scene.leave();
-			ctx.reply('Ты не админ чтоб такое делать');
+			ctx.reply(
+				'Ты не админ чтоб такое делать',
+				null,
+				await createDefaultKeyboard(undefined, ctx),
+			);
 		}
 	},
 	async (ctx) => {
@@ -1222,7 +1199,7 @@ module.exports.redactorsList = new Scene('redactorsList', async (ctx) => {
 module.exports.addRedactor = new Scene(
 	'addRedactor',
 	async (ctx) => {
-		const role = ctx.session.role ?? (await DataBase.getRole(ctx.message.user_id));
+		const role = await DataBase.getRole(ctx.message.user_id);
 
 		if ([Roles.admin, Roles.contributor].includes(role)) {
 			ctx.reply(
@@ -1250,7 +1227,7 @@ module.exports.addRedactor = new Scene(
 			} = ctx;
 			const id = Number(body.trim());
 
-			const role = ctx.session.role ?? (await DataBase.getRole(ctx.message.user_id));
+			const role = await DataBase.getRole(ctx.message.user_id);
 
 			if (!isNaN(id)) {
 				let Student = await DataBase.getStudentByVkId(id);
@@ -1437,7 +1414,11 @@ module.exports.contributorPanel = new Scene(
 			ctx.scene.next();
 		} else {
 			ctx.scene.leave();
-			ctx.reply('Ты не редактор чтоб такое делать');
+			ctx.reply(
+				'Ты не редактор чтоб такое делать',
+				null,
+				await createDefaultKeyboard(undefined, ctx),
+			);
 		}
 	},
 	async (ctx) => {
@@ -1701,7 +1682,7 @@ module.exports.addHomework = new Scene(
 					ctx.reply(
 						'Домашнее задание успешно создано',
 						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
+						await createDefaultKeyboard(undefined, ctx),
 					);
 					ctx.scene.enter('default');
 				} else {
@@ -1891,7 +1872,7 @@ module.exports.addAnnouncement = new Scene(
 					ctx.reply(
 						'Изменение в расписании успешно создано',
 						null,
-						await createDefaultKeyboard(ctx.session.role, ctx),
+						await createDefaultKeyboard(undefined, ctx),
 					);
 
 					if (isToday(to)) {
@@ -2706,7 +2687,7 @@ async function enableNotificationsAction(ctx) {
 	Student.save();
 
 	ctx.scene.enter('default');
-	ctx.reply('Уведомления включены', null, await createDefaultKeyboard(ctx.session.role, ctx));
+	ctx.reply('Уведомления включены', null, await createDefaultKeyboard(undefined, ctx));
 }
 
 async function disableNotificationsAction(ctx) {
@@ -2720,7 +2701,7 @@ async function disableNotificationsAction(ctx) {
 	Student.save();
 
 	ctx.scene.enter('default');
-	ctx.reply('Уведомления отключены', null, await createDefaultKeyboard(ctx.session.role, ctx));
+	ctx.reply('Уведомления отключены', null, await createDefaultKeyboard(undefined, ctx));
 }
 
 async function getPossibleLessonsAndSetInSession(ctx) {

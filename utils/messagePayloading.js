@@ -69,7 +69,7 @@ const userOptions = [
 		label: botCommands.adminPanel,
 		payload: 'adminPanel',
 		color: 'positive',
-		role: [Roles.admin],
+		roles: [Roles.admin],
 	},
 ];
 
@@ -205,36 +205,17 @@ const createDefaultKeyboard = async (role, ctx) => {
 			role = await DataBase.getRole(ctx.message.user_id);
 		}
 
-		const trueOptions = userOptions.filter(({ roles }) => !roles || roles.includes(role));
-
-		let buttons = trueOptions.map(({ label, payload, color }) =>
-			Markup.button(label, color, { button: payload }),
-		);
-
-		return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
+		return createDefaultKeyboardSync(role);
 	} catch (e) {
 		console.error(e);
 	}
 };
 const createDefaultKeyboardSync = (role) => {
-	let buttons = userOptions.map(({ label, payload, color }) =>
+	const trueOptions = userOptions.filter(({ roles }) => !roles || roles.includes(role));
+
+	let buttons = trueOptions.map(({ label, payload, color }) =>
 		Markup.button(label, color, { button: payload }),
 	);
-
-	if ([Roles.contributor, Roles.admin].includes(role)) {
-		buttons.push(
-			Markup.button(botCommands.contributorPanel, 'primary', {
-				button: 'contributorPanel',
-			}),
-		);
-	}
-	if (role === Roles.admin) {
-		buttons.push(
-			Markup.button(botCommands.adminPanel, 'positive', {
-				button: 'adminMenu',
-			}),
-		);
-	}
 
 	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
 };
