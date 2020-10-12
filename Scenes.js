@@ -19,7 +19,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		notifyAllInClass,
 		createDefaultKeyboardSync,
 	} = require('./utils/messagePayloading.js'),
-	{ DataBase: DB } = require('bot-database/DataBase.js'),
+	{ DataBase: DB } = require('bot-database'),
 	{
 		findNextLessonDate,
 		findNextDayWithLesson,
@@ -133,16 +133,15 @@ module.exports.registerScene = new Scene(
 
 					if (!isNaN(+body)) cityName = cityNames[+body - 1];
 					else cityName = body.toLowerCase();
-
 					ctx.session.cityName = cityName;
 
 					ctx.scene.next();
 					ctx.reply(
 						'Введите номер школы в которой вы учитесь',
 						null,
-						Markup.keyboard(
+						createBackKeyboard(
 							cityNames.includes(cityName.toLowerCase())
-								? [Markup.button(botCommands.checkExisting)]
+								? [[Markup.button(botCommands.checkExisting)]]
 								: [],
 						),
 					);
@@ -161,23 +160,36 @@ module.exports.registerScene = new Scene(
 		try {
 			const { body } = ctx.message;
 
+			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				ctx.scene.selectStep(1);
+				ctx.reply(
+					'Введите название города в котором вы учитесь',
+					null,
+					Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+				);
+				return;
+			}
+
 			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
-				const schoolNumbers = await getSchoolNumbers(ctx.session.cityName);
+				const schoolNumbers = await getSchoolNumbers(translit(ctx.session.cityName));
+
 				if (schoolNumbers.length) {
 					ctx.reply(
 						'Выберите свою школу\n' + schoolNumbers.join('\n'),
 						null,
-						mapListToKeyboard(schoolNumbers),
+						mapListToKeyboard(schoolNumbers, {
+							trailingButtons: [[Markup.button(botCommands.back, 'negative')]],
+						}),
 					);
 				} else {
 					ctx.reply(
 						'В вашем городе не создано еще ни одной школы ¯_(ツ)_/¯',
 						null,
-						Markup.keyboard([]),
+						createBackKeyboard(),
 					);
 				}
 			} else if (/(\d)+/i.test(body)) {
-				const schoolNumbers = await getSchoolNumbers(ctx.session.cityName);
+				const schoolNumbers = await getSchoolNumbers(translit(ctx.session.cityName));
 				if (!isNaN(+body)) {
 					const schoolNumber = body;
 
@@ -186,19 +198,30 @@ module.exports.registerScene = new Scene(
 							`${translit(ctx.session.cityName)}:${body}`,
 						);
 
-						if (!newSchool) {
+						if (newSchool) {
 							ctx.session.schoolNumber = body;
 							ctx.session.schoolName = `${translit(ctx.session.cityName)}:${body}`;
 						} else {
-							throw new Error('Не удалось создать школу');
+							throw new Error(
+								'Не удалось создать школу ' +
+									`${translit(ctx.session.cityName)}:${body}\n` +
+									JSON.stringify(newSchool),
+							);
 						}
+					} else {
+						ctx.session.schoolNumber = body;
+						ctx.session.schoolName = `${translit(ctx.session.cityName)}:${body}`;
 					}
+
+					const classes = await DataBase.getClassesForSchool(ctx.session.schoolName);
 
 					ctx.scene.next();
 					ctx.reply(
 						'Введите имя класса в котором вы учитесь',
 						null,
-						Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+						createBackKeyboard(
+							classes.length > 0 ? [[Markup.button(botCommands.checkExisting)]] : [],
+						),
 					);
 				} else {
 					ctx.reply('Введите номер школы цифрами');
@@ -214,30 +237,53 @@ module.exports.registerScene = new Scene(
 	async (ctx) => {
 		try {
 			const {
-				message: { body },
+				message: { body, user_id },
 			} = ctx;
-			const { userId } = ctx.session;
+
+			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				const cityNames = await getCityNames();
+
+				ctx.scene.selectStep(2);
+				ctx.reply(
+					'Введите номер школы в которой вы учитесь',
+					null,
+					createBackKeyboard(
+						cityNames.includes(ctx.session.cityName.toLowerCase())
+							? [[Markup.button(botCommands.checkExisting)]]
+							: [],
+					),
+				);
+				return;
+			}
 
 			if (body === botCommands.checkExisting) {
 				const classNames = await DataBase.getAllClasses(
-					`${ctx.session.schoolName}`,
+					ctx.session.schoolName,
 				).then((classes) => classes.map((Class) => (Class ? Class.name : null)));
 
-				ctx.session.classNames = classNames;
+				if (classNames.length > 0) {
+					ctx.session.classNames = classNames;
 
-				ctx.reply(
-					mapListToMessage(classNames),
-					null,
-					classNames.length <= 40 ? mapListToKeyboard(classNames) : null,
-				);
+					ctx.reply(
+						mapListToMessage(classNames),
+						null,
+						classNames.length <= 40 ? mapListToKeyboard(classNames) : null,
+					);
+				} else {
+					ctx.reply(
+						'В вашей школе не создано еще ни одного класса ¯_(ツ)_/¯',
+						null,
+						createBackKeyboard(),
+					);
+				}
 				return;
 			}
 
 			let spacelessClassName;
 
-			if (!isNaN(+body)) spacelessClassName = ctx.session.classNames[+body - 1].toUpperCase();
+			if (!isNaN(+body) && ctx.session.classNames)
+				spacelessClassName = ctx.session.classNames[+body - 1].toUpperCase();
 			else spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
-
 			if (isValidClassName(spacelessClassName)) {
 				const Class = await DataBase.getClassByName(
 					spacelessClassName,
@@ -245,44 +291,83 @@ module.exports.registerScene = new Scene(
 				);
 
 				if (Class) {
-					//! Убрал имя школы их схемы ученика
-					const Student = await DataBase.createStudent(ctx.message.user_id, {
+					//! Убрал имя школы из схемы ученика
+					await DataBase.createStudent(ctx.message.user_id, {
 						firstName: ctx.session.firstName,
 						lastName: ctx.session.lastName,
 						class_id: Class._id,
 						registered: true,
 					});
 
-					ctx.reply(
-						`Вы успешно зарегестрированны в ${spacelessClassName} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
-						null,
-						await createDefaultKeyboard(undefined, ctx),
-					);
-					ctx.scene.enter('default');
-				} else {
-					const Class = await DataBase.createClass(
-						spacelessClassName,
-						ctx.session.schoolName,
-					);
-					if (Class) {
-						await DataBase.addStudentToClass(
-							userId,
-							spacelessClassName,
-							ctx.session.schoolName,
+					if (Class.schedule.every((day) => day.length === 0)) {
+						ctx.scene.next();
+						ctx.reply(
+							'Вы хотите заполнить расписание для вашего класса?',
+							null,
+							createConfirmKeyboard(),
 						);
+					} else {
 						ctx.reply(
 							`Вы успешно зарегестрированны в ${spacelessClassName} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
 							null,
 							await createDefaultKeyboard(undefined, ctx),
 						);
 						ctx.scene.enter('default');
+						cleanDataForSceneFromSession(ctx);
+					}
+				} else {
+					const newClass = await DataBase.createClass(
+						spacelessClassName,
+						ctx.session.schoolName,
+					);
+
+					if (newClass) {
+						await DataBase.addStudentToClass(
+							user_id,
+							spacelessClassName,
+							ctx.session.schoolName,
+						);
+
+						ctx.scene.next();
+						ctx.reply(
+							'Вы хотите заполнить расписание для вашего класса?',
+							null,
+							createConfirmKeyboard(),
+						);
+					} else {
+						throw new Error(`Can't create class with name ${spacelessClassName}`);
 					}
 				}
 			} else {
 				ctx.reply('Неверное имя класса');
 			}
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
+		}
+	},
+	async (ctx) => {
+		try {
+			const { body } = ctx.message;
 
-			cleanDataForSceneFromSession(ctx);
+			if (body.toLowerCase() === botCommands.yes.toLowerCase()) {
+				cleanDataForSceneFromSession(ctx);
+				ctx.scene.enter('changeSchedule');
+			} else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
+				const {
+					class: { name: className },
+				} = await DataBase.populate(await DataBase.getStudentByVkId(ctx.message.user_id));
+
+				ctx.reply(
+					`Вы успешно зарегестрированны в ${className} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
+					null,
+					await createDefaultKeyboard(undefined, ctx),
+				);
+				ctx.scene.enter('default');
+				cleanDataForSceneFromSession(ctx);
+			} else {
+				ctx.reply(botCommands.notUnderstood);
+			}
 		} catch (e) {
 			console.error(e);
 			ctx.scene.enter('error');
@@ -2299,7 +2384,7 @@ module.exports.pickSchool = new Scene(
 			} else if (/(\d)+/i.test(body)) {
 				const schoolNumbers = await getSchoolNumbers(translit(ctx.session.cityName));
 				if (!isNaN(+body)) {
-					const schoolNumber = +body;
+					const schoolNumber = body;
 
 					if (!schoolNumbers.includes(schoolNumber)) {
 						const newSchool = await DataBase.createSchool(
@@ -2572,7 +2657,8 @@ async function getCityNames() {
 	return cityNames;
 }
 async function getSchoolNumbers(cityName) {
-	const schools = await DataBase.getSchoolsForCity(cityName);
+	const schools = await DataBase.getSchoolsForCity(translit(cityName));
+
 	const schoolNumbers = [
 		...new Set(schools.map(({ name: schoolName }) => parseSchoolName(schoolName)[1])),
 	];

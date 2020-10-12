@@ -211,7 +211,7 @@ function parseSchoolName(schoolName) {
 		const [_, city, number] = match;
 
 		if (!isNaN(+number)) {
-			return [city, +number];
+			return [city, number];
 		} else {
 			return null;
 		}
