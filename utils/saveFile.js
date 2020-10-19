@@ -1,6 +1,5 @@
 const fs = require('fs'),
-	request = require('superagent'),
-	FormData = require('form-data');
+	request = require('superagent');
 
 const download = async function (uri, filename) {
 	return await new Promise((resolve, reject) => {
@@ -15,6 +14,4 @@ const download = async function (uri, filename) {
 	});
 };
 
-module.exports = {
-	download,
-};
+module.exports = download;
