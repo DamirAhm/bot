@@ -7,7 +7,7 @@ const VkBot = require('node-vk-bot-api'),
 	Scenes = require('./Scenes.js'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
-	{ notifyStudents, notifyAboutReboot } = require('./utils/functions'),
+	{ notifyStudents, notifyAboutReboot, removeOldHomework } = require('./utils/functions'),
 	{
 		userOptions,
 		contributorOptions,
@@ -40,7 +40,10 @@ DataBase.connect(
 		notifyAboutReboot(bot);
 
 		notifyStudents(bot);
-		setInterval(() => notifyStudents(bot), 1000 * 60);
+		setInterval(() => notifyStudents(bot), 60 * 1000);
+
+		removeOldHomework();
+		setInterval(() => removeOldHomework(), 24 * 60 * 60 * 1000);
 	},
 );
 

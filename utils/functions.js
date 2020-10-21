@@ -1,5 +1,5 @@
 const { mapHomeworkByLesson } = require('bot-database/utils/functions');
-const { DataBase: DB } = require('bot-database/DataBase');
+const { DataBase: DB } = require('bot-database');
 const config = require('../config.js');
 const { Roles, Lessons } = require('bot-database');
 const botCommands = require('./botCommands');
@@ -217,6 +217,34 @@ function parseSchoolName(schoolName) {
 		}
 	}
 	return null;
+}
+
+async function removeOldHomework() {
+	try {
+		const Classes = await DataBase.getAllClasses();
+
+		for (const { homework, name: className, schoolName } of Classes) {
+			if (className === '11Б') {
+				if (homework.length) {
+					const dateWeekBefore = getDateWeekBefore();
+
+					await DataBase.removeOldHomework({ className, schoolName }, dateWeekBefore);
+					await DataBase.removeOldAnnouncements(
+						{ className, schoolName },
+						dateWeekBefore,
+					);
+				}
+			}
+		}
+	} catch (e) {
+		console.error(e);
+		throw e;
+	}
+}
+function getDateWeekBefore() {
+	const date = new Date();
+
+	return new Date(date.setDate(date.getDate() - 7));
 }
 
 async function notifyAboutReboot(botInstance) {
@@ -507,4 +535,6 @@ module.exports = {
 	calculateColumnsAmount,
 	notifyAboutReboot,
 	mapListToKeyboard,
+	removeOldHomework,
+	getDateWeekBefore,
 };
