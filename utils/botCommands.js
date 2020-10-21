@@ -29,6 +29,8 @@ module.exports = {
 	onNextLesson: 'На следующий урок',
 	onToday: 'На сегодня',
 	onTomorrow: 'На завтра',
+	onWeek: 'На неделю',
+	onAllWeek: 'На всю неделю',
 	thisWeek: 'На эту неделю',
 	nextWeek: 'На следущую неделю',
 

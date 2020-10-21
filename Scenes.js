@@ -454,15 +454,35 @@ module.exports.defaultScene = new Scene(
 		}
 	},
 );
-module.exports.checkSchedule = new Scene('checkSchedule', async (ctx) => {
-	try {
-		const needToPickClass = await isAdmin(ctx);
+module.exports.checkSchedule = new Scene(
+	'checkSchedule',
+	(ctx) => {
+		ctx.scene.next();
+		ctx.reply(
+			'Вы хотите получить расписание только на сегодня или на всю неделю?',
+			null,
+			createBackKeyboard([
+				[
+					Markup.button(botCommands.onToday, 'primary'),
+					Markup.button(botCommands.onAllWeek, 'positive'),
+				],
+			]),
+		);
+	},
+	async (ctx) => {
+		try {
+			// const needToPickClass = await isAdmin(ctx);
 
-		if (needToPickClass && !ctx.session.Class) {
-			ctx.session.nextScene = 'checkSchedule';
-			ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
-			ctx.scene.enter('pickClass');
-		} else {
+			// if (needToPickClass && !ctx.session.Class) {
+			// 	ctx.session.nextScene = 'checkSchedule';
+			// 	ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
+			// 	ctx.scene.enter('pickClass');
+			// } else {
+			const { body } = ctx.message;
+
+			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				ctx.scene.enter('default');
+			}
 			const Student = await DataBase.getStudentByVkId(
 				ctx.session.userId || ctx.message.user_id,
 			);
@@ -474,24 +494,44 @@ module.exports.checkSchedule = new Scene('checkSchedule', async (ctx) => {
 						Class = await DataBase.getClassBy_Id(Student.class);
 					}
 
-					const message = await getScheduleString(Class);
-
-					if (message.trim() === '') {
-						ctx.reply(
-							'Для данного класса пока что не существует расписания',
-							null,
-							await createDefaultKeyboard(undefined, ctx),
+					if (body.toLowerCase() === botCommands.onToday.toLowerCase()) {
+						const message = getDayScheduleString(
+							Class.schedule[new Date().getDay() - 1],
+							daysOfWeek[new Date().getDay() - 1],
 						);
-						setTimeout(() => {
-							ctx.scene.enter('default');
-						}, 50);
-					} else {
-						ctx.reply(message, null, await createDefaultKeyboard(undefined, ctx));
-						setTimeout(() => {
-							ctx.scene.enter('default');
-						}, 50);
-					}
 
+						if (message.trim() === '') {
+							ctx.reply(
+								`Для данного класса пока что не существует расписания на ${
+									daysOfWeek[new Date().getDay() - 1]
+								}`,
+							);
+							setTimeout(() => {
+								ctx.scene.enter('default');
+							}, 50);
+						} else {
+							ctx.reply(message);
+							setTimeout(() => {
+								ctx.scene.enter('default');
+							}, 50);
+						}
+					} else if (body.toLowerCase() === botCommands.onAllWeek.toLowerCase()) {
+						const message = getScheduleString(Class);
+
+						if (message.trim() === '') {
+							ctx.reply('Для данного класса пока что не существует расписания');
+							setTimeout(() => {
+								ctx.scene.enter('default');
+							}, 50);
+						} else {
+							ctx.reply(message);
+							setTimeout(() => {
+								ctx.scene.enter('default');
+							}, 50);
+						}
+					} else {
+						ctx.reply(botCommands.notUnderstood);
+					}
 					cleanDataForSceneFromSession(ctx);
 				} else {
 					ctx.scene.enter('register');
@@ -502,12 +542,13 @@ module.exports.checkSchedule = new Scene('checkSchedule', async (ctx) => {
 			} else {
 				throw new Error(`User are not existing, ${ctx.session.userId}`);
 			}
+			// }
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter('error');
 		}
-	} catch (e) {
-		console.error(e);
-		ctx.scene.enter('error');
-	}
-});
+	},
+);
 module.exports.checkHomework = new Scene(
 	'checkHomework',
 	async (ctx) => {
@@ -2797,9 +2838,7 @@ async function getPossibleLessonsAndSetInSession(ctx) {
 			.then((classId) => DataBase.getClassBy_Id(classId));
 	}
 
-	const possibleLessons = ctx.session.Class.schedule
-		.flat()
-		.filter((l, i, arr) => i === arr.lastIndexOf(l)); //Pick onlu unique lessons
+	const possibleLessons = [...new Set(ctx.session.Class.schedule.flat().sort())];
 	ctx.session.possibleLessons = possibleLessons;
 
 	return possibleLessons;
@@ -2832,19 +2871,30 @@ function parseTime(body) {
 		.map((n) => (isNaN(Number(n)) ? undefined : Number(n)));
 }
 
-async function getScheduleString({ schedule }) {
+/**
+ *@param {{schedule: string[][]}} Class
+ *
+ *@return {string}
+ */
+function getScheduleString({ schedule }) {
 	const message = schedule
 		.map((lessons, i) => {
-			const dayName = daysOfWeek[i];
-
-			const dayMessage =
-				lessons.length > 0 ? `${dayName}: \n ${mapListToMessage(lessons)} ` : '';
-
-			return dayMessage;
+			return getDayScheduleString(lessons, daysOfWeek[i]);
 		})
 		.join('\n\n');
 
 	return message;
+}
+/**
+ * @param {string[]} lessons
+ * @param {string} dayName
+ *
+ * @return {string}
+ */
+function getDayScheduleString(lessons, dayName) {
+	const dayMessage = lessons.length > 0 ? `${dayName}: \n ${mapListToMessage(lessons)} ` : '';
+
+	return dayMessage;
 }
 
 //Returns amount of days for each of which whe should send homework
