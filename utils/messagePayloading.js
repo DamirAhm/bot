@@ -5,7 +5,7 @@ const Markup = require('node-vk-bot-api/lib/markup');
 const { DataBase: DB, VK_API } = require('bot-database');
 const botCommands = require('./botCommands');
 const { capitalize, translit, retranslit } = require('./functions.js');
-const { download } = require('./savePhoto');
+const download = require('./saveFile');
 const fs = require('fs');
 
 const DataBase = new DB(config['MONGODB_URI']);
