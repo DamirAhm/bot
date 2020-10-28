@@ -2,18 +2,16 @@
 const VkBot = require('node-vk-bot-api'),
 	Session = require('node-vk-bot-api/lib/session'),
 	Stage = require('node-vk-bot-api/lib/stage'),
-	{ TOKEN, MONGODB_URI, VK_API_KEY, GROUP_ID, ALBUM_ID } = require('./config.js'),
-	{ VK_API, Roles, DataBase: DB } = require('bot-database'),
+	{ MONGODB_URI, GROUP_ID } = require('./config.js'),
+	{ Roles, DataBase: DB } = require('bot-database'),
 	Scenes = require('./Scenes.js'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
 	{ notifyStudents, notifyAboutReboot, removeOldHomework } = require('./utils/functions'),
-	{
-		userOptions,
-		contributorOptions,
-		adminOptions,
-		parseAttachmentsToVKString,
-	} = require('./utils/messagePayloading');
+	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading'),
+	dotenv = require('dotenv');
+
+dotenv.config();
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
 const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
@@ -22,7 +20,7 @@ const adminOptionsMessageTexts = adminOptions.map(({ label }) => label);
 const DataBase = new DB(MONGODB_URI);
 const server = http.createServer(requestListener);
 const bot = new VkBot({
-	token: TOKEN,
+	token: process.env.TOKEN,
 	group_id: GROUP_ID,
 });
 

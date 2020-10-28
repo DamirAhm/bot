@@ -85,7 +85,7 @@ const createDefaultKeyboardSync = (role) => {
 	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
 };
 
-const DataBase = new DB(config['MONGODB_URI']);
+const DataBase = new DB(process.env.MONGODB_URI);
 
 const sceneInfoInSession = ['nextScene', 'pickFor', 'backScene', 'step', 'backStep'];
 const userDataInSession = ['role', 'userId', 'fullName', 'firstScene', 'secondScene'];
