@@ -1,23 +1,27 @@
 // @ts-nocheck
+const path = require('path');
+require('dotenv').config({
+	path: path.resolve(
+		__dirname,
+		process.env.NODE_ENV === 'development' ? '.env.development' : '.env',
+	),
+});
 const VkBot = require('node-vk-bot-api'),
 	Session = require('node-vk-bot-api/lib/session'),
 	Stage = require('node-vk-bot-api/lib/stage'),
-	{ MONGODB_URI, GROUP_ID } = require('./config.js'),
+	{ GROUP_ID } = require('./config.js'),
 	{ Roles, DataBase: DB } = require('bot-database'),
 	Scenes = require('./Scenes.js'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
 	{ notifyStudents, notifyAboutReboot, removeOldHomework } = require('./utils/functions'),
-	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading'),
-	dotenv = require('dotenv');
-
-dotenv.config();
+	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
 const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
 const adminOptionsMessageTexts = adminOptions.map(({ label }) => label);
 
-const DataBase = new DB(MONGODB_URI);
+const DataBase = new DB(process.env.MONGODB_URI);
 const server = http.createServer(requestListener);
 const bot = new VkBot({
 	token: process.env.TOKEN,
