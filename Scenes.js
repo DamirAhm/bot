@@ -975,6 +975,8 @@ module.exports.settings = new Scene(
 						],
 					]),
 				);
+
+				return;
 			} else if (ctx.session.changed) {
 				switch (ctx.session.changed) {
 					case changables.notificationTime: {
@@ -1691,6 +1693,8 @@ module.exports.addHomework = new Scene(
 					null,
 					createBackKeyboard(),
 				);
+
+				return;
 			}
 
 			if (!isNaN(+body) || ctx.session.possibleLessons.includes(body)) {
@@ -1730,6 +1734,8 @@ module.exports.addHomework = new Scene(
 					null,
 					createBackKeyboard(),
 				);
+
+				return;
 			}
 
 			if (body === botCommands.onNextLesson) {
