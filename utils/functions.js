@@ -510,6 +510,7 @@ module.exports = {
 	isValidCityName,
 	isValidSchoolNumber,
 	parseSchoolName,
+	getDateWithOffset,
 	capitalize,
 	ruToEngTranslits,
 	engToRuTranslits,

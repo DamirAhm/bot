@@ -33,6 +33,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	vk = new VK_API(process.env.VK_API_KEY, config['GROUP_ID'], config['ALBUM_ID']),
 	{
 		getTomorrowDate,
+		getDateWithOffset,
 		isToday,
 		findMaxPhotoResolution,
 		filterContentByDate,
@@ -1753,8 +1754,8 @@ module.exports.addHomework = new Scene(
 
 				if (validateDate(month, day, year)) {
 					const date = new Date(year, month - 1, day);
-					console.log(date, year, month, day);
-					if (date.getTime() >= Date.now()) {
+
+					if (date.getTime() >= getDateWithOffset(0).getTime()) {
 						ctx.session.newHomework.to = date;
 					} else {
 						ctx.reply('Дата не может быть в прошлом');
@@ -1945,7 +1946,7 @@ module.exports.addAnnouncement = new Scene(
 				if (validateDate(month, day, year)) {
 					const date = new Date(year, month - 1, day);
 
-					if (date.getTime() >= Date.now()) {
+					if (date.getTime() >= getDateWithOffset(0).getTime()) {
 						ctx.session.newAnnouncement.to = date;
 					} else {
 						ctx.reply('Дата не может быть в прошлом');
