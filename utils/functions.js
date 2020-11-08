@@ -277,12 +277,16 @@ async function notifyAboutReboot(botInstance) {
 	}
 }
 function isStudentOnDefaultScene(res) {
+	let { text, from_id } = res.items[0];
+
+	text = text.toLowerCase().trim();
+
 	const messageMatches =
-		res.items[0].text.startsWith('Меню') ||
-		res.items[0].text === botCommands.botWasRebooted ||
-		res.items[0].text.startsWith('Задание на') ||
-		new RegExp(`^(${Lessons.join('|')}):`, 'i').test(res.items[0].text);
-	const messageIsFromBot = -res.items[0].from_id === +config['GROUP_ID'];
+		text.startsWith('меню') ||
+		text === botCommands.botWasRebooted.toLowerCase() ||
+		text.startsWith('задание на') ||
+		new RegExp(`^(${Lessons.map((l) => l.toLowerCase()).join('|')}):`, 'i').test(text);
+	const messageIsFromBot = -from_id === +config['GROUP_ID'];
 
 	return messageMatches && messageIsFromBot;
 }
