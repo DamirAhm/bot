@@ -104,53 +104,56 @@ module.exports.startScene = new Scene('start', async (ctx) => {
 
 module.exports.registerScene = new Scene(
 	'register',
-	async (ctx) => {
-		ctx.scene.next();
-		ctx.reply(
-			'Введите название города в котором вы учитесь',
-			null,
-			Markup.keyboard([Markup.button(botCommands.checkExisting)]),
-		);
-	},
+	// async (ctx) => {
+	// 	ctx.scene.next();
+	// 	ctx.reply(
+	// 		'Введите название города в котором вы учитесь',
+	// 		null,
+	// 		Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+	// 	);
+	// },
 	async (ctx) => {
 		try {
-			let { body } = ctx.message;
-			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
-				const cityNames = await getCityNames();
+			// let { body } = ctx.message;
+			// if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
+			// 	const cityNames = await getCityNames();
 
-				ctx.session.cityNames = cityNames;
+			// 	ctx.session.cityNames = cityNames;
 
-				ctx.reply(
-					'Выберите свой город\n' + mapListToMessage(cityNames.map(capitalize)),
-					null,
-					mapListToKeyboard(cityNames.map(capitalize)),
-				);
-			} else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
-				const cityNames = await getCityNames();
+			// 	ctx.reply(
+			// 		'Выберите свой город\n' + mapListToMessage(cityNames.map(capitalize)),
+			// 		null,
+			// 		mapListToKeyboard(cityNames.map(capitalize)),
+			// 	);
+			// } else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
+			let body = 'Ижевск';
+			const cityNames = await getCityNames();
 
-				if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
-					let cityName;
+			// if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
+			let cityName;
 
-					if (!isNaN(+body)) cityName = cityNames[+body - 1];
-					else cityName = body.toLowerCase();
-					ctx.session.cityName = cityName;
+			// if (!isNaN(+body)) cityName = cityNames[+body - 1];
+			// else {
+			cityName = body.toLowerCase();
+			// }
+			ctx.session.cityName = cityName;
 
-					ctx.scene.next();
-					ctx.reply(
-						'Введите номер школы в которой вы учитесь',
-						null,
-						createBackKeyboard(
-							cityNames.includes(cityName.toLowerCase())
-								? [[Markup.button(botCommands.checkExisting)]]
-								: [],
-						),
-					);
-				} else {
-					ctx.reply('Введите название русскими или английскими буквами или цифру города');
-				}
-			} else {
-				ctx.reply('Введите название русскими или английскими буквами');
-			}
+			ctx.scene.next();
+			ctx.reply(
+				'Введите номер школы в которой вы учитесь',
+				null,
+				createBackKeyboard(
+					cityNames.includes(cityName)
+						? [[Markup.button(botCommands.checkExisting)]]
+						: [],
+				),
+			);
+			// } else {
+			// 	ctx.reply('Введите название русскими или английскими буквами или цифру города');
+			// }
+			// } else {
+			// 	ctx.reply('Введите название русскими или английскими буквами');
+			// }
 		} catch (e) {
 			console.error(e);
 			ctx.scene.enter('error');
@@ -177,9 +180,7 @@ module.exports.registerScene = new Scene(
 					ctx.reply(
 						'Выберите свою школу\n' + schoolNumbers.join('\n'),
 						null,
-						mapListToKeyboard(schoolNumbers, {
-							trailingButtons: [[Markup.button(botCommands.back, 'negative')]],
-						}),
+						mapListToKeyboard(schoolNumbers),
 					);
 				} else {
 					ctx.reply(
@@ -257,9 +258,12 @@ module.exports.registerScene = new Scene(
 			}
 
 			if (body === botCommands.checkExisting) {
-				const classNames = await DataBase.getAllClasses(
-					ctx.session.schoolName,
-				).then((classes) => classes.map((Class) => (Class ? Class.name : null)));
+				const classNames = await DataBase.getAllClasses(ctx.session.schoolName)
+					.then((classes) => classes.map((Class) => (Class ? Class.name : null)))
+					.catch((err) => {
+						console.error(err);
+						ctx.scene.enter('error');
+					});
 
 				if (classNames.length > 0) {
 					ctx.session.classNames = classNames;
@@ -267,7 +271,13 @@ module.exports.registerScene = new Scene(
 					ctx.reply(
 						mapListToMessage(classNames),
 						null,
-						classNames.length <= 40 ? mapListToKeyboard(classNames) : null,
+						classNames.length <= 35
+							? mapListToKeyboard(classNames, {
+									trailingButtons: [
+										[Markup.button(botCommands.back, 'negative')],
+									],
+							  })
+							: null,
 					);
 				} else {
 					ctx.reply(

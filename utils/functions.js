@@ -295,8 +295,12 @@ async function notifyStudents(botInstance) {
 	try {
 		const Classes = await DataBase.getAllClasses();
 
-		for (const Class of Classes) {
-			await sendHomeworkToClassStudents(Class, botInstance);
+		if (Classes) {
+			for (const Class of Classes) {
+				await sendHomeworkToClassStudents(Class, botInstance);
+			}
+		} else {
+			console.error('Cant access classes from database');
 		}
 	} catch (e) {
 		console.error(e);

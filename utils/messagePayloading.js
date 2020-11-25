@@ -139,7 +139,7 @@ const renderContributorMenuKeyboard = () => {
 	}
 };
 
-const filenameRegExp = /.*\/(.*(\.jpg|\.png|\.gif|\.webp|\.jpeg|\.avif))$/;
+const filenameRegExp = /.*\/(.*(\.jpg|\.png|\.gif|\.webp|\.jpeg|\.avif))/;
 const getFileName = (href) => href.match(filenameRegExp)?.[1];
 const findMaxResolution = (photo) => {
 	const maxRes = Math.max(
@@ -175,11 +175,13 @@ const parseAttachmentsToVKString = async (attachments) => {
 			return parsedAttachments;
 		} else if (attachments.type && attachments[attachments.type]) {
 			const maxResHref = findMaxResolution(attachments.photo);
-			const filename = path.join(__dirname, '../', 'uploads', getFileName(maxResHref));
 
-			await download(maxResHref, filename);
+			const filename = getFileName(maxResHref);
+			const pathname = path.join(__dirname, '../', 'uploads', filename);
 
-			const photo = await VK.uploadPhotoToAlbum(fs.createReadStream(filename)).then(
+			await download(maxResHref, pathname);
+
+			const photo = await VK.uploadPhotoToAlbum(fs.createReadStream(pathname)).then(
 				(photos) => photos[0],
 			);
 
@@ -188,6 +190,7 @@ const parseAttachmentsToVKString = async (attachments) => {
 			throw new TypeError('Wrong attachments type');
 		}
 	} catch (e) {
+		console.error(e);
 		console.error('Cant load file');
 	}
 };
