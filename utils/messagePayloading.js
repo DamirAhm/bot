@@ -4,7 +4,7 @@ const config = require('../config.js');
 const Markup = require('node-vk-bot-api/lib/markup');
 const { DataBase: DB, VK_API } = require('bot-database');
 const botCommands = require('./botCommands');
-const { capitalize, translit, retranslit } = require('./functions.js');
+const { capitalize, retranslit } = require('./functions.js');
 const download = require('./saveFile');
 const fs = require('fs');
 
@@ -309,7 +309,8 @@ const notifyAllInClass = async (
 	}
 };
 
-const lessonsList = mapListToMessage(Lessons, 0);
+const getLessonsList = (additionalLessons) =>
+	mapListToMessage([...new Set([...Lessons, ...additionalLessons])], 0);
 
 module.exports = {
 	createDefaultKeyboardSync,
@@ -324,7 +325,7 @@ module.exports = {
 	renderContributorMenuKeyboard,
 	renderContributorMenu,
 	mapListToMessage,
-	lessonsList,
+	getLessonsList,
 	createContentDiscription,
 	parseDateToStr,
 	createConfirmKeyboard,

@@ -8,7 +8,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		createDefaultKeyboard,
 		renderContributorMenu,
 		renderContributorMenuKeyboard,
-		lessonsList,
+		getLessonsList,
 		parseAttachmentsToVKString,
 		mapListToMessage,
 		createContentDiscription,
@@ -332,7 +332,7 @@ module.exports.registerScene = new Scene(
 					);
 
 					if (newClass) {
-						await DataBase.addStudentToClass(
+						await DataBase.StudentToClass(
 							user_id,
 							spacelessClassName,
 							ctx.session.schoolName,
@@ -2079,10 +2079,10 @@ module.exports.changeSchedule = new Scene(
 
 						const days = Object.values(daysOfWeek);
 						const buttons = days.map((day, index) =>
-							Markup.button(index + 1, 'default', { button: day }),
+							Markup.button(day, 'default', { button: day }),
 						);
 
-						buttons.push(Markup.button('0', 'primary'));
+						buttons.push(Markup.button('Заполнить всё', 'primary'));
 
 						const message =
 							'Выберите день у которого хотите изменить расписание\n' +
@@ -2090,7 +2090,7 @@ module.exports.changeSchedule = new Scene(
 							'\n0. Заполнить всё';
 
 						ctx.scene.next();
-						ctx.reply(message, null, createBackKeyboard(buttons));
+						ctx.reply(message, null, createBackKeyboard(buttons, 3));
 					} else {
 						ctx.scene.enter('register');
 						ctx.reply(
@@ -2124,25 +2124,42 @@ module.exports.changeSchedule = new Scene(
 			) {
 				ctx.session.isFullFill = true;
 				ctx.session.changingDay = 1;
-				const message = `
-            		Введите новое расписание цифрами через запятую или пробел, выбирая из этих предметов\n
-            		${lessonsList} \n
-            		Сначала понедельник:
-            	`;
 
-				ctx.scene.next();
+				const Class =
+					ctx.session.Class ||
+					(await DataBase.getStudentByVkId(ctx.message.user_id).then((u) =>
+						DataBase.getClassBy_Id(u.class),
+					));
+				const { schedule } = Class;
+				const lessons = schedule.flat(2);
+
+				const message = `Введите новое расписание цифрами через запятую, выбирая из списка или вписывая свои предметы если их там нет\n
+				 ${getLessonsList(lessons)}\n Сначала на понедельник`;
+
 				ctx.reply(
 					message,
 					null,
 					createBackKeyboard([Markup.button(botCommands.leaveEmpty, 'primary')], 1),
 				);
+
+				ctx.scene.next();
 			} else if (
 				(!isNaN(+body) && +body >= 1 && +body <= 7) ||
 				Object.values(daysOfWeek).includes(body)
 			) {
 				ctx.session.changingDay = +body;
 
-				const message = `Введите новое расписание цифрами через запятую или пробел, выбирая из этих предметов\n ${lessonsList} `;
+				const Class =
+					ctx.session.Class ||
+					(await DataBase.getStudentByVkId(ctx.message.user_id).then((u) =>
+						DataBase.getClassBy_Id(u.class),
+					));
+				const { schedule } = Class;
+				const lessons = schedule.flat(2);
+
+				const message = `Введите новое расписание цифрами через запятую, выбирая из этого списка или вписывая свои предметы если их нет в списке\n ${getLessonsList(
+					lessons,
+				)}`;
 
 				ctx.scene.next();
 				ctx.reply(
@@ -2192,13 +2209,21 @@ module.exports.changeSchedule = new Scene(
 				return;
 			}
 
-			body = body.replace(/,/g, ' ');
+			let indexes = body
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean);
 
-			let indexes = body.trim().split(' ').filter(Boolean);
-			if (indexes.every((index) => !isNaN(+index))) {
-				indexes = indexes.map((i) => +i);
-				if (indexes.every((index) => index >= 0 && index < Lessons.length)) {
-					const newLessons = indexes.map((i) => Lessons[i]);
+			if (indexes.every((i) => /([0-9a-zа-я]]*\s*,\s*)*$/i.test(i))) {
+				if (
+					indexes.every((index) =>
+						isNaN(index) ? true : index >= 0 && index < Lessons.length,
+					)
+				) {
+					const newLessons = indexes.map((i) => {
+						if (!isNaN(i)) return Lessons[+i];
+						else return capitalize(i);
+					});
 					ctx.session.schedule[ctx.session.changingDay - 1] = newLessons;
 
 					if (
