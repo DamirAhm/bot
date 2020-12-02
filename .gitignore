@@ -8,9 +8,6 @@
 .idea
 .vscode
 
-*-lock.json
-package-lock.json
-**/package-lock.json
 
 Feedback
 
