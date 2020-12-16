@@ -1,4 +1,4 @@
-const { mapHomeworkByLesson } = require('bot-database/utils/functions');
+const { mapHomeworkByLesson } = require('bot-database/lib/utils/functions');
 const { DataBase: DB } = require('bot-database');
 const config = require('../config.js');
 const { Roles, Lessons } = require('bot-database');

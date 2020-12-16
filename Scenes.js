@@ -24,10 +24,10 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		findNextLessonDate,
 		findNextDayWithLesson,
 		mapHomeworkByLesson,
-	} = require('bot-database/utils/functions'),
+	} = require('bot-database/lib/utils/functions'),
 	botCommands = require('./utils/botCommands.js'),
-	{ Roles, Lessons, daysOfWeek } = require('bot-database/Models/utils.js'),
-	VK_API = require('bot-database/VkAPI/VK_API.js'),
+	{ Roles, Lessons, daysOfWeek } = require('bot-database/lib/Models/utils.js'),
+	VK_API = require('bot-database/lib/VkAPI/VK_API.js').default,
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	vk = new VK_API(process.env.VK_API_KEY, config['GROUP_ID'], config['ALBUM_ID']),
@@ -50,7 +50,6 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		retranslit,
 		capitalize,
 		translit,
-		isValidCityName,
 	} = require('./utils/functions.js'),
 	fs = require('fs');
 
@@ -1805,13 +1804,13 @@ module.exports.addHomework = new Scene(
 			if (answer.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
 				const {
 					newHomework: { to, lesson, text, attachments },
-					Class: { name: className },
+					Class,
 				} = ctx.session;
 				ctx.session.Class = undefined;
 
 				const res = await DataBase.addHomework(
 					{
-						className,
+						Class,
 						schoolName: await getSchoolName(ctx),
 					},
 					lesson,

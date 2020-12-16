@@ -1,8 +1,9 @@
 const path = require('path');
-const { Lessons, Roles } = require('bot-database/Models/utils');
+const { Lessons, Roles } = require('bot-database/lib/Models/utils');
 const config = require('../config.js');
 const Markup = require('node-vk-bot-api/lib/markup');
-const { DataBase: DB, VK_API } = require('bot-database');
+const { DataBase: DB } = require('bot-database');
+const VK_API = require('bot-database/lib/VkAPI/VK_API').default;
 const botCommands = require('./botCommands');
 const { capitalize, retranslit } = require('./functions.js');
 const download = require('./saveFile');
@@ -17,6 +18,7 @@ const contentPropertyNames = {
 	lesson: 'Урок',
 	createdBy: 'Создал',
 };
+
 //Родительный падеж
 const monthsRP = [
 	'января',
