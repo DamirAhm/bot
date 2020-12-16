@@ -1,3 +1,4 @@
+//@ts-check
 const path = require('path');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	config = require('./config.js'),
@@ -30,7 +31,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	VK_API = require('bot-database/lib/VkAPI/VK_API.js').default,
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	vk = new VK_API(process.env.VK_API_KEY, config['GROUP_ID'], config['ALBUM_ID']),
+	vk = new VK_API(process.env.VK_API_KEY, +config['GROUP_ID'], +config['ALBUM_ID']),
 	{
 		getTomorrowDate,
 		getDateWithOffset,
@@ -262,6 +263,7 @@ module.exports.registerScene = new Scene(
 					.catch((err) => {
 						console.error(err);
 						ctx.scene.enter('error');
+						return null;
 					});
 
 				if (classNames.length > 0) {
@@ -331,7 +333,7 @@ module.exports.registerScene = new Scene(
 					);
 
 					if (newClass) {
-						await DataBase.StudentToClass(
+						await DataBase.addStudentToClass(
 							user_id,
 							spacelessClassName,
 							ctx.session.schoolName,
@@ -365,7 +367,7 @@ module.exports.registerScene = new Scene(
 			} else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
 				const {
 					class: { name: className },
-				} = await DataBase.populate(await DataBase.getStudentByVkId(ctx.message.user_id));
+				} = await DataBase.getClassForStudent(ctx.message.user_id);
 
 				ctx.reply(
 					`Вы успешно зарегестрированны в ${className} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
@@ -641,7 +643,7 @@ module.exports.checkHomework = new Scene(
 				let delayAmount = 0;
 
 				for (let i = 0; i < daysOfHomework; i++) {
-					setTimeout(() => {
+					setTimeout(async () => {
 						const dayOfHomework = startDay + i;
 						const dateItMilliseconds = new Date(
 							today.getFullYear(),
@@ -652,7 +654,10 @@ module.exports.checkHomework = new Scene(
 
 						const dateString = getDayMonthString(date);
 
-						const homework = filterContentByDate(ctx.session.Class.homework, date);
+						const homework = await DataBase.getHomeworkByDate(
+							{ classNameOrInstance: ctx.session.Class },
+							date,
+						);
 
 						if (homework.length === 0) {
 							//? IIFE to make amountOfHomework local closure elsewhere it would be saved as valiable at moment when setTimeout callback will be executed
@@ -834,7 +839,10 @@ module.exports.checkAnnouncements = new Scene(
 			}
 
 			if (date) {
-				const announcements = filterContentByDate(ctx.session.Class.announcements, date);
+				const announcements = await DataBase.getAnnouncements(
+					{ classNameOrInstance: ctx.session.Class, schoolName: undefined },
+					date,
+				);
 				if (announcements.length === 0) {
 					ctx.reply('На данный день нет ни одного объявления');
 					ctx.scene.enter('default');
@@ -1032,7 +1040,7 @@ module.exports.settings = new Scene(
 						if (ctx.session.Class) {
 							const res = await DataBase.changeClass(
 								ctx.message.user_id,
-								ctx.session.Class.name,
+								ctx.session.Class,
 								await getSchoolName(ctx),
 							);
 
@@ -1069,7 +1077,7 @@ module.exports.settings = new Scene(
 						if (ctx.session.Class && ctx.session.schoolName) {
 							const res = await DataBase.changeClass(
 								ctx.message.user_id,
-								ctx.session.Class.name,
+								ctx.session.Class,
 								ctx.session.schoolName,
 							);
 
@@ -1391,12 +1399,19 @@ module.exports.addRedactor = new Scene(
 					if (!Student) {
 						const response = await vk.api('users.get', { user_ids: id });
 
-						if (!response.error_code && response) {
+						if (
+							typeof response === 'object' &&
+							'error_code' in response &&
+							//@ts-ignore
+							!response.error_code &&
+							response
+						) {
 							const { first_name, last_name } = response[0];
 							Student = await DataBase.createStudent(id, {
 								firstName: first_name,
 								lastName: last_name,
 								registered: false,
+								class_id: undefined,
 							});
 						} else {
 							throw new Error(JSON.stringify(response));
@@ -1520,12 +1535,9 @@ module.exports.addClass = new Scene(
 			} = ctx;
 			const spacelessClassName = body.replace(/\s*/g, '');
 			if (/\d+([a-z]|[а-я])/i.test(spacelessClassName)) {
-				const Class = await DataBase.createClass(
-					spacelessClassName,
-					await DataBase.getSchoolForStudent(ctx.message.user_id).then((School) =>
-						School ? School.name : null,
-					),
-				);
+				const School = await DataBase.getSchoolForStudent(ctx.message.user_id);
+				const schoolName = School ? School.name : null;
+				const Class = await DataBase.createClass(spacelessClassName, schoolName);
 				if (Class) {
 					ctx.reply('Класс успешно создан');
 					ctx.scene.enter('default');
@@ -1810,7 +1822,7 @@ module.exports.addHomework = new Scene(
 
 				const res = await DataBase.addHomework(
 					{
-						Class,
+						classNameOrInstance: Class,
 						schoolName: await getSchoolName(ctx),
 					},
 					lesson,
@@ -1996,11 +2008,10 @@ module.exports.addAnnouncement = new Scene(
 					newAnnouncement: { to, text, attachments },
 					Class: { name: className },
 				} = ctx.session;
-				ctx.session.Class = undefined;
 
 				const res = await DataBase.addAnnouncement(
 					{
-						className,
+						classNameOrInstance: ctx.session.Class,
 						schoolName: await getSchoolName(ctx),
 					},
 					{ text, attachments },
@@ -2008,6 +2019,8 @@ module.exports.addAnnouncement = new Scene(
 					false,
 					ctx.message.user_id,
 				);
+
+				ctx.session.Class = undefined;
 
 				if (res) {
 					ctx.reply(
@@ -2272,7 +2285,7 @@ module.exports.changeSchedule = new Scene(
 
 			if (body.toLowerCase() === 'да') {
 				if (schedule && Class) {
-					await Class.updateOne({ schedule });
+					await DataBase.setSchedule({ classNameOrInstance: Class }, schedule);
 					ctx.scene.enter('default');
 					ctx.reply(
 						'Расписание успешно обновлено',

@@ -1,4 +1,6 @@
-// @ts-nocheck
+//@ts-check
+///<reference path="./node-vk-bot-api.d.ts"/>
+
 const path = require('path');
 require('dotenv').config({
 	path: path.resolve(
@@ -23,6 +25,7 @@ const adminOptionsMessageTexts = adminOptions.map(({ label }) => label);
 
 const DataBase = new DB(process.env.MONGODB_URI);
 const server = http.createServer(requestListener);
+
 const bot = new VkBot({
 	token: process.env.TOKEN,
 	group_id: GROUP_ID,
