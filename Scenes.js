@@ -51,10 +51,23 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		retranslit,
 		capitalize,
 		translit,
+		getCityNames,
+		getSchoolNumbers,
+		getDayScheduleString,
+		getScheduleString,
+		getLengthOfHomeworkWeek,
+		parseDate,
+		validateDate,
+		sendStudentInfo,
+		parseTime,
+		getSchoolName,
+		mapStudentToPreview,
+		getTextsAndAttachmentsFromForwarded,
+		mapAttachmentsToObject,
+		getPossibleLessonsAndSetInSession,
 	} = require('./utils/functions.js'),
 	fs = require('fs');
 
-const maxDatesPerMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const changables = {
 	class: 'class',
 	notificationTime: 'notificationTime',
@@ -365,9 +378,7 @@ module.exports.registerScene = new Scene(
 				cleanDataForSceneFromSession(ctx);
 				ctx.scene.enter('changeSchedule');
 			} else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
-				const {
-					class: { name: className },
-				} = await DataBase.getClassForStudent(ctx.message.user_id);
+				const { name: className } = await DataBase.getClassForStudent(ctx.message.user_id);
 
 				ctx.reply(
 					`Вы успешно зарегестрированны в ${className} классе ${ctx.session.schoolNumber} школы, города ${ctx.session.cityName}`,
@@ -655,7 +666,10 @@ module.exports.checkHomework = new Scene(
 						const dateString = getDayMonthString(date);
 
 						const homework = await DataBase.getHomeworkByDate(
-							{ classNameOrInstance: ctx.session.Class },
+							{
+								classNameOrInstance: ctx.session.Class,
+								schoolName: ctx.session.Class.schoolName,
+							},
 							date,
 						);
 
@@ -2285,7 +2299,10 @@ module.exports.changeSchedule = new Scene(
 
 			if (body.toLowerCase() === 'да') {
 				if (schedule && Class) {
-					await DataBase.setSchedule({ classNameOrInstance: Class }, schedule);
+					await DataBase.setSchedule(
+						{ classNameOrInstance: Class, schoolName: Class.schoolName },
+						schedule,
+					);
 					ctx.scene.enter('default');
 					ctx.reply(
 						'Расписание успешно обновлено',
@@ -2739,257 +2756,26 @@ module.exports.enterDayIndexes = new Scene(
 		cleanSession(ctx);
 	},
 );
-
-async function getCityNames() {
-	const schools = await DataBase.getAllSchools();
-	const cityNames = [
-		...new Set(
-			schools.map(({ name: schoolName }) => retranslit(parseSchoolName(schoolName)[0])),
-		),
-	];
-
-	return cityNames;
-}
-async function getSchoolNumbers(cityName) {
-	const schools = await DataBase.getSchoolsForCity(translit(cityName));
-
-	const schoolNumbers = [
-		...new Set(schools.map(({ name: schoolName }) => parseSchoolName(schoolName)[1])),
-	];
-
-	return schoolNumbers;
+function disableNotificationsAction(ctx) {
+	throw new Error('Function not implemented.');
 }
 
-async function getSchoolName(ctx) {
-	return await DataBase.getSchoolForStudent(ctx.message.user_id).then((school) =>
-		school ? school.name : null,
-	);
-}
-
-async function sendStudentInfo(ctx) {
-	if (!ctx.session.Student) {
-		ctx.session.Student = await DataBase.getStudentByVkId(ctx.message.user_id);
-	}
-
-	const { role, class: classId, settings, firstName, secondName } = ctx.session.Student;
-	let className, cityName, schoolNumber;
-
-	if (classId) {
-		const Class = await DataBase.getClassBy_Id(classId);
-
-		className = Class.name || 'Нету';
-		if (!Class) {
-			[cityName, schoolNumber] = ['Нету', 'Нету'];
-		} else {
-			[cityName = 'Нету', schoolNumber = 'Нету'] = parseSchoolName(Class.schoolName);
-		}
-	} else {
-		[cityName, schoolNumber, className] = ['Нету', 'Нету', 'Нету'];
-	}
-
-	const message = createUserInfo({
-		role,
-		className,
-		settings,
-		name: firstName + ' ' + secondName,
-		cityName,
-		schoolNumber,
-	});
-
-	ctx.reply(
-		message,
-		null,
-		createBackKeyboard([[Markup.button(botCommands.changeSettings, 'primary')]]),
-	);
-}
-
-function changeSchoolAction(ctx) {
-	if (ctx.session) {
-		ctx.session.nextScene = 'settings';
-		ctx.session.step = 3;
-		ctx.session.pickFor = 'Выберите школу \n';
-		ctx.session.backScene = 'contributorPanel';
-		ctx.session.backStep = 1;
-		ctx.session.changed = changables.school;
-		ctx.scene.enter('pickSchool');
-	} else {
-		console.log('Theres is no session in context');
-		ctx.scene.enter('error');
-	}
-}
-function changeClassAction(ctx) {
-	if (ctx.session) {
-		ctx.session.nextScene = 'settings';
-		ctx.session.step = 3;
-		ctx.session.pickFor = 'Выберите класс \n';
-		ctx.session.backScene = 'contributorPanel';
-		ctx.session.backStep = 1;
-		ctx.session.changed = changables.class;
-		ctx.scene.enter('pickClass');
-	} else {
-		console.log('Theres is no session in context');
-		ctx.scene.enter('error');
-	}
-}
-
-function enterDayIndexesAction(ctx) {
-	if (ctx.session) {
-		ctx.session.nextScene = 'settings';
-		ctx.session.step = 3;
-		ctx.session.backScene = 'contributorPanel';
-		ctx.session.backStep = 1;
-		ctx.session.changed = changables.daysForNotification;
-		ctx.scene.enter('enterDaysIndexes');
-	} else {
-		console.log('Theres is no session in context');
-		ctx.scene.enter('error');
-	}
+function enableNotificationsAction(ctx) {
+	throw new Error('Function not implemented.');
 }
 
 function changeNotificationTimeAction(ctx) {
-	ctx.scene.next();
-	ctx.session.changed = changables.notificationTime;
-	ctx.reply(
-		'Когда вы хотите получать уведомления? (в формате ЧЧ:ММ)',
-		null,
-		createBackKeyboard(),
-	);
+	throw new Error('Function not implemented.');
 }
 
-async function enableNotificationsAction(ctx) {
-	let { Student } = ctx.session;
-
-	if (!Student) {
-		Student = await DataBase.getStudentByVkId(ctx.message.user_id);
-	}
-
-	Student.settings.notificationsEnabled = true;
-	Student.save();
-
-	ctx.scene.enter('default');
-	ctx.reply('Уведомления включены', null, await createDefaultKeyboard(undefined, ctx));
+function changeSchoolAction(ctx) {
+	throw new Error('Function not implemented.');
 }
 
-async function disableNotificationsAction(ctx) {
-	let { Student } = ctx.session;
-
-	if (!Student) {
-		Student = await DataBase.getStudentByVkId(ctx.message.user_id);
-	}
-
-	Student.settings.notificationsEnabled = false;
-	Student.save();
-
-	ctx.scene.enter('default');
-	ctx.reply('Уведомления отключены', null, await createDefaultKeyboard(undefined, ctx));
+function changeClassAction(ctx) {
+	throw new Error('Function not implemented.');
 }
 
-async function getPossibleLessonsAndSetInSession(ctx) {
-	if (ctx.session.Class === undefined) {
-		ctx.session.Class = await DataBase.getStudentByVkId(ctx.message.user_id)
-			.then(({ Class: classId }) => classId)
-			.then((classId) => DataBase.getClassBy_Id(classId));
-	}
-
-	const possibleLessons = [...new Set(ctx.session.Class.schedule.flat().sort())];
-	ctx.session.possibleLessons = possibleLessons;
-
-	return possibleLessons;
-}
-
-function mapStudentToPreview(Contributors) {
-	return Contributors.map(
-		({ firstName, secondName, vkId }) => `${firstName} ${secondName} (${vkId})`,
-	);
-}
-
-function validateDate(month, day, year) {
-	return (
-		inRange(month, 1, 12) &&
-		inRange(day, 1, maxDatesPerMonth[month - 1]) &&
-		year >= new Date().getFullYear()
-	);
-}
-
-function parseDate(body) {
-	return body
-		.match(/([0-9]+)\.([0-9]+)\.?([0-9]+)?/)
-		.slice(1)
-		.map((n) => (isNaN(Number(n)) ? undefined : Number(n)));
-}
-function parseTime(body) {
-	return body
-		.match(/([0-9]+):([0-9]+)/)
-		.slice(1)
-		.map((n) => (isNaN(Number(n)) ? undefined : Number(n)));
-}
-
-/**
- *@param {{schedule: string[][]}} Class
- *
- *@return {string}
- */
-function getScheduleString({ schedule }) {
-	const message = schedule
-		.map((lessons, i) => {
-			return getDayScheduleString(lessons, daysOfWeek[i]);
-		})
-		.join('\n\n');
-
-	return message;
-}
-/**
- * @param {string[]} lessons
- * @param {string} dayName
- *
- * @return {string}
- */
-function getDayScheduleString(lessons, dayName) {
-	const dayMessage = lessons.length > 0 ? `${dayName}: \n ${mapListToMessage(lessons)} ` : '';
-
-	return dayMessage;
-}
-
-//Returns amount of days for each of which whe should send homework
-function getLengthOfHomeworkWeek() {
-	const date = new Date().getDay();
-
-	return date >= 5 ? 6 : 7 - date;
-}
-
-async function mapAttachmentsToObject(attachments) {
-	const mappedAttachments = [];
-
-	for (const att of attachments) {
-		mappedAttachments.push({
-			value: await parseAttachmentsToVKString(att),
-			url: findMaxPhotoResolution(att[att.type]),
-			album_id: att[att.type].album_id,
-		});
-	}
-
-	return mappedAttachments;
-}
-
-function getTextsAndAttachmentsFromForwarded({ body = '', attachments = [], fwd_messages = [] }) {
-	if (fwd_messages.length === 0) {
-		return {
-			body: body,
-			attachments: attachments,
-		};
-	}
-
-	const nestedMessagesPayload = fwd_messages.reduce(({ body = '', attachments = [] }, c) => {
-		const payload = getTextsAndAttachmentsFromForwarded(c);
-
-		return {
-			body: (body ? body + '\n' : '') + payload.body,
-			attachments: attachments.concat(payload.attachments),
-		};
-	}, {});
-
-	return {
-		body: (body ? body + '\n' : '') + nestedMessagesPayload.body,
-		attachments: attachments.concat(nestedMessagesPayload.attachments),
-	};
+function enterDayIndexesAction(ctx) {
+	throw new Error('Function not implemented.');
 }
