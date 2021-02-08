@@ -9,9 +9,10 @@ const {
 	createUserInfo,
 	mapListToMessage,
 	parseAttachmentsToVKString,
+	createBackKeyboard,
 } = require('./messagePayloading.js');
 const { daysOfWeek } = require('bot-database/build/Models/utils');
-const { student } = require('./botCommands');
+const { retranslit, translit } = require('./translits.js');
 
 const mapListToKeyboard = (
 	/** @type {any[]} */ list,
@@ -128,110 +129,6 @@ const dataForSceneInSession = [
 	'cityName',
 	'changedCity',
 ];
-
-const ruToEngTranslits = {
-	а: 'a',
-	б: 'b',
-	в: 'v',
-	г: 'g',
-	д: 'd',
-	е: 'e',
-	ё: 'yo',
-	ж: 'zh',
-	з: 'z',
-	и: 'i',
-	й: 'y',
-	к: 'k',
-	л: 'l',
-	м: 'm',
-	н: 'n',
-	о: 'o',
-	п: 'p',
-	р: 'r',
-	с: 's',
-	т: 't',
-	у: 'u',
-	ф: 'f',
-	х: 'h',
-	ц: 'c',
-	ч: 'ch',
-	ш: 'sh',
-	щ: "sh'",
-	ъ: '',
-	ы: 'i',
-	ь: '',
-	э: 'e',
-	ю: 'yu',
-	я: 'ya',
-};
-const engToRuTranslits = {
-	a: 'а',
-	b: 'б',
-	v: 'в',
-	g: 'г',
-	d: 'д',
-	e: 'е',
-	yo: 'ё',
-	zh: 'ж',
-	z: 'з',
-	i: 'и',
-	y: 'й',
-	k: 'к',
-	l: 'л',
-	m: 'м',
-	n: 'н',
-	o: 'о',
-	p: 'п',
-	r: 'р',
-	s: 'с',
-	t: 'т',
-	u: 'у',
-	f: 'ф',
-	h: 'х',
-	c: 'ц',
-	ch: 'ч',
-	sh: 'ш',
-	"sh'": 'щ',
-	oo: 'у',
-	ee: 'и',
-	yu: 'ю',
-	ya: 'я',
-};
-/**
- * @param {string} rusWord
- */
-function translit(rusWord) {
-	if (rusWord && typeof rusWord === 'string') {
-		return rusWord
-			.split('')
-			.map((w) => ruToEngTranslits[w.toLowerCase()] || w.toLowerCase())
-			.join('');
-	} else {
-		return '';
-	}
-}
-/**
- * @param {string} engWord
- */
-function retranslit(engWord) {
-	if (engWord && typeof engWord === 'string') {
-		if (/(ch|sh|zh|sh\'|yo|yu|ya|oo|ee).test(engWord)/) {
-			for (const i of ['ch', 'sh', 'zh', "sh'", 'yo', 'yu', 'ya', 'oo', 'ee']) {
-				engWord = engWord.replace(new RegExp(i, 'g'), engToRuTranslits[i]);
-			}
-		}
-		for (const i of Object.keys(engToRuTranslits)) {
-			engWord = engWord.replace(new RegExp(i, 'g'), engToRuTranslits[i]);
-		}
-
-		return engWord;
-	} else {
-		return '';
-	}
-}
-
-/** @param {string} str */
-const capitalize = (str) => (str ? str[0].toUpperCase() + str.slice(1) : '');
 
 /**
  * @param {string} schoolName
@@ -386,8 +283,6 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 					notified = notified.concat([...new Set([...studentsWithoutPreferences])]);
 
 					let delayAfterStudentWithPreferences = 0;
-
-					console.log({ homeworkForEachStudent, studentsWithoutPreferences });
 
 					for (const vkId in homeworkForEachStudent) {
 						const homeworkForStudent = homeworkForEachStudent[vkId];
@@ -797,6 +692,7 @@ async function sendStudentInfo(ctx) {
 	ctx.reply(
 		message,
 		null,
+		//@ts-ignore
 		createBackKeyboard([[Markup.button(botCommands.changeSettings, 'primary')]]),
 	);
 }
@@ -818,11 +714,11 @@ async function getPossibleLessonsAndSetInSession(ctx) {
 }
 
 /**
- * @param {{ firstName: string; secondName: string; vkId: number; }[]} Contributors
+ * @param {import("bot-database/build/types").StudentDocument[]} Contributors
  */
 function mapStudentToPreview(Contributors) {
 	return Contributors.map(
-		({ firstName, secondName, vkId }) => `${firstName} ${secondName} (${vkId})`,
+		({ firstName, lastName, vkId }) => `${firstName} ${lastName} (${vkId})`,
 	);
 }
 
@@ -936,11 +832,6 @@ module.exports = {
 	isValidSchoolNumber,
 	parseSchoolName,
 	getDateWithOffset,
-	capitalize,
-	ruToEngTranslits,
-	engToRuTranslits,
-	retranslit,
-	translit,
 	isValidClassName,
 	isToday,
 	getTomorrowDate,
@@ -978,9 +869,3 @@ module.exports = {
 	mapAttachmentsToObject,
 	getTextsAndAttachmentsFromForwarded,
 };
-/**
- * @param {any[][]} arg0
- */
-function createBackKeyboard(arg0) {
-	throw new Error('Function not implemented.');
-}

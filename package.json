@@ -8,7 +8,8 @@
     "start:dev": "NODE_ENV=development supervisor index -n -w .",
     "start": "NODE_ENV=production node index",
     "logs": "heroku logs --tail",
-    "start:debug": "NODE_ENV=development supervisor --inspect index -i"
+    "start:debug": "NODE_ENV=development supervisor --inspect index -i",
+    "deploy": "rsync -e \"sshpass -p ${{secrets.password}} ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no\" --archive --compress --progress --delete . root@damirahm.ru:/root/bot"
   },
   "engines": {
     "npm": "6.x",

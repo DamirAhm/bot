@@ -1,3 +1,4 @@
+//@ts-check
 const path = require('path');
 const { Lessons, Roles } = require('bot-database/build/Models/utils');
 const config = require('../config.js');
@@ -5,7 +6,7 @@ const Markup = require('node-vk-bot-api/lib/markup');
 const { DataBase: DB } = require('bot-database');
 const VK_API = require('bot-database/build/VkAPI/VK_API').default;
 const botCommands = require('./botCommands');
-const { capitalize, retranslit } = require('./functions.js');
+const { capitalize, retranslit } = require('./translits.js');
 const download = require('./saveFile');
 const fs = require('fs');
 
