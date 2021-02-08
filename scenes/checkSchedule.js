@@ -17,13 +17,14 @@ const checkScheduleScene = new Scene(
 	(ctx) => {
 		ctx.scene.next();
 		ctx.reply(
-			'Вы хотите получить расписание только на сегодня или на всю неделю?',
+			'Как вы хотите получить расписание?',
 			null,
 			createBackKeyboard([
 				[
 					Markup.button(botCommands.onToday, 'primary'),
-					Markup.button(botCommands.onAllWeek, 'positive'),
+					Markup.button(botCommands.onTomorrow, 'primary'),
 				],
+				[Markup.button(botCommands.onAllWeek, 'positive')],
 			]),
 		);
 	},
@@ -52,10 +53,18 @@ const checkScheduleScene = new Scene(
 						Class = await DataBase.getClassBy_Id(Student.class);
 					}
 
-					if (body.toLowerCase() === botCommands.onToday.toLowerCase()) {
+					if (
+						[
+							botCommands.onToday.toLowerCase(),
+							botCommands.onTomorrow.toLowerCase(),
+						].includes(body.toLowerCase())
+					) {
+						const dayOffset =
+							body.toLowerCase() === botCommands.onToday.toLowerCase() ? -1 : 0;
+
 						const message = getDayScheduleString(
-							Class.schedule[new Date().getDay() - 1],
-							daysOfWeek[new Date().getDay() - 1],
+							Class.schedule[new Date().getDay() + dayOffset],
+							daysOfWeek[new Date().getDay() + dayOffset],
 						);
 
 						if (message.trim() === '') {
