@@ -31,6 +31,7 @@ const registerScene = new Scene(
 	// },
 	async (ctx) => {
 		try {
+			//! Если решишь снова вернуть выбор города
 			// let { body } = ctx.message;
 			// if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
 			// 	const cityNames = await getCityNames();
@@ -43,17 +44,18 @@ const registerScene = new Scene(
 			// 		mapListToKeyboard(cityNames.map(capitalize)),
 			// 	);
 			// } else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
-			let body = 'Ижевск';
+			// let body = 'Ижевск';
 			const cityNames = await getCityNames();
+			ctx.session.cityNames = cityNames;
 
 			// if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
-			let cityName;
+			let cityName = 'ижевск';
 
 			// if (!isNaN(+body)) cityName = cityNames[+body - 1];
 			// else {
-			cityName = body.toLowerCase();
+			// cityName = body.toLowerCase();
 			// }
-			ctx.session.cityName = cityName;
+			ctx.session.cityName = cityName.toLowerCase();
 
 			ctx.scene.next();
 			ctx.reply(
@@ -81,12 +83,25 @@ const registerScene = new Scene(
 			const { body } = ctx.message;
 
 			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+				const { cityNames, cityName } = ctx.session;
+
 				ctx.scene.selectStep(1);
 				ctx.reply(
-					'Введите название города в котором вы учитесь',
+					'Введите номер школы в которой вы учитесь',
 					null,
-					Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+					createBackKeyboard(
+						cityNames.includes(cityName)
+							? [[Markup.button(botCommands.checkExisting)]]
+							: [],
+					),
 				);
+
+				//! Если решишь снова вернуть выбор города
+				// ctx.reply(
+				// 	'Введите название города в котором вы учитесь',
+				// 	null,
+				// 	Markup.keyboard([Markup.button(botCommands.checkExisting)]),
+				// );
 				return;
 			}
 
@@ -159,14 +174,14 @@ const registerScene = new Scene(
 			} = ctx;
 
 			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
-				const cityNames = await getCityNames();
+				const { cityNames, cityName } = ctx.session;
 
 				ctx.scene.selectStep(2);
 				ctx.reply(
 					'Введите номер школы в которой вы учитесь',
 					null,
 					createBackKeyboard(
-						cityNames.includes(ctx.session.cityName.toLowerCase())
+						cityNames.includes(cityName)
 							? [[Markup.button(botCommands.checkExisting)]]
 							: [],
 					),
@@ -182,7 +197,7 @@ const registerScene = new Scene(
 						ctx.scene.enter('error');
 						return null;
 					});
-
+				console.log(classNames);
 				if (classNames.length > 0) {
 					ctx.session.classNames = classNames;
 
@@ -219,7 +234,6 @@ const registerScene = new Scene(
 				);
 
 				if (Class) {
-					//! Убрал имя школы из схемы ученика
 					await DataBase.createStudent(ctx.message.user_id, {
 						firstName: ctx.session.firstName,
 						lastName: ctx.session.lastName,

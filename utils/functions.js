@@ -18,24 +18,25 @@ const mapListToKeyboard = (
 	/** @type {any[]} */ list,
 	{ trailingButtons = [], leadingButtons = [] } = {},
 ) => {
+	const columnsAmount = calculateColumnsAmount(list.length);
+	const classesByRows = list.reduce((acc, c, i) => {
+		if (i % columnsAmount === 0) {
+			acc.push([Markup.button(c)]);
+		} else {
+			acc[Math.floor(i / columnsAmount)].push(Markup.button(c));
+		}
+
+		return acc;
+	}, []);
+
 	if ([trailingButtons, leadingButtons].every((btns) => Array.isArray(btns[0]) || !btns.length)) {
-		return Markup.keyboard(
-			[
-				...leadingButtons,
-				list.map((/** @type {any} */ value) => Markup.button(value)),
-				...trailingButtons,
-			],
-			{ columns: calculateColumnsAmount(list.length) },
-		);
+		return Markup.keyboard([...leadingButtons, ...classesByRows, ...trailingButtons], {
+			columns: calculateColumnsAmount(list.length),
+		});
 	} else {
-		return Markup.keyboard(
-			[
-				...leadingButtons,
-				...list.map((/** @type {any} */ value) => Markup.button(value)),
-				...trailingButtons,
-			],
-			{ columns: calculateColumnsAmount(list.length) },
-		);
+		return Markup.keyboard([leadingButtons, ...classesByRows, trailingButtons], {
+			columns: calculateColumnsAmount(list.length),
+		});
 	}
 };
 

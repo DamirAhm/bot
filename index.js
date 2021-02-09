@@ -12,18 +12,20 @@ const VkBot = require('node-vk-bot-api'),
 	Session = require('node-vk-bot-api/lib/session'),
 	Stage = require('node-vk-bot-api/lib/stage'),
 	{ GROUP_ID } = require('./config.js'),
-	{ Roles, DataBase: DB } = require('bot-database'),
+	{ Roles, DataBase: DB, VK_API } = require('bot-database'),
 	Scenes = require('./scenes/index'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
 	{ notifyStudents, notifyAboutReboot, removeOldHomework } = require('./utils/functions'),
 	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
+const config = require('./config.js');
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
 const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
 const adminOptionsMessageTexts = adminOptions.map(({ label }) => label);
 
 const DataBase = new DB(process.env.MONGODB_URI);
+const vk = new VK_API(process.env.VK_API_KEY, +config['GROUP_ID'], +config['ALBUM_ID']);
 const server = http.createServer(requestListener);
 
 const bot = new VkBot({
@@ -62,9 +64,9 @@ bot.command(/.*/, async (ctx, next) => {
 
 	if (Student) next();
 	else {
-		const { first_name: first_name, last_name: last_name } = await bot
-			.execute('users.get', { user_ids: [ctx.message.user_id] })
-			.then((res) => res[0]);
+		const { first_name: first_name, last_name: last_name } = await vk.getUser(
+			ctx.message.user_id,
+		);
 
 		ctx.session.userId = ctx.message.user_id;
 		ctx.session.lastName = last_name;
