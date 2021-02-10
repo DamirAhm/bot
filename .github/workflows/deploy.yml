@@ -26,9 +26,7 @@ jobs:
       - run: chmod 600 "$HOME/.ssh/key"
       # Build
       - run: npm ci --ignore-scripts
-      - run: cd node_modules/bot-database
-      - run: npm i tslib && tsc
-      - run: cd ../..
+      - run: cd node_modules/bot-database && pwd && npm i tslib && tsc --build ./tsconfig.json
       # Deploy
       - run: sudo apt install sshpass
       - run: rsync -e "sshpass -p ${{secrets.password}} ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no" --archive --compress --progress --delete . root@damirahm.ru:/root/bot
