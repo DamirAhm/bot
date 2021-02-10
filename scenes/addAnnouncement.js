@@ -28,6 +28,7 @@ const isAdmin = async (ctx) => {
 
 	return role === Roles.admin;
 };
+const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
@@ -35,7 +36,7 @@ const addAnnouncementScene = new Scene(
 	'addAnnouncement',
 	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin(ctx);
+			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'addAnnouncement';
 				ctx.session.pickFor = 'Выберите класс у которому хотите добавить обьявление \n';

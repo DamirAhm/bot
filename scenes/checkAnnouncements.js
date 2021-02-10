@@ -18,6 +18,7 @@ const isAdmin = async (ctx) => {
 
 	return role === Roles.admin;
 };
+const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
@@ -25,7 +26,7 @@ const checkAnnouncementsScene = new Scene(
 	'checkAnnouncements',
 	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin(ctx);
+			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 
 			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
 				ctx.scene.enter('default');

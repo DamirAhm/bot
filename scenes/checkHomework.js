@@ -28,6 +28,7 @@ const isAdmin = async (ctx) => {
 
 	return role === Roles.admin;
 };
+const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
@@ -40,7 +41,7 @@ const checkHomeworkScene = new Scene(
 				return;
 			}
 
-			const needToPickClass = await isAdmin(ctx);
+			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'checkHomework';
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть дз \n';

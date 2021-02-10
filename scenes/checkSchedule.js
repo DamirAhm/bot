@@ -3,7 +3,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
-	{ daysOfWeek } = require('bot-database/build/Models/utils.js'),
+	{ daysOfWeek, Roles } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{
@@ -11,6 +11,13 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getDayScheduleString,
 		getScheduleString,
 	} = require('../utils/functions.js');
+
+const isAdmin = async (ctx) => {
+	let role = await DataBase.getRole(ctx.message.user_id);
+
+	return role === Roles.admin;
+};
+const isNeedToPickClass = false;
 
 const checkScheduleScene = new Scene(
 	'checkSchedule',
@@ -30,13 +37,13 @@ const checkScheduleScene = new Scene(
 	},
 	async (ctx) => {
 		try {
-			// const needToPickClass = await isAdmin(ctx);
+			const needToPickClass = await isAdmin(ctx) && isNeedToPickClass;
 
-			// if (needToPickClass && !ctx.session.Class) {
-			// 	ctx.session.nextScene = 'checkSchedule';
-			// 	ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
-			// 	ctx.scene.enter('pickClass');
-			// } else {
+			if (needToPickClass && !ctx.session.Class) {
+				ctx.session.nextScene = 'checkSchedule';
+				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
+				ctx.scene.enter('pickClass');
+			} else {
 			const { body } = ctx.message;
 
 			if (body.toLowerCase() === botCommands.back.toLowerCase()) {

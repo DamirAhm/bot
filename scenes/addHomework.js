@@ -29,6 +29,8 @@ const isAdmin = async (ctx) => {
 
 	return role === Roles.admin;
 };
+const isNeedToPickClass = false;
+
 const isContributor = async (ctx) => {
 	let role = await DataBase.getRole(ctx.message.user_id);
 
@@ -41,7 +43,7 @@ const addHomeworkScene = new Scene(
 	'addHomework',
 	async (ctx) => {
 		try {
-			const needToPickClass = await isAdmin(ctx);
+			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'addHomework';
 				ctx.session.pickFor = 'Выберите класс которому хотите добавить дз \n';

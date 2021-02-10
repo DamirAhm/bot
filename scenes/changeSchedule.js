@@ -20,6 +20,7 @@ const isAdmin = async (ctx) => {
 
 	return role === Roles.admin;
 };
+const isNeedToPickClass = false;
 
 const changeScheduleScene = new Scene(
 	'changeSchedule',
@@ -28,7 +29,7 @@ const changeScheduleScene = new Scene(
 		ctx.session.changingDay = undefined;
 
 		try {
-			const needToPickClass = await isAdmin(ctx);
+			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = 'changeSchedule';
 				ctx.session.pickFor = 'Выберите класс которому хотите изменить расписание \n';
