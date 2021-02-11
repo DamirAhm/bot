@@ -57,7 +57,7 @@ const checkHomeworkScene = new Scene(
 
 						ctx.scene.next();
 						ctx.reply(
-							'На какую дату вы хотите узнать задание? (в формате ДД.ММ .ГГГГ если не на этот год )',
+							'На какую дату вы хотите узнать задание? (в формате ДД.ММ)',
 							null,
 							createBackKeyboard([
 								[Markup.button(botCommands.onTomorrow, 'positive')],
@@ -197,7 +197,7 @@ const checkHomeworkScene = new Scene(
 						return;
 					}
 				} else {
-					ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
+					ctx.reply('Дата должна быть в формате ДД.ММ');
 					return;
 				}
 

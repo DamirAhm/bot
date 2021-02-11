@@ -21,7 +21,8 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getSchoolName,
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
-	} = require('../utils/functions.js');
+	} = require('../utils/functions.js'),
+	axios = require('axios').default;
 
 const isAdmin = async (ctx) => {
 	let role = await DataBase.getRole(ctx.message.user_id);
@@ -96,7 +97,7 @@ const addAnnouncementScene = new Scene(
 
 				ctx.scene.next();
 				ctx.reply(
-					'Введите дату объявления (в формате ДД.ММ .ГГГГ если не на этот год)',
+					'Введите дату объявления (в формате ДД.ММ)',
 					null,
 					createBackKeyboard([
 						[
@@ -149,7 +150,7 @@ const addAnnouncementScene = new Scene(
 					ctx.reply('Проверьте правильность введенной даты');
 				}
 			} else {
-				ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
+				ctx.reply('Дата должна быть в формате ДД.ММ');
 				return;
 			}
 
@@ -193,30 +194,44 @@ const addAnnouncementScene = new Scene(
 					ctx.message.user_id,
 				);
 
-				ctx.session.Class = undefined;
-
 				if (res) {
+					axios.post(process.env.UPDATE_NOTIFICATION_URL, {
+						data: {
+							onAnnouncementAdded: {
+								text,
+								attachments,
+								to,
+								student_id: ctx.message.user_id,
+								_id: res,
+								pinned: false,
+								className,
+								schoolName: ctx.session.Class.schoolName,
+							},
+						},
+						trigger: 'ON_ANNOUNCEMENT_ADDED',
+					});
+
 					ctx.reply(
 						'Объявление успешно создано',
 						null,
 						await createDefaultKeyboard(undefined, ctx),
 					);
 
-					if (isToday(to)) {
-						notifyAllInClass(
-							ctx,
-							className,
-							`На сегодня появилось новое объявление:\n ${text}`,
-							attachments,
-						);
-					}
+					// if (isToday(to)) {
+					// 	notifyAllInClass(
+					// 		ctx,
+					// 		className,
+					// 		`На сегодня появилось новое объявление:\n ${text}`,
+					// 		attachments,
+					// 	);
+					// }
 				} else {
 					ctx.scene.enter('error');
 				}
 			} else if (ctx.message.body.toLowerCase() === botCommands.no.toLowerCase()) {
 				ctx.scene.selectStep(2);
 				ctx.reply(
-					'Введите дату объявления (в формате ДД.ММ .ГГГГ если не на этот год)',
+					'Введите дату объявления (в формате ДД.ММ)',
 					null,
 					createBackKeyboard([
 						[

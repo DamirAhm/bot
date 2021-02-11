@@ -142,7 +142,7 @@ const addHomeworkScene = new Scene(
 
 				ctx.scene.next();
 				ctx.reply(
-					'Введите дату на которую задано задание (в формате ДД.ММ .ГГГГ если не на этот год)',
+					'Введите дату на которую задано задание (в формате ДД.ММ)',
 					null,
 					createBackKeyboard([Markup.button(botCommands.onNextLesson, 'positive')], 1),
 				);
@@ -201,7 +201,7 @@ const addHomeworkScene = new Scene(
 					ctx.reply('Проверьте правильность введенной даты');
 				}
 			} else {
-				ctx.reply('Дата должна быть в формате ДД.ММ .ГГГГ если не на этот год');
+				ctx.reply('Дата должна быть в формате ДД.ММ');
 				return;
 			}
 
@@ -260,7 +260,7 @@ const addHomeworkScene = new Scene(
 			} else if (ctx.message.body === botCommands.no) {
 				ctx.scene.selectStep(3);
 				ctx.reply(
-					'Введите дату на которую задано задание (в формате ДД.ММ .ГГГГ если не на этот год)',
+					'Введите дату на которую задано задание (в формате ДД.ММ)',
 					null,
 					createBackKeyboard([[Markup.button(botCommands.onNextLesson, 'positive')]]),
 				);

@@ -23,6 +23,7 @@
     "@vk-io/hear": "^1.0.2",
     "@vk-io/scenes": "^1.0.0",
     "@vk-io/session": "^2.0.0",
+    "axios": "^0.21.1",
     "body-parser": "^1.19.0",
     "bot-database": "^3.1.19-7",
     "dotenv": "^8.2.0",
