@@ -10,13 +10,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	{ Roles } = require('bot-database/build/Models/utils.js'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ getSchoolName, mapStudentToPreview } = require('../utils/functions.js');
-
-const isAdmin = async (ctx) => {
-	let role = await DataBase.getRole(ctx.message.user_id);
-
-	return role === Roles.admin;
-};
+	{ getSchoolName, mapStudentToPreview, isAdmin } = require('../utils/functions.js');
 
 const adminPanel = new Scene(
 	'adminPanel',

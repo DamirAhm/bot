@@ -21,14 +21,11 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getSchoolName,
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
+		isAdmin,
+		isContributor,
 	} = require('../utils/functions.js'),
 	axios = require('axios').default;
 
-const isAdmin = async (ctx) => {
-	let role = await DataBase.getRole(ctx.message.user_id);
-
-	return role === Roles.admin;
-};
 const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
@@ -47,6 +44,7 @@ const addAnnouncementScene = new Scene(
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
+				ctx.session.Student = Student;
 
 				if (Student) {
 					if (Student.registered) {
@@ -155,13 +153,20 @@ const addAnnouncementScene = new Scene(
 			}
 
 			if (ctx.session.newAnnouncement.to) {
+				const { Student } = ctx.session;
+				const isUserContributor = await isContributor(Student);
+
 				ctx.scene.next();
 				ctx.reply(
 					`Вы уверены что хотите создать такое объявление? \n ${createContentDiscription(
 						ctx.session.newAnnouncement,
 					)}`,
 					ctx.session.newAnnouncement.attachments.map(({ value }) => value),
-					createConfirmKeyboard(),
+					createConfirmKeyboard(
+						isUserContributor
+							? [[Markup.button(botCommands.yesAndMakeOnlyForMe, 'default')]]
+							: undefined,
+					),
 				);
 			} else {
 				throw new Error("There's no to prop in new announcement");
@@ -174,42 +179,62 @@ const addAnnouncementScene = new Scene(
 	async (ctx) => {
 		try {
 			const {
-				message: { body },
+				message: { body: answer },
 			} = ctx;
 
-			if (body.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
+			if (
+				[
+					botCommands.yes.toLowerCase(),
+					botCommands.yesAndMakeOnlyForMe.toLowerCase(),
+				].includes(answer.trim().toLowerCase())
+			) {
 				const {
 					newAnnouncement: { to, text, attachments },
 					Class: { name: className },
 				} = ctx.session;
+
+				const { Student } = ctx.session;
+
+				let isOnlyForUser;
+				if (Student.role === Roles.student) {
+					isOnlyForUser = true;
+				} else {
+					isOnlyForUser =
+						answer.trim().toLowerCase() ===
+						botCommands.yesAndMakeOnlyForMe.toLowerCase();
+				}
 
 				const res = await DataBase.addAnnouncement(
 					{
 						classNameOrInstance: ctx.session.Class,
 						schoolName: await getSchoolName(ctx),
 					},
-					{ text, attachments },
+					{
+						text,
+						attachments,
+						onlyFor: isOnlyForUser ? [Student.vkId] : [],
+					},
 					to,
 					false,
 					ctx.message.user_id,
 				);
 
 				if (res) {
-					axios.post(process.env.UPDATE_NOTIFICATION_URL, {
-						data: {
-							onAnnouncementAdded: {
-								text,
-								attachments,
-								to,
-								student_id: ctx.message.user_id,
-								_id: res,
-								pinned: false,
-								className,
-								schoolName: ctx.session.Class.schoolName,
-							},
-						},
-						trigger: 'ON_ANNOUNCEMENT_ADDED',
-					});
+					// axios.post(process.env.UPDATE_NOTIFICATION_URL, {
+					// 	data: {
+					// 		onAnnouncementAdded: {
+					// 			text,
+					// 			attachments,
+					// 			to,
+					// 			student_id: ctx.message.user_id,
+					// 			_id: res,
+					// 			pinned: false,
+					// 			className,
+					// 			schoolName: ctx.session.Class.schoolName,
+					// 		},
+					// 	},
+					// 	trigger: 'ON_ANNOUNCEMENT_ADDED',
+					// });
 
 					ctx.reply(
 						'Объявление успешно создано',
@@ -217,14 +242,14 @@ const addAnnouncementScene = new Scene(
 						await createDefaultKeyboard(undefined, ctx),
 					);
 
-					// if (isToday(to)) {
-					// 	notifyAllInClass(
-					// 		ctx,
-					// 		className,
-					// 		`На сегодня появилось новое объявление:\n ${text}`,
-					// 		attachments,
-					// 	);
-					// }
+					if (isToday(to)) {
+						notifyAllInClass(
+							ctx,
+							className,
+							`На сегодня появилось новое объявление:\n ${text}`,
+							attachments,
+						);
+					}
 				} else {
 					ctx.scene.enter('error');
 				}

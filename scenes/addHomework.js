@@ -22,22 +22,13 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
 		getPossibleLessonsAndSetInSession,
+		isAdmin,
+		isContributor,
 	} = require('../utils/functions.js');
 
-const isAdmin = async (ctx) => {
-	let role = await DataBase.getRole(ctx.message.user_id);
-
-	return role === Roles.admin;
-};
-const isNeedToPickClass = false;
-
-const isContributor = async (ctx) => {
-	let role = await DataBase.getRole(ctx.message.user_id);
-
-	return [Roles.admin, Roles.contributor].includes(role);
-};
-
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
+
+const isNeedToPickClass = false;
 
 const addHomeworkScene = new Scene(
 	'addHomework',
@@ -53,6 +44,7 @@ const addHomeworkScene = new Scene(
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
+				ctx.session.Student = Student;
 
 				if (Student) {
 					if (Student.registered) {
@@ -206,14 +198,25 @@ const addHomeworkScene = new Scene(
 			}
 
 			if (ctx.session.newHomework.to) {
+				const { Student } = ctx.session;
+				const isUserContributor = await isContributor(Student);
+
 				ctx.scene.next();
 				ctx.reply(
 					`
-                Вы уверены что хотите создать такое задание?
+                Вы уверены что хотите создать такое задание? ${
+					ctx.session.Student.role !== Roles.student
+						? '(Его будете видеть только вы)'
+						: ''
+				}
                 ${createContentDiscription(ctx.session.newHomework)}
                 `,
 					ctx.session.newHomework.attachments.map(({ value }) => value),
-					createConfirmKeyboard(),
+					createConfirmKeyboard(
+						isUserContributor
+							? [[Markup.button(botCommands.yesAndMakeOnlyForMe, 'default')]]
+							: undefined,
+					),
 				);
 			} else {
 				throw new Error("Threre's no to prop in new Homework");
@@ -229,20 +232,40 @@ const addHomeworkScene = new Scene(
 				message: { body: answer },
 			} = ctx;
 
-			if (answer.trim().toLowerCase() === botCommands.yes.toLowerCase()) {
+			if (
+				[
+					botCommands.yes.toLowerCase(),
+					botCommands.yesAndMakeOnlyForMe.toLowerCase(),
+				].includes(answer.trim().toLowerCase())
+			) {
 				const {
 					newHomework: { to, lesson, text, attachments },
 					Class,
 				} = ctx.session;
 				ctx.session.Class = undefined;
 
+				const { Student } = ctx.session;
+
+				let isOnlyForUser;
+				if (Student.role === Roles.student) {
+					isOnlyForUser = true;
+				} else {
+					isOnlyForUser =
+						answer.trim().toLowerCase() ===
+						botCommands.yesAndMakeOnlyForMe.toLowerCase();
+				}
+
 				const res = await DataBase.addHomework(
 					{
 						classNameOrInstance: Class,
 						schoolName: await getSchoolName(ctx),
 					},
-					lesson,
-					{ text, attachments, lesson },
+					{
+						text,
+						attachments,
+						onlyFor: isOnlyForUser ? [Student.vkId] : [],
+						lesson,
+					},
 					ctx.message.user_id,
 					to,
 				);

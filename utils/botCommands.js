@@ -55,6 +55,9 @@ module.exports = {
 
 	giveFeedback: 'Оставить отзыв',
 
+	makeOnlyForMe: 'Сделать доступным только мне',
+	yesAndMakeOnlyForMe: 'Да и сделать доступным только мне',
+
 	toStart: 'В начало',
 	back: 'Назад',
 	start: 'Начать',

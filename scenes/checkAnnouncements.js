@@ -11,13 +11,9 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		cleanDataForSceneFromSession,
 		parseDate,
 		validateDate,
+		isAdmin,
 	} = require('../utils/functions.js');
 
-const isAdmin = async (ctx) => {
-	let role = await DataBase.getRole(ctx.message.user_id);
-
-	return role === Roles.admin;
-};
 const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;

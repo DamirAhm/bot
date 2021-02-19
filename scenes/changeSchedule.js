@@ -13,13 +13,8 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ Roles, Lessons, daysOfWeek } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ cleanDataForSceneFromSession } = require('../utils/functions.js');
+	{ cleanDataForSceneFromSession, isAdmin } = require('../utils/functions.js');
 
-const isAdmin = async (ctx) => {
-	let role = await DataBase.getRole(ctx.message.user_id);
-
-	return role === Roles.admin;
-};
 const isNeedToPickClass = false;
 
 const changeScheduleScene = new Scene(

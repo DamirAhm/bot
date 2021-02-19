@@ -305,7 +305,10 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 
 					setTimeout(() => {
 						if (dayHomework.length > 0 && studentsWithoutPreferences.length > 0) {
-							const parsedHomework = mapHomeworkByLesson(dayHomework);
+							const commonHomework = dayHomework.filter(
+								(hw) => hw.onlyFor.length === 0,
+							);
+							const parsedHomework = mapHomeworkByLesson(commonHomework);
 
 							sendHomework(parsedHomework, botInstance, studentsWithoutPreferences);
 
@@ -316,7 +319,7 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 								botInstance.sendMessage(studentsWithoutPreferences, message);
 							}, (dayHomework.length + 1) * 50);
 						}
-					}, delayAfterStudentWithPreferences * 50);
+					}, (delayAfterStudentWithPreferences + 1) * 50);
 				}
 
 				for (const vkId of notified) {
@@ -364,12 +367,17 @@ function getNotifiableIdsWithHomeworkForEach(students, homework) {
 			}
 		} else {
 			const homeworkForStudent = homework.filter((hw) => {
-				if (hw.userPreferences[vkId] !== undefined) {
-					const studentNotificationTime =
-						hw.userPreferences[vkId].notificationTime ?? notificationTime;
-					const studentNotificationsEnabled =
-						hw.userPreferences[vkId].notificationEnabled ?? notificationsEnabled;
+				let studentNotificationTime;
+				let studentNotificationsEnabled;
 
+				if (hw.userPreferences[vkId] !== undefined) {
+					studentNotificationTime =
+						hw.userPreferences[vkId].notificationTime ?? notificationTime;
+					studentNotificationsEnabled =
+						hw.userPreferences[vkId].notificationEnabled ?? notificationsEnabled;
+				}
+
+				if (hw.onlyFor.length === 0 || hw.onlyFor.includes(vkId)) {
 					if (studentNotificationsEnabled) {
 						const [_, hours, mins] = studentNotificationTime
 							.match(/([0-9]+):([0-9]+)/)
@@ -378,6 +386,8 @@ function getNotifiableIdsWithHomeworkForEach(students, homework) {
 						return isReadyToNotificate(hours, mins, lastHomeworkCheck);
 					}
 				}
+
+				return false;
 			});
 
 			homeworkForEachStudent[vkId] = homeworkForStudent;
@@ -402,7 +412,7 @@ function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
 }
 
 /**
- * @param {[string, import("bot-database/build/types").IHomework[]][]} parsedHomework
+ * @param {Map<string, import("bot-database/build/types").IHomework[]>} parsedHomework
  * @param {any} botInstance
  * @param {number[]} notifiableIds
  */
@@ -411,6 +421,8 @@ function sendHomework(parsedHomework, botInstance, notifiableIds) {
 		let index = 1;
 
 		for (const [lesson, homework] of parsedHomework) {
+			//Отфильтровать дз с onlyFor и отдельно оповещать тех, у кого есть такое дз
+
 			let { homeworkMessage, attachments } = getHomeworkPayload(lesson, homework);
 
 			setTimeout(() => {
@@ -828,7 +840,39 @@ function getTextsAndAttachmentsFromForwarded({ body = '', attachments = [], fwd_
 	};
 }
 
+/**
+ *
+ * @param {import("bot-database/build/types").IStudent | {message: {user_id: number}}} ctxOrStudent
+ * @return {Promise<boolean>}
+ */
+const isAdmin = async (ctxOrStudent) => {
+	if ('role' in ctxOrStudent) {
+		return [Roles.admin].includes(ctxOrStudent.role);
+	} else {
+		let role = await DataBase.getRole(ctxOrStudent.message.user_id);
+
+		return role === Roles.admin;
+	}
+};
+
+/**
+ *
+ * @param {import("bot-database/build/types").IStudent | {message: {user_id: number}}} ctxOrStudent
+ * @return {Promise<boolean>}
+ */
+const isContributor = async (ctxOrStudent) => {
+	if ('role' in ctxOrStudent) {
+		return [Roles.admin, Roles.contributor].includes(ctxOrStudent.role);
+	} else {
+		let role = await DataBase.getRole(ctxOrStudent.message.user_id);
+
+		return [Roles.admin, Roles.contributor].includes(role);
+	}
+};
+
 module.exports = {
+	isAdmin,
+	isContributor,
 	isValidCityName,
 	isValidSchoolNumber,
 	parseSchoolName,
