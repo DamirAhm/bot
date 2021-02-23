@@ -191,12 +191,9 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 					}
 
 					setTimeout(() => {
-						if (dayHomework.length > 0 && studentsWithoutPreferences.length > 0) {
-							const commonHomework = dayHomework.filter(
-								(hw) => hw.onlyFor.length === 0,
-							);
-							const parsedHomework = mapHomeworkByLesson(commonHomework);
-
+						const commonHomework = dayHomework.filter((hw) => hw.onlyFor.length === 0);
+						const parsedHomework = mapHomeworkByLesson(commonHomework);
+						if (commonHomework.length > 0 && studentsWithoutPreferences.length > 0) {
 							sendHomework(parsedHomework, botInstance, studentsWithoutPreferences);
 
 							setTimeout(() => {
@@ -295,7 +292,8 @@ function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
 	const hoursNow = new Date().getHours();
 	const minsNow = new Date().getMinutes();
 
-	return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
+	// return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
+	return true;
 }
 
 /**

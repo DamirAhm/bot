@@ -48,7 +48,7 @@ DataBase.connect(
 		notifyAboutReboot(bot);
 
 		notifyStudents(bot);
-		setInterval(() => notifyStudents(bot), 60 * 1000);
+		// setInterval(() => notifyStudents(bot), 60 * 1000);
 
 		removeOldHomework();
 		setInterval(() => removeOldHomework(), 24 * 60 * 60 * 1000);
