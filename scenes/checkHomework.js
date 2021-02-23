@@ -1,3 +1,5 @@
+const { getDayMonthString, getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
@@ -6,23 +8,11 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		monthsRP,
 	} = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
-	{ mapHomeworkByLesson } = require('bot-database/build/utils/functions'),
+	{ mapHomeworkByLesson, filterContentByDate } = require('bot-database/build/utils/functions'),
 	botCommands = require('../utils/botCommands.js'),
-	{ Roles } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{
-		getTomorrowDate,
-		filterContentByDate,
-		sendHomework,
-		getHomeworkPayload,
-		getDayMonthString,
-		cleanDataForSceneFromSession,
-		getLengthOfHomeworkWeek,
-		parseDate,
-		validateDate,
-		isAdmin,
-	} = require('../utils/functions.js');
+	{ isAdmin } = require('../utils/roleChecks.js');
 
 const isNeedToPickClass = false;
 
@@ -182,7 +172,7 @@ const checkHomeworkScene = new Scene(
 				let date = null;
 
 				if (body === botCommands.onTomorrow) {
-					date = getTomorrowDate();
+					date = sgetTomorrowDate();
 				} else if (dateRegExp.test(body)) {
 					const [day, month, year = new Date().getFullYear()] = parseDate(body);
 

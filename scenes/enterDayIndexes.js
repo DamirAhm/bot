@@ -2,7 +2,7 @@
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	botCommands = require('../utils/botCommands.js'),
-	{ cleanSession } = require('../utils/functions.js');
+	{ cleanSession } = require('../utils/sessionCleaners.js');
 
 const enterDayIndexesScene = new Scene(
 	'enterDaysIndexes',

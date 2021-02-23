@@ -16,9 +16,10 @@ const VkBot = require('node-vk-bot-api'),
 	Scenes = require('./scenes/index'),
 	botCommands = require('./utils/botCommands.js'),
 	http = require('http'),
-	{ notifyStudents, notifyAboutReboot, removeOldHomework } = require('./utils/functions'),
+	{ removeOldHomework } = require('./utils/functions'),
 	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
 const config = require('./config.js');
+const { notifyAboutReboot, notifyStudents } = require('./utils/studentsNotification.js');
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
 const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);

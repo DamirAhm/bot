@@ -1,4 +1,6 @@
 //@ts-check
+const { isValidClassName } = require('bot-database/build/Models/utils');
+const { cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 const { translit } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
@@ -11,13 +13,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{
-		cleanDataForSceneFromSession,
-		mapListToKeyboard,
-		isValidClassName,
-		getCityNames,
-		getSchoolNumbers,
-	} = require('../utils/functions.js');
+	{ mapListToKeyboard, getCityNames, getSchoolNumbers } = require('../utils/functions.js');
 
 const registerScene = new Scene(
 	'register',

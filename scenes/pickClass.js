@@ -1,3 +1,6 @@
+const { isValidClassName } = require('bot-database/build/Models/utils');
+const { cleanSession } = require('../utils/sessionCleaners.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ mapListToMessage, createBackKeyboard } = require('../utils/messagePayloading.js'),
@@ -5,12 +8,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{
-		cleanSession,
-		calculateColumnsAmount,
-		isValidClassName,
-		getSchoolName,
-	} = require('../utils/functions.js');
+	{ calculateColumnsAmount, getSchoolName } = require('../utils/functions.js');
 
 const pickClassScene = new Scene(
 	'pickClass',

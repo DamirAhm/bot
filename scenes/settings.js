@@ -6,12 +6,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{
-		cleanDataForSceneFromSession,
-		sendStudentInfo,
-		parseTime,
-		getSchoolName,
-	} = require('../utils/functions.js');
+	{ sendStudentInfo, getSchoolName } = require('../utils/functions.js');
 const {
 	disableNotificationsAction,
 	enableNotificationsAction,
@@ -20,6 +15,8 @@ const {
 	changeClassAction,
 	enterDayIndexesAction,
 } = require('../utils/actions');
+const { parseTime } = require('../utils/dateFunctions.js');
+const { cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
 const changables = {
 	class: 'class',

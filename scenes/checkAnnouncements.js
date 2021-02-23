@@ -1,18 +1,13 @@
+const { getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard, monthsRP } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
-	{ Roles } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{
-		getTomorrowDate,
-		cleanDataForSceneFromSession,
-		parseDate,
-		validateDate,
-		isAdmin,
-	} = require('../utils/functions.js');
+	{ isAdmin } = require('../utils/roleChecks.js');
 
 const isNeedToPickClass = false;
 

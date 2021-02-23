@@ -1,3 +1,10 @@
+const {
+	getTomorrowDate,
+	parseDate,
+	getDateWithOffset,
+	isToday,
+} = require('../utils/dateFunctions.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
@@ -12,19 +19,11 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{
-		getTomorrowDate,
-		getDateWithOffset,
-		isToday,
-		cleanDataForSceneFromSession,
-		parseDate,
-		validateDate,
 		getSchoolName,
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
-		isAdmin,
-		isContributor,
 	} = require('../utils/functions.js'),
-	axios = require('axios').default;
+	{ isAdmin, isContributor } = require('../utils/roleChecks');
 
 const isNeedToPickClass = false;
 

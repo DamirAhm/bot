@@ -8,9 +8,9 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	} = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
-	{ Roles } = require('bot-database/build/Models/utils.js'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ getSchoolName, mapStudentToPreview, isAdmin } = require('../utils/functions.js');
+	{ getSchoolName, mapStudentToPreview } = require('../utils/functions.js'),
+	{ isAdmin } = require('../utils/roleChecks.js');
 
 const adminPanel = new Scene(
 	'adminPanel',

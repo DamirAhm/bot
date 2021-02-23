@@ -10,10 +10,10 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	} = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
-	{ Roles, Lessons, daysOfWeek } = require('bot-database/build/Models/utils.js'),
+	{ Lessons, daysOfWeek } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ cleanDataForSceneFromSession, isAdmin } = require('../utils/functions.js');
+	{ isAdmin } = require('../utils/roleChecks.js');
 
 const isNeedToPickClass = false;
 

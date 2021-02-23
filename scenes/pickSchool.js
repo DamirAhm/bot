@@ -1,4 +1,5 @@
 //@ts-check
+const { isValidClassName } = require('bot-database/build/Models/utils');
 const { translit, capitalize, retranslit } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ mapListToMessage, createConfirmKeyboard } = require('../utils/messagePayloading.js'),
@@ -8,7 +9,6 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{
 		mapListToKeyboard,
-		isValidClassName,
 		parseSchoolName,
 		getCityNames,
 		getSchoolNumbers,

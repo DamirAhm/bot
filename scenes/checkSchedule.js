@@ -3,15 +3,12 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
-	{ daysOfWeek, Roles } = require('bot-database/build/Models/utils.js'),
+	{ daysOfWeek } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{
-		cleanDataForSceneFromSession,
-		getDayScheduleString,
-		getScheduleString,
-		isAdmin,
-	} = require('../utils/functions.js');
+	{ isAdmin } = require('../utils/roleChecks.js'),
+	{ getDayScheduleString, getScheduleString } = require('../utils/functions.js'),
+	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
 const isNeedToPickClass = false;
 

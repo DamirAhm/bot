@@ -11,7 +11,7 @@ const download = require('./saveFile');
 const fs = require('fs');
 
 const DataBase = new DB(process.env.MONGODB_URI);
-const VK = new VK_API(process.env.VK_API_KEY, config['GROUP_ID'], config['ALBUM_ID']);
+const VK = new VK_API(process.env.VK_API_KEY, +config['GROUP_ID'], +config['ALBUM_ID']);
 
 const contentPropertyNames = {
 	to: 'Дата',

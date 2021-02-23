@@ -1,3 +1,5 @@
+const { parseDate, getDateWithOffset } = require('../utils/dateFunctions.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
@@ -14,17 +16,12 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{
-		getDateWithOffset,
-		cleanDataForSceneFromSession,
-		parseDate,
-		validateDate,
 		getSchoolName,
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
 		getPossibleLessonsAndSetInSession,
-		isAdmin,
-		isContributor,
-	} = require('../utils/functions.js');
+	} = require('../utils/functions.js'),
+	{ isAdmin, isContributor } = require('../utils/roleChecks');
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
