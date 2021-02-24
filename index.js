@@ -20,6 +20,8 @@ const VkBot = require('node-vk-bot-api'),
 	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
 const config = require('./config.js');
 const { notifyAboutReboot, notifyStudents } = require('./utils/studentsNotification.js');
+const { sceneNames } = require('./utils/constants.js');
+const { pickSchoolAndClassAction } = require('./utils/actions.js');
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
 const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
@@ -48,7 +50,7 @@ DataBase.connect(
 		notifyAboutReboot(bot);
 
 		notifyStudents(bot);
-		// setInterval(() => notifyStudents(bot), 60 * 1000);
+		setInterval(() => notifyStudents(bot), 60 * 1000);
 
 		removeOldHomework();
 		setInterval(() => removeOldHomework(), 24 * 60 * 60 * 1000);
@@ -73,12 +75,12 @@ bot.command(/.*/, async (ctx, next) => {
 		ctx.session.lastName = last_name;
 		ctx.session.firstName = first_name;
 
-		ctx.scene.enter('register');
+		ctx.scene.enter(sceneNames.register);
 	}
 });
 
-bot.command(botCommands.back, (ctx) => ctx.scene.enter('default'));
-bot.command(botCommands.toStart, (ctx) => ctx.scene.enter('default'));
+bot.command(botCommands.back, (ctx) => ctx.scene.enter(sceneNames.default));
+bot.command(botCommands.toStart, (ctx) => ctx.scene.enter(sceneNames.default));
 
 bot.command(/.+/, async (ctx) => {
 	const role = await DataBase.getRole(ctx.message.user_id);
@@ -87,7 +89,11 @@ bot.command(/.+/, async (ctx) => {
 		const option = userOptions.find(({ label }) => label === ctx.message.body);
 
 		if (option) {
-			ctx.scene.enter(option.payload);
+			if (option.label === botCommands.pickSchoolAndClass) {
+				pickSchoolAndClassAction(ctx);
+			} else {
+				ctx.scene.enter(option.payload);
+			}
 			return;
 		}
 	} else if (

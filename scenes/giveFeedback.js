@@ -2,26 +2,25 @@
 const path = require('path');
 const fs = require('fs');
 const botCommands = require('../utils/botCommands.js');
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
-	{
-		createDefaultKeyboard,
-		createBackKeyboard,
-		createDefaultMenu,
-	} = require('../utils/messagePayloading.js'),
+	{ createDefaultKeyboard, createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	{ Roles } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI);
 
 const giveFeedback = new Scene(
-	'giveFeedback',
+	sceneNames.giveFeedback,
 	(ctx) => {
 		ctx.scene.next();
 
 		ctx.reply(
 			'Что вы хотите сказать о нашем боте?',
 			null,
-			createBackKeyboard([[Markup.button('Мне все нравится, спасибо 😊', 'positive')]]),
+			createBackKeyboard([
+				[Markup.button('Мне все нравится, спасибо 😊', buttonColors.positive)],
+			]),
 		);
 	},
 	async (ctx) => {
@@ -30,7 +29,7 @@ const giveFeedback = new Scene(
 		} = ctx;
 
 		if (body.trim().toLowerCase() === botCommands.back.toLowerCase()) {
-			ctx.scene.enter('default');
+			ctx.scene.enter(sceneNames.default);
 		} else {
 			fs.readFile(path.join(__dirname, '../Feedback'), { encoding: 'utf8' }, (err, text) => {
 				if (err) {
@@ -64,7 +63,7 @@ const giveFeedback = new Scene(
 							null,
 							await createDefaultKeyboard(undefined, ctx),
 						);
-						ctx.scene.enter('default');
+						ctx.scene.enter(sceneNames.default);
 					},
 				);
 			});

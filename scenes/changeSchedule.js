@@ -1,4 +1,5 @@
 //@ts-check
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { capitalize } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
@@ -13,12 +14,13 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ Lessons, daysOfWeek } = require('bot-database/build/Models/utils.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ isAdmin } = require('../utils/roleChecks.js');
+	{ isAdmin } = require('../utils/roleChecks.js'),
+	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
 const isNeedToPickClass = false;
 
 const changeScheduleScene = new Scene(
-	'changeSchedule',
+	sceneNames.changeSchedule,
 	async (ctx) => {
 		ctx.session.isFullFill = false;
 		ctx.session.changingDay = undefined;
@@ -26,10 +28,10 @@ const changeScheduleScene = new Scene(
 		try {
 			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
-				ctx.session.nextScene = 'changeSchedule';
+				ctx.session.nextScene = sceneNames.changeSchedule;
 				ctx.session.pickFor = 'Выберите класс которому хотите изменить расписание \n';
-				ctx.session.backScene = 'contributorPanel';
-				ctx.scene.enter('pickClass');
+				ctx.session.backScene = sceneNames.contributorPanel;
+				ctx.scene.enter(sceneNames.pickClass);
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
@@ -45,10 +47,10 @@ const changeScheduleScene = new Scene(
 
 						const days = Object.values(daysOfWeek);
 						const buttons = days.map((day, index) =>
-							Markup.button(day, 'default', { button: day }),
+							Markup.button(day, buttonColors.default, { button: day }),
 						);
 
-						buttons.push(Markup.button('Заполнить всё', 'primary'));
+						buttons.push(Markup.button('Заполнить всё', buttonColors.primary));
 
 						const message =
 							'Выберите день у которого хотите изменить расписание\n' +
@@ -58,7 +60,7 @@ const changeScheduleScene = new Scene(
 						ctx.scene.next();
 						ctx.reply(message, null, createBackKeyboard(buttons, 3));
 					} else {
-						ctx.scene.enter('register');
+						ctx.scene.enter(sceneNames.register);
 						ctx.reply(
 							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 						);
@@ -69,7 +71,7 @@ const changeScheduleScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -79,9 +81,9 @@ const changeScheduleScene = new Scene(
 			} = ctx;
 
 			if (body.toLowerCase === botCommands.back) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 			} else if (body.toLowerCase() === botCommands.back.toLowerCase()) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 				return;
 			}
 
@@ -105,7 +107,10 @@ const changeScheduleScene = new Scene(
 				ctx.reply(
 					message,
 					null,
-					createBackKeyboard([Markup.button(botCommands.leaveEmpty, 'primary')], 1),
+					createBackKeyboard(
+						[Markup.button(botCommands.leaveEmpty, buttonColors.primary)],
+						1,
+					),
 				);
 
 				ctx.scene.next();
@@ -131,14 +136,17 @@ const changeScheduleScene = new Scene(
 				ctx.reply(
 					message,
 					null,
-					createBackKeyboard([Markup.button(botCommands.leaveEmpty, 'primary')], 1),
+					createBackKeyboard(
+						[Markup.button(botCommands.leaveEmpty, buttonColors.primary)],
+						1,
+					),
 				);
 			} else {
 				ctx.reply('Неверно введен день');
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -160,10 +168,10 @@ const changeScheduleScene = new Scene(
 
 				const days = Object.values(daysOfWeek);
 				const buttons = days.map((day, index) =>
-					Markup.button(index + 1, 'default', { button: day }),
+					Markup.button(index + 1, buttonColors.default, { button: day }),
 				);
 
-				buttons.push(Markup.button('0', 'primary'));
+				buttons.push(Markup.button('0', buttonColors.primary));
 
 				const message =
 					'Выберите день у которого хотите изменить расписание\n' +
@@ -227,7 +235,7 @@ const changeScheduleScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -243,11 +251,11 @@ const changeScheduleScene = new Scene(
 						{ classNameOrInstance: Class, schoolName: Class.schoolName },
 						schedule,
 					);
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 					ctx.reply(
 						'Расписание успешно обновлено',
 						null,
-						await createDefaultKeyboard(true, false),
+						await createDefaultKeyboard(undefined, ctx),
 					);
 				} else {
 					throw new Error(
@@ -265,7 +273,7 @@ const changeScheduleScene = new Scene(
 			cleanDataForSceneFromSession(ctx);
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

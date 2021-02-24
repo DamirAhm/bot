@@ -1,3 +1,5 @@
+const { sceneNames } = require('../utils/constants.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
@@ -17,8 +19,23 @@ const isContributor = async (ctx) => {
 };
 
 const contributorPanelScene = new Scene(
-	'contributorPanel',
+	sceneNames.contributorPanel,
 	async (ctx) => {
+		const Class = await DataBase.getClassForStudent(ctx.message.user_id);
+
+		if (Class === null) {
+			ctx.reply(
+				'Для использования данной функции необходимо войти в класс, для начала введите номер своей школы',
+				null,
+				createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+			);
+
+			pickSchoolAndClassAction(ctx, {
+				nextScene: sceneNames.contributorPanel,
+			});
+			return;
+		}
+
 		if (await isContributor(ctx)) {
 			ctx.reply(renderContributorMenu(), null, renderContributorMenuKeyboard());
 			ctx.scene.next();
@@ -34,41 +51,41 @@ const contributorPanelScene = new Scene(
 	async (ctx) => {
 		try {
 			if (['0', botCommands.back].includes(ctx.message.body.trim())) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 				return;
 			}
 
 			switch (ctx.message.body.trim().toLowerCase()) {
 				case '1': {
-					ctx.scene.enter('addHomework');
+					ctx.scene.enter(sceneNames.addHomework);
 					break;
 				}
 				case '2': {
-					ctx.scene.enter('addAnnouncement');
+					ctx.scene.enter(sceneNames.addAnnouncement);
 					break;
 				}
 				case '3': {
-					ctx.scene.enter('changeSchedule');
+					ctx.scene.enter(sceneNames.changeSchedule);
 					break;
 				}
 				case '4': {
-					ctx.scene.enter('addRedactor');
+					ctx.scene.enter(sceneNames.addRedactor);
 					break;
 				}
 				case botCommands.addRedactor.toLowerCase(): {
-					ctx.scene.enter('addRedactor');
+					ctx.scene.enter(sceneNames.addRedactor);
 					break;
 				}
 				case botCommands.addHomework.toLowerCase(): {
-					ctx.scene.enter('addHomework');
+					ctx.scene.enter(sceneNames.addHomework);
 					break;
 				}
 				case botCommands.addAnnouncement.toLowerCase(): {
-					ctx.scene.enter('addAnnouncement');
+					ctx.scene.enter(sceneNames.addAnnouncement);
 					break;
 				}
 				case botCommands.changeSchedule.toLowerCase(): {
-					ctx.scene.enter('changeSchedule');
+					ctx.scene.enter(sceneNames.changeSchedule);
 					break;
 				}
 				default: {
@@ -78,7 +95,11 @@ const contributorPanelScene = new Scene(
 			}
 		} catch (e) {
 			ctx.scene.leave();
-			ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(true, false));
+			ctx.reply(
+				'Простите произошла ошибка',
+				null,
+				await createDefaultKeyboard(undefined, ctx),
+			);
 			console.error(e);
 		}
 	},

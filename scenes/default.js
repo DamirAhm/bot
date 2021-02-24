@@ -1,10 +1,19 @@
 //@ts-check
+const { DataBase: DB } = require('bot-database/build/DataBase');
 const Scene = require('node-vk-bot-api/lib/scene'),
-	{ createDefaultMenu, createDefaultKeyboard } = require('../utils/messagePayloading.js'),
-	botCommands = require('../utils/botCommands.js');
+	{
+		createDefaultMenu,
+		createDefaultKeyboard,
+		getUsableOptionsList,
+	} = require('../utils/messagePayloading.js'),
+	botCommands = require('../utils/botCommands.js'),
+	{ sceneNames } = require('../utils/constants.js'),
+	{ changeSchoolAction, pickSchoolAndClassAction } = require('../utils/actions');
+
+const DataBase = new DB(process.env.MONGODB_URI);
 
 const defaultScene = new Scene(
-	'default',
+	sceneNames.default,
 	async (ctx) => {
 		try {
 			if (!ctx.session.userId) {
@@ -18,66 +27,58 @@ const defaultScene = new Scene(
 
 			ctx.scene.next();
 		} catch (e) {
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 			console.error(e);
 		}
 	},
 	async (ctx) => {
 		try {
+			const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
+			const options = getUsableOptionsList(Student.role, Student.class);
+
 			switch (ctx.message.body) {
-				case botCommands.adminPanel: {
-					ctx.scene.enter('adminPanel');
-					break;
-				}
-				case botCommands.contributorPanel: {
-					ctx.scene.enter('contributorPanel');
-					break;
-				}
 				case botCommands.checkHomework: {
-					ctx.scene.enter('checkHomework');
+					ctx.scene.enter(sceneNames.checkHomework);
 					break;
 				}
 				case botCommands.checkAnnouncements: {
-					ctx.scene.enter('checkAnnouncements');
+					ctx.scene.enter(sceneNames.checkAnnouncements);
 					break;
 				}
 				case botCommands.checkSchedule: {
-					ctx.scene.enter('checkSchedule');
+					ctx.scene.enter(sceneNames.checkSchedule);
 					break;
 				}
 				case botCommands.settings: {
-					ctx.scene.enter('settings');
+					ctx.scene.enter(sceneNames.settings);
+					break;
+				}
+				case botCommands.contributorPanel: {
+					ctx.scene.enter(sceneNames.contributorPanel);
 					break;
 				}
 				case botCommands.giveFeedback: {
-					ctx.scene.enter('giveFeedback');
+					ctx.scene.enter(sceneNames.giveFeedback);
 					break;
 				}
-				case '1': {
-					ctx.scene.enter('checkHomework');
+				case botCommands.adminPanel: {
+					ctx.scene.enter(sceneNames.adminPanel);
 					break;
 				}
-				case '2': {
-					ctx.scene.enter('checkAnnouncements');
+				case botCommands.pickSchoolAndClass: {
+					pickSchoolAndClassAction(ctx);
 					break;
-				}
-				case '3': {
-					ctx.scene.enter('checkSchedule');
-					break;
-				}
-				case '4': {
-					ctx.scene.enter('settings');
-					break;
-				}
-				case '5': {
-					ctx.scene.enter('giveFeedback');
 				}
 				default: {
-					ctx.reply(botCommands.notUnderstood);
+					if (!isNaN(+ctx.message.body) && options[+ctx.message.body - 1]) {
+						ctx.scene.enter(options[+ctx.message.body - 1].payload);
+					} else {
+						ctx.reply(botCommands.notUnderstood);
+					}
 				}
 			}
 		} catch (e) {
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 			console.error(e);
 		}
 	},

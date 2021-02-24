@@ -1,6 +1,7 @@
-const { getDayMonthString, getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
-
 //@ts-check
+
+const { buttonColors, sceneNames } = require('../utils/constants.js');
+const { getDayMonthString, getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
 		createDefaultKeyboard,
@@ -12,32 +13,49 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ isAdmin } = require('../utils/roleChecks.js');
+	{ isAdmin } = require('../utils/roleChecks.js'),
+	{ getHomeworkPayload } = require('../utils/studentsNotification'),
+	{ getLengthOfHomeworkWeek } = require('../utils/functions'),
+	{ validateDate } = require('../utils/validators'),
+	{ sendHomework } = require('../utils/studentsNotification'),
+	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners'),
+	{ pickSchoolAndClassAction } = require('../utils/actions');
 
 const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
 const checkHomeworkScene = new Scene(
-	'checkHomework',
+	sceneNames.checkHomework,
 	async (ctx) => {
 		try {
 			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 				return;
 			}
 
 			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
-				ctx.session.nextScene = 'checkHomework';
+				ctx.session.nextScene = sceneNames.checkHomework;
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть дз \n';
-				ctx.scene.enter('pickClass');
+				ctx.scene.enter(sceneNames.pickClass);
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
 				if (Student) {
 					if (Student.registered) {
+						if (Student.class === null) {
+							ctx.reply(
+								'Для использования данной функции необходимо войти в класс, для начала введите номер своей школы',
+								null,
+								createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+							);
+
+							pickSchoolAndClassAction(ctx, { nextScene: sceneNames.checkHomework });
+							return;
+						}
+
 						if (!ctx.session.Class)
 							ctx.session.Class = await DataBase.getClassBy_Id(Student.class);
 
@@ -46,19 +64,19 @@ const checkHomeworkScene = new Scene(
 							'На какую дату вы хотите узнать задание? (в формате ДД.ММ)',
 							null,
 							createBackKeyboard([
-								[Markup.button(botCommands.onTomorrow, 'positive')],
+								[Markup.button(botCommands.onTomorrow, buttonColors.positive)],
 								[
 									Markup.button(
 										new Date().getDay() >= 5
 											? botCommands.nextWeek
 											: botCommands.thisWeek,
-										'primary',
+										buttonColors.primary,
 									),
 								],
 							]),
 						);
 					} else {
-						ctx.scene.enter('register');
+						ctx.scene.enter(sceneNames.register);
 					}
 				} else {
 					throw new Error('Student is not exists');
@@ -66,7 +84,7 @@ const checkHomeworkScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -79,9 +97,9 @@ const checkHomeworkScene = new Scene(
 				const isPickedClass = await isAdmin(ctx);
 				if (isPickedClass) {
 					ctx.session.Class = undefined;
-					ctx.scene.enter('checkHomework');
+					ctx.scene.enter(sceneNames.checkHomework);
 				} else {
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				}
 			} else if (
 				body.toLowerCase() === botCommands.thisWeek.toLowerCase() ||
@@ -164,7 +182,7 @@ const checkHomeworkScene = new Scene(
 
 				setTimeout(() => {
 					setTimeout(() => {
-						ctx.scene.enter('default');
+						ctx.scene.enter(sceneNames.default);
 						ctx.session.Class = undefined;
 					}, delayAmount * messageDelay * 2);
 				}, daysOfHomework * messageDelay);
@@ -172,7 +190,7 @@ const checkHomeworkScene = new Scene(
 				let date = null;
 
 				if (body === botCommands.onTomorrow) {
-					date = sgetTomorrowDate();
+					date = getTomorrowDate();
 				} else if (dateRegExp.test(body)) {
 					const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
@@ -191,7 +209,7 @@ const checkHomeworkScene = new Scene(
 					const homework = filterContentByDate(ctx.session.Class.homework, date);
 					if (homework.length === 0) {
 						ctx.reply('На данный день не заданно ни одного задания');
-						ctx.scene.enter('default');
+						ctx.scene.enter(sceneNames.default);
 					} else {
 						//@ts-ignore
 						const parsedHomework = mapHomeworkByLesson(homework);
@@ -202,7 +220,7 @@ const checkHomeworkScene = new Scene(
 
 						sendHomework(parsedHomework, ctx.bot, [ctx.message.user_id]);
 
-						ctx.scene.enter('default');
+						ctx.scene.enter(sceneNames.default);
 					}
 				} else {
 					throw new Error("There's no date");
@@ -212,7 +230,7 @@ const checkHomeworkScene = new Scene(
 			cleanDataForSceneFromSession(ctx);
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

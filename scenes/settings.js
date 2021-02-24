@@ -17,6 +17,7 @@ const {
 } = require('../utils/actions');
 const { parseTime } = require('../utils/dateFunctions.js');
 const { cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 
 const changables = {
 	class: 'class',
@@ -29,7 +30,7 @@ const changables = {
 const timeRegExp = /[0-9]+:[0-9]+/;
 
 const settingsScene = new Scene(
-	'settings',
+	sceneNames.settings,
 	async (ctx) => {
 		try {
 			const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
@@ -39,11 +40,11 @@ const settingsScene = new Scene(
 				ctx.scene.next();
 				await sendStudentInfo(ctx);
 			} else {
-				ctx.scene.enter('start');
+				ctx.scene.enter(sceneNames.start);
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	(ctx) => {
@@ -60,25 +61,34 @@ const settingsScene = new Scene(
 					createBackKeyboard([
 						ctx.session.Student.settings.notificationsEnabled
 							? [
-									Markup.button(botCommands.disableNotifications, 'primary'),
-									Markup.button(botCommands.changeNotificationTime, 'primary'),
+									Markup.button(
+										botCommands.disableNotifications,
+										buttonColors.primary,
+									),
+									Markup.button(
+										botCommands.changeNotificationTime,
+										buttonColors.primary,
+									),
 							  ]
-							: [Markup.button(botCommands.enbleNotifications, 'primary')],
+							: [Markup.button(botCommands.enbleNotifications, buttonColors.primary)],
 						[
-							Markup.button(botCommands.changeClass, 'primary'),
-							Markup.button(botCommands.changeDaysForNotification, 'primary'),
+							Markup.button(botCommands.changeClass, buttonColors.primary),
+							Markup.button(
+								botCommands.changeDaysForNotification,
+								buttonColors.primary,
+							),
 						],
-						[Markup.button(botCommands.changeSchool, 'primary')],
+						[Markup.button(botCommands.changeSchool, buttonColors.primary)],
 					]),
 				);
 			} else if (body === botCommands.back) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 			} else {
 				ctx.reply(botCommands.notUnderstood);
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -124,7 +134,7 @@ const settingsScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -168,10 +178,10 @@ const settingsScene = new Scene(
 										await createDefaultKeyboard(undefined, ctx),
 									);
 									setTimeout(async () => {
-										ctx.scene.enter('default');
+										ctx.scene.enter(sceneNames.default);
 									}, 50);
 								} else {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 									ctx.reply(
 										'Простите не удалось изменить настройки, попробуйте позже',
 										null,
@@ -205,7 +215,7 @@ const settingsScene = new Scene(
 									await createDefaultKeyboard(undefined, ctx),
 								);
 								setTimeout(() => {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							} else {
 								ctx.reply(
@@ -248,7 +258,7 @@ const settingsScene = new Scene(
 									await createDefaultKeyboard(undefined, ctx),
 								);
 								setTimeout(() => {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							} else {
 								ctx.reply(
@@ -286,7 +296,7 @@ const settingsScene = new Scene(
 								await createDefaultKeyboard(undefined, ctx),
 							);
 							setTimeout(() => {
-								ctx.scene.enter('default');
+								ctx.scene.enter(sceneNames.default);
 							}, 50);
 						} else {
 							ctx.reply(
@@ -294,7 +304,7 @@ const settingsScene = new Scene(
 								null,
 								await createDefaultKeyboard(undefined, ctx),
 							);
-							ctx.scene.enter('default');
+							ctx.scene.enter(sceneNames.default);
 						}
 						break;
 					}
@@ -306,7 +316,7 @@ const settingsScene = new Scene(
 			cleanDataForSceneFromSession(ctx);
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

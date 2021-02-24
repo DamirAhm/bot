@@ -1,4 +1,6 @@
 //@ts-check
+
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
@@ -8,12 +10,13 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{ isAdmin } = require('../utils/roleChecks.js'),
 	{ getDayScheduleString, getScheduleString } = require('../utils/functions.js'),
-	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
+	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js'),
+	{ pickSchoolAndClassAction } = require('../utils/actions');
 
 const isNeedToPickClass = false;
 
 const checkScheduleScene = new Scene(
-	'checkSchedule',
+	sceneNames.checkSchedule,
 	(ctx) => {
 		ctx.scene.next();
 		ctx.reply(
@@ -21,10 +24,10 @@ const checkScheduleScene = new Scene(
 			null,
 			createBackKeyboard([
 				[
-					Markup.button(botCommands.onToday, 'primary'),
-					Markup.button(botCommands.onTomorrow, 'primary'),
+					Markup.button(botCommands.onToday, buttonColors.primary),
+					Markup.button(botCommands.onTomorrow, buttonColors.primary),
 				],
-				[Markup.button(botCommands.onAllWeek, 'positive')],
+				[Markup.button(botCommands.onAllWeek, buttonColors.positive)],
 			]),
 		);
 	},
@@ -33,14 +36,14 @@ const checkScheduleScene = new Scene(
 			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 
 			if (needToPickClass && !ctx.session.Class) {
-				ctx.session.nextScene = 'checkSchedule';
+				ctx.session.nextScene = sceneNames.checkSchedule;
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
-				ctx.scene.enter('pickClass');
+				ctx.scene.enter(sceneNames.pickClass);
 			} else {
 				const { body } = ctx.message;
 
 				if (body.toLowerCase() === botCommands.back.toLowerCase()) {
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				}
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
@@ -48,6 +51,19 @@ const checkScheduleScene = new Scene(
 
 				if (Student) {
 					if (Student.registered) {
+						if (Student.class === null) {
+							ctx.reply(
+								'Для использования данной функции необходимо войти в класс, для начала введите номер своей школы',
+								null,
+								createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+							);
+
+							pickSchoolAndClassAction(ctx, {
+								nextScene: sceneNames.checkSchedule,
+							});
+							return;
+						}
+
 						let { Class } = ctx.session;
 						if (!Class) {
 							Class = await DataBase.getClassBy_Id(Student.class);
@@ -74,12 +90,12 @@ const checkScheduleScene = new Scene(
 									}`,
 								);
 								setTimeout(() => {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							} else {
 								ctx.reply(message);
 								setTimeout(() => {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							}
 						} else if (body.toLowerCase() === botCommands.onAllWeek.toLowerCase()) {
@@ -88,12 +104,12 @@ const checkScheduleScene = new Scene(
 							if (message.trim() === '') {
 								ctx.reply('Для данного класса пока что не существует расписания');
 								setTimeout(() => {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							} else {
 								ctx.reply(message);
 								setTimeout(() => {
-									ctx.scene.enter('default');
+									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							}
 						} else {
@@ -101,7 +117,7 @@ const checkScheduleScene = new Scene(
 						}
 						cleanDataForSceneFromSession(ctx);
 					} else {
-						ctx.scene.enter('register');
+						ctx.scene.enter(sceneNames.register);
 						ctx.reply(
 							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 						);
@@ -112,7 +128,7 @@ const checkScheduleScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

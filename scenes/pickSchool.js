@@ -1,8 +1,13 @@
 //@ts-check
 const { isValidClassName } = require('bot-database/build/Models/utils');
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { translit, capitalize, retranslit } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
-	{ mapListToMessage, createConfirmKeyboard } = require('../utils/messagePayloading.js'),
+	{
+		mapListToMessage,
+		createConfirmKeyboard,
+		createBackKeyboard,
+	} = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
@@ -16,146 +21,155 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	} = require('../utils/functions.js');
 
 const pickSchoolScene = new Scene(
-	'pickSchool',
+	sceneNames.pickSchool,
+	//! Вернуть если решишь вернуть фичу с городами
+	// async (ctx) => {
+	// 	try {
+	// 		const keyboard = (await getSchoolName(ctx))
+	// 			? createConfirmKeyboard([[Markup.button(botCommands.back, buttonColors.negative)]])
+	// 			: Markup.keyboard([
+	// 					[Markup.button(botCommands.yes, buttonColors.positive)],
+	// 					[Markup.button(botCommands.back, buttonColors.negative)],
+	// 			  ]);
+
+	// 		ctx.scene.next();
+	// 		ctx.reply('Хотите ли вы поменять город?', null, keyboard);
+	// 	} catch (e) {
+	// 		console.error(e);
+	// 		ctx.scene.enter(sceneNames.error);
+	// 	}
+	// },
 	async (ctx) => {
 		try {
-			const keyboard = (await getSchoolName(ctx))
-				? createConfirmKeyboard([[Markup.button(botCommands.back, 'negative')]])
-				: Markup.keyboard([
-						[Markup.button(botCommands.yes, 'positive')],
-						[Markup.button(botCommands.back, 'negative')],
-				  ]);
+			// const { body } = ctx.message;
 
+			// if (body.toLowerCase() === botCommands.back.toLowerCase()) {
+			// 	ctx.scene.enter(
+			// 		ctx.session.backScene ?? sceneNames.default,
+			// 		ctx.session.backStep ?? 0,
+			// 	);
+			// 	return;
+			// }
+
+			// if (body.toLowerCase() === botCommands.yes.toLowerCase()) {
+			// 	ctx.session.changedCity = true;
+
+			// 	ctx.scene.selectStep(2);
+			// 	ctx.reply(
+			// 		'Введите название своего города',
+			// 		null,
+			// 		createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+			// 	);
+			// } else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
+			ctx.session.cityName = retranslit('ижевск'); //retranslit(parseSchoolName(await getSchoolName(ctx))[0]);
 			ctx.scene.next();
-			ctx.reply('Хотите ли вы поменять город?', null, keyboard);
+			ctx.reply(
+				'Введите номер своей школы',
+				null,
+				createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+			);
+			// } else {
+			// 	ctx.reply('Ответьте да или нет');
+			// }
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
 		}
 	},
+	// async (ctx) => {
+	// 	try {
+	// 		let { body } = ctx.message;
+
+	// 		if (ctx.message.body === botCommands.back) {
+	// 			ctx.reply(
+	// 				'Хотите ли вы поменять город?',
+	// 				null,
+	// 				createConfirmKeyboard([
+	// 					[Markup.button(botCommands.back, buttonColors.negative)],
+	// 				]),
+	// 			);
+	// 			ctx.scene.selectStep(1);
+	// 			return;
+	// 		}
+
+	// 		if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
+	// 			const cityNames = await getCityNames();
+
+	// 			ctx.session.cityNames = cityNames;
+
+	// 			ctx.reply(
+	// 				'Выберите свой город\n' + mapListToMessage(cityNames.map(capitalize)),
+	// 				null,
+	// 				mapListToKeyboard(cityNames.map(capitalize), {
+	// 					trailingButtons: [[Markup.button(botCommands.back, buttonColors.negative)]],
+	// 				}),
+	// 			);
+	// 		} else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
+	// 			const cityNames = await getCityNames();
+
+	// 			if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
+	// 				let cityName;
+
+	// 				if (!isNaN(+body)) cityName = cityNames[+body - 1];
+	// 				else cityName = body.toLowerCase();
+
+	// 				ctx.session.cityName = cityName;
+
+	// 				ctx.scene.next();
+	// 				ctx.reply(
+	// 					'Введите номер школы в которой вы учитесь',
+	// 					null,
+	// 					Markup.keyboard([
+	// 						cityNames.includes(cityName.toLowerCase())
+	// 							? [Markup.button(botCommands.checkExisting)]
+	// 							: [],
+	// 						[Markup.button(botCommands.back, buttonColors.negative)],
+	// 					]),
+	// 				);
+	// 			} else {
+	// 				ctx.reply('Введите название русскими или английскими буквами или цифру города');
+	// 			}
+	// 		} else {
+	// 			ctx.reply('Введите название русскими или английскими буквами');
+	// 		}
+	// 	} catch (e) {
+	// 		console.error(e);
+	// 		ctx.scene.enter(sceneNames.error);
+	// 	}
+	// },
 	async (ctx) => {
 		try {
 			const { body } = ctx.message;
 
+			// if (ctx.message.body === botCommands.back) {
+			// if (ctx.session.changedCity) {
+			// 	ctx.scene.selectStep(2);
+			// 	ctx.reply(
+			// 		'Введите название своего города',
+			// 		null,
+			// 		Markup.keyboard([
+			// 			(await getCityNames()).length > 0
+			// 				? [Markup.button(botCommands.checkExisting)]
+			// 				: [],
+			// 			[Markup.button(botCommands.back, buttonColors.negative)],
+			// 		]),
+			// 	);
+			// } else {
+			// 	ctx.reply(
+			// 		'Хотите ли вы поменять город?',
+			// 		null,
+			// 		createConfirmKeyboard([
+			// 			[Markup.button(botCommands.back, buttonColors.negative)],
+			// 		]),
+			// 	);
+			// 	ctx.scene.selectStep(1);
+			// }
+			// return;
+			// }
 			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
-				ctx.scene.enter(ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0);
-				return;
-			}
-
-			if (body.toLowerCase() === botCommands.yes.toLowerCase()) {
-				ctx.session.changedCity = true;
-
-				ctx.scene.selectStep(2);
-				ctx.reply(
-					'Введите название своего города',
-					null,
-					Markup.keyboard([
-						[Markup.button(botCommands.checkExisting)],
-						[Markup.button(botCommands.back, 'negative')],
-					]),
+				ctx.scene.enter(
+					ctx.session.backScene ?? sceneNames.default,
+					ctx.session.backStep ?? 0,
 				);
-			} else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
-				ctx.session.cityName = retranslit(parseSchoolName(await getSchoolName(ctx))[0]);
-				ctx.scene.selectStep(3);
-				ctx.reply(
-					'Введите номер своей школы',
-					null,
-					Markup.keyboard([
-						[Markup.button(botCommands.checkExisting)],
-						[Markup.button(botCommands.back, 'negative')],
-					]),
-				);
-			} else {
-				ctx.reply('Ответьте да или нет');
-			}
-		} catch (e) {
-			console.error(e);
-		}
-	},
-	async (ctx) => {
-		try {
-			let { body } = ctx.message;
-
-			if (ctx.message.body === botCommands.back) {
-				ctx.reply(
-					'Хотите ли вы поменять город?',
-					null,
-					createConfirmKeyboard([[Markup.button(botCommands.back, 'negative')]]),
-				);
-				ctx.scene.selectStep(1);
-				return;
-			}
-
-			if (body.toLowerCase() === botCommands.checkExisting.toLowerCase()) {
-				const cityNames = await getCityNames();
-
-				ctx.session.cityNames = cityNames;
-
-				ctx.reply(
-					'Выберите свой город\n' + mapListToMessage(cityNames.map(capitalize)),
-					null,
-					mapListToKeyboard(cityNames.map(capitalize), {
-						trailingButtons: [[Markup.button(botCommands.back, 'negative')]],
-					}),
-				);
-			} else if (/([a-z]|[а-я]|\d)+/i.test(body)) {
-				const cityNames = await getCityNames();
-
-				if (/([a-z]|[а-я])+/i.test(body) || (!isNaN(+body) && +body <= cityNames.length)) {
-					let cityName;
-
-					if (!isNaN(+body)) cityName = cityNames[+body - 1];
-					else cityName = body.toLowerCase();
-
-					ctx.session.cityName = cityName;
-
-					ctx.scene.next();
-					ctx.reply(
-						'Введите номер школы в которой вы учитесь',
-						null,
-						Markup.keyboard([
-							cityNames.includes(cityName.toLowerCase())
-								? [Markup.button(botCommands.checkExisting)]
-								: [],
-							[Markup.button(botCommands.back, 'negative')],
-						]),
-					);
-				} else {
-					ctx.reply('Введите название русскими или английскими буквами или цифру города');
-				}
-			} else {
-				ctx.reply('Введите название русскими или английскими буквами');
-			}
-		} catch (e) {
-			console.error(e);
-			ctx.scene.enter('error');
-		}
-	},
-	async (ctx) => {
-		try {
-			const { body } = ctx.message;
-
-			if (ctx.message.body === botCommands.back) {
-				if (ctx.session.changedCity) {
-					ctx.scene.selectStep(2);
-					ctx.reply(
-						'Введите название своего города',
-						null,
-						Markup.keyboard([
-							(await getCityNames()).length > 0
-								? [Markup.button(botCommands.checkExisting)]
-								: [],
-							[Markup.button(botCommands.back, 'negative')],
-						]),
-					);
-				} else {
-					ctx.reply(
-						'Хотите ли вы поменять город?',
-						null,
-						createConfirmKeyboard([[Markup.button(botCommands.back, 'negative')]]),
-					);
-					ctx.scene.selectStep(1);
-				}
 				return;
 			}
 
@@ -167,7 +181,9 @@ const pickSchoolScene = new Scene(
 						'Выберите свою школу\n' + schoolNumbers.join('\n'),
 						null,
 						mapListToKeyboard(schoolNumbers, {
-							trailingButtons: [[Markup.button(botCommands.back, 'negative')]],
+							trailingButtons: [
+								[Markup.button(botCommands.back, buttonColors.negative)],
+							],
 						}),
 					);
 				} else {
@@ -198,23 +214,16 @@ const pickSchoolScene = new Scene(
 						ctx.session.schoolName = `${translit(ctx.session.cityName)}:${body}`;
 					}
 
-					let keys;
+					let keyboard;
 
 					if ((await DataBase.getClassesForSchool(ctx.session.schoolName)).length > 0) {
-						keys = [
-							[Markup.button(botCommands.checkExisting)],
-							[Markup.button(botCommands.back, 'negative')],
-						];
+						keyboard = createBackKeyboard([[Markup.button(botCommands.checkExisting)]]);
 					} else {
-						keys = [[Markup.button(botCommands.back, 'negative')]];
+						keyboard = createBackKeyboard();
 					}
 
 					ctx.scene.next();
-					ctx.reply(
-						'Введите имя класса в котором вы учитесь',
-						null,
-						Markup.keyboard(keys),
-					);
+					ctx.reply('Введите имя класса в котором вы учитесь', null, keyboard);
 				} else {
 					ctx.reply('Введите номер школы цифрами');
 				}
@@ -223,7 +232,7 @@ const pickSchoolScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -235,7 +244,8 @@ const pickSchoolScene = new Scene(
 			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
 				const cityNames = await getCityNames();
 
-				ctx.scene.selectStep(3);
+				// ctx.scene.selectStep(3);
+				ctx.scene.selectStep(1);
 				ctx.reply(
 					'Введите номер школы в которой вы учитесь',
 					null,
@@ -243,7 +253,7 @@ const pickSchoolScene = new Scene(
 						cityNames.includes(ctx.session.cityName.toLowerCase())
 							? [Markup.button(botCommands.checkExisting)]
 							: [],
-						[Markup.button(botCommands.back, 'negative')],
+						[Markup.button(botCommands.back, buttonColors.negative)],
 					]),
 				);
 				return;
@@ -263,7 +273,7 @@ const pickSchoolScene = new Scene(
 						classNames.length <= 40
 							? mapListToKeyboard(classNames, {
 									trailingButtons: [
-										[Markup.button(botCommands.back, 'negative')],
+										[Markup.button(botCommands.back, buttonColors.negative)],
 									],
 							  })
 							: null,
@@ -299,13 +309,24 @@ const pickSchoolScene = new Scene(
 					}
 				}
 
-				ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
+				if (ctx.session.needToUpdateStudent) {
+					const res = await DataBase.changeClass(ctx.message.user_id, ctx.session.Class);
+
+					if (res) {
+						ctx.reply('Класс успешно изменён');
+					} else {
+						ctx.reply('К сожалению не удалось изменить класс');
+					}
+					ctx.scene.enter(ctx.session.nextScene ?? 'default', ctx.session.step ?? 0);
+				} else {
+					ctx.scene.enter(ctx.session.nextScene ?? 'default', ctx.session.step ?? 0);
+				}
 			} else {
 				ctx.reply('Неверное имя класса');
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

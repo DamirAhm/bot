@@ -1,39 +1,56 @@
-const { getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
-
 //@ts-check
+
+const { buttonColors, sceneNames } = require('../utils/constants.js');
+const { getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard, monthsRP } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ isAdmin } = require('../utils/roleChecks.js');
+	{ isAdmin } = require('../utils/roleChecks.js'),
+	{ validateDate } = require('../utils/validators'),
+	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners'),
+	{ pickSchoolAndClassAction } = require('../utils/actions');
 
 const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
 const checkAnnouncementsScene = new Scene(
-	'checkAnnouncements',
+	sceneNames.checkAnnouncements,
 	async (ctx) => {
 		try {
 			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 
 			if (ctx.message.body.toLowerCase() === botCommands.back.toLowerCase()) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 				return;
 			}
 
 			if (needToPickClass && !ctx.session.Class) {
-				ctx.session.nextScene = 'checkAnnouncements';
+				ctx.session.nextScene = sceneNames.checkAnnouncements;
 				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть обьявления \n';
-				ctx.scene.enter('pickClass');
+				ctx.scene.enter(sceneNames.pickClass);
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
 				if (Student) {
 					if (Student.registered) {
+						if (Student.class === null) {
+							ctx.reply(
+								'Для использования данной функции необходимо войти в класс, для начала введите номер своей школы',
+								null,
+								createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+							);
+
+							pickSchoolAndClassAction(ctx, {
+								nextScene: sceneNames.checkAnnouncements,
+							});
+							return;
+						}
+
 						if (!ctx.session.Class)
 							ctx.session.Class = await DataBase.getClassBy_Id(Student.class);
 
@@ -43,13 +60,13 @@ const checkAnnouncementsScene = new Scene(
 							null,
 							createBackKeyboard([
 								[
-									Markup.button(botCommands.onToday, 'positive'),
-									Markup.button(botCommands.onTomorrow, 'positive'),
+									Markup.button(botCommands.onToday, buttonColors.positive),
+									Markup.button(botCommands.onTomorrow, buttonColors.positive),
 								],
 							]),
 						);
 					} else {
-						ctx.scene.enter('register');
+						ctx.scene.enter(sceneNames.register);
 					}
 				} else {
 					throw new Error('Student is not exists');
@@ -57,7 +74,7 @@ const checkAnnouncementsScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -70,9 +87,9 @@ const checkAnnouncementsScene = new Scene(
 				const isPickedClass = await isAdmin(ctx);
 				if (isPickedClass) {
 					ctx.session.Class = undefined;
-					ctx.scene.enter('checkAnnouncements');
+					ctx.scene.enter(sceneNames.checkAnnouncements);
 				} else {
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				}
 				return;
 			}
@@ -104,7 +121,7 @@ const checkAnnouncementsScene = new Scene(
 				);
 				if (announcements.length === 0) {
 					ctx.reply('На данный день нет ни одного объявления');
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				} else {
 					let message = `Объявления на ${date.getDate()} ${monthsRP[date.getMonth()]}\n`;
 
@@ -119,7 +136,7 @@ const checkAnnouncementsScene = new Scene(
 
 					ctx.reply(message, attachments);
 
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				}
 			} else {
 				throw new Error("There's no date");
@@ -128,7 +145,7 @@ const checkAnnouncementsScene = new Scene(
 			cleanDataForSceneFromSession(ctx);
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

@@ -51,7 +51,7 @@ module.exports = {
 	redactorsList: 'Список редакторов',
 	classList: 'Список классов',
 
-	pickClass: 'Выберите класс',
+	pickSchoolAndClass: 'Выбрать школу и класс',
 
 	giveFeedback: 'Оставить отзыв',
 

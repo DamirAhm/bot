@@ -3,9 +3,10 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	botCommands = require('../utils/botCommands.js'),
 	{ cleanSession } = require('../utils/sessionCleaners.js');
+const { sceneNames } = require('../utils/constants.js');
 
 const enterDayIndexesScene = new Scene(
-	'enterDaysIndexes',
+	sceneNames.enterDaysIndexes,
 	(ctx) => {
 		ctx.scene.next();
 		ctx.reply(
@@ -20,7 +21,7 @@ const enterDayIndexesScene = new Scene(
 		} = ctx;
 
 		if (body === botCommands.back) {
-			ctx.scene.enter(ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0);
+			ctx.scene.enter(ctx.session.backScene ?? sceneNames.default, ctx.session.backStep ?? 0);
 			return;
 		}
 
@@ -32,7 +33,7 @@ const enterDayIndexesScene = new Scene(
 			indexes.every((index) => Number.isInteger(+index))
 		) {
 			ctx.session.enteredDayIndexes = indexes.map(Number);
-			ctx.scene.enter(ctx.session.nextScene ?? 'default', ctx.session.step ?? 0);
+			ctx.scene.enter(ctx.session.nextScene ?? sceneNames.default, ctx.session.step ?? 0);
 		} else {
 			ctx.reply('Вы должны ввести одно или более целых чисел');
 		}

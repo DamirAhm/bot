@@ -1,4 +1,6 @@
 //@ts-check
+
+const { sceneNames } = require('../utils/constants.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
@@ -6,7 +8,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	DataBase = new DB(process.env.MONGODB_URI);
 
 const addClassScene = new Scene(
-	'addClass',
+	sceneNames.addClass,
 	(ctx) => {
 		ctx.reply('Введите имя класса (цифра буква)', null, createBackKeyboard());
 		ctx.scene.next();
@@ -14,7 +16,7 @@ const addClassScene = new Scene(
 	async (ctx) => {
 		try {
 			if (ctx.message.body.trim() === botCommands.back) {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 			}
 			const {
 				message: { body },
@@ -27,12 +29,12 @@ const addClassScene = new Scene(
 				const Class = await DataBase.createClass(spacelessClassName, schoolName);
 				if (Class) {
 					ctx.reply('Класс успешно создан');
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				} else {
 					ctx.reply('Создание класса не удалось');
 				} //TODO исправить (вынести в функцию\превратить старт в сцену\еще что то)
 			} else {
-				enter('addClass');
+				enter(sceneNames.addClass);
 				ctx.reply('Неправильный формат ввода (должна быть цифра и потом буква)');
 			}
 		} catch (err) {

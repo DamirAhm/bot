@@ -1,11 +1,12 @@
+//@ts-check
+
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const {
 	getTomorrowDate,
 	parseDate,
 	getDateWithOffset,
 	isToday,
 } = require('../utils/dateFunctions.js');
-
-//@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
 		createDefaultKeyboard,
@@ -23,22 +24,24 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
 	} = require('../utils/functions.js'),
-	{ isAdmin, isContributor } = require('../utils/roleChecks');
+	{ isAdmin, isContributor } = require('../utils/roleChecks'),
+	{ validateDate } = require('../utils/validators'),
+	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
 const isNeedToPickClass = false;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
 const addAnnouncementScene = new Scene(
-	'addAnnouncement',
+	sceneNames.addAnnouncement,
 	async (ctx) => {
 		try {
 			const needToPickClass = (await isAdmin(ctx)) && isNeedToPickClass;
 			if (needToPickClass && !ctx.session.Class) {
-				ctx.session.nextScene = 'addAnnouncement';
+				ctx.session.nextScene = sceneNames.addAnnouncement;
 				ctx.session.pickFor = 'Выберите класс у которому хотите добавить обьявление \n';
-				ctx.session.backScene = 'contributorPanel';
-				ctx.scene.enter('pickClass');
+				ctx.session.backScene = sceneNames.contributorPanel;
+				ctx.scene.enter(sceneNames.pickClass);
 			} else {
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
@@ -57,7 +60,7 @@ const addAnnouncementScene = new Scene(
 							createBackKeyboard(),
 						);
 					} else {
-						ctx.scene.enter('register');
+						ctx.scene.enter(sceneNames.register);
 						ctx.reply(
 							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
 						);
@@ -68,7 +71,7 @@ const addAnnouncementScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -78,9 +81,9 @@ const addAnnouncementScene = new Scene(
 			if (message.body === botCommands.back) {
 				const peekedClass = await isAdmin(ctx);
 				if (peekedClass) {
-					ctx.scene.enter('contributorPanel');
+					ctx.scene.enter(sceneNames.contributorPanel);
 				} else {
-					ctx.scene.enter('default');
+					ctx.scene.enter(sceneNames.default);
 				}
 				return;
 			}
@@ -98,8 +101,8 @@ const addAnnouncementScene = new Scene(
 					null,
 					createBackKeyboard([
 						[
-							Markup.button(botCommands.onToday, 'positive'),
-							Markup.button(botCommands.onTomorrow, 'positive'),
+							Markup.button(botCommands.onToday, buttonColors.positive),
+							Markup.button(botCommands.onTomorrow, buttonColors.positive),
 						],
 					]),
 				);
@@ -108,7 +111,7 @@ const addAnnouncementScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -163,7 +166,7 @@ const addAnnouncementScene = new Scene(
 					ctx.session.newAnnouncement.attachments.map(({ value }) => value),
 					createConfirmKeyboard(
 						isUserContributor
-							? [[Markup.button(botCommands.yesAndMakeOnlyForMe, 'default')]]
+							? [[Markup.button(botCommands.yesAndMakeOnlyForMe, sceneNames.default)]]
 							: undefined,
 					),
 				);
@@ -172,7 +175,7 @@ const addAnnouncementScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -250,7 +253,7 @@ const addAnnouncementScene = new Scene(
 						);
 					}
 				} else {
-					ctx.scene.enter('error');
+					ctx.scene.enter(sceneNames.error);
 				}
 			} else if (ctx.message.body.toLowerCase() === botCommands.no.toLowerCase()) {
 				ctx.scene.selectStep(2);
@@ -259,8 +262,8 @@ const addAnnouncementScene = new Scene(
 					null,
 					createBackKeyboard([
 						[
-							Markup.button(botCommands.onToday, 'positive'),
-							Markup.button(botCommands.onTomorrow, 'positive'),
+							Markup.button(botCommands.onToday, buttonColors.positive),
+							Markup.button(botCommands.onTomorrow, buttonColors.positive),
 						],
 					]),
 				);
@@ -271,7 +274,7 @@ const addAnnouncementScene = new Scene(
 			cleanDataForSceneFromSession(ctx);
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

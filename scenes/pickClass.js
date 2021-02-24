@@ -1,7 +1,9 @@
+//@ts-check
+
 const { isValidClassName } = require('bot-database/build/Models/utils');
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { cleanSession } = require('../utils/sessionCleaners.js');
 
-//@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ mapListToMessage, createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
@@ -10,22 +12,26 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{ calculateColumnsAmount, getSchoolName } = require('../utils/functions.js');
 
+const neededInSession = ['step', 'nextScene'];
+
 const pickClassScene = new Scene(
-	'pickClass',
+	sceneNames.pickClass,
 	async (ctx) => {
 		try {
+			if (!neededInSession.every((it) => it in ctx.session)) {
+				throw new Error(
+					`Some of needed props in session are missed: 
+					 needed: ${neededInSession.join(' ,')} 
+					 got: ${JSON.stringify(ctx.session)} `,
+				);
+			}
+
 			const Classes = await DataBase.getAllClasses(
 				await DataBase.getSchoolForStudent(ctx.message.user_id).then((school) =>
 					school ? school.name : null,
 				),
 			);
 			if (Classes.length > 0) {
-				if (Classes.length === 1) {
-					ctx.session.Class = Classes[0];
-					ctx.scene.enter(ctx.session.nextScene, ctx.session.step);
-					return;
-				}
-
 				ctx.session.classes = Classes;
 
 				const classesStr = mapListToMessage(
@@ -42,24 +48,27 @@ const pickClassScene = new Scene(
 					null,
 					createBackKeyboard(
 						Classes.map(({ name }, i) =>
-							Markup.button(name, 'default', { button: name }),
+							Markup.button(name, buttonColors.default, { button: name }),
 						),
 						columns,
 					),
 				);
 			} else {
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 				ctx.reply('Не существует ни одного класса');
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
 		try {
 			if (ctx.message.body === botCommands.back) {
-				ctx.scene.enter(ctx.session.backScene ?? 'default', ctx.session.backStep ?? 0);
+				ctx.scene.enter(
+					ctx.session.backScene ?? sceneNames.default,
+					ctx.session.backStep ?? 0,
+				);
 				return;
 			}
 
@@ -102,7 +111,7 @@ const pickClassScene = new Scene(
 			cleanSession(ctx);
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );

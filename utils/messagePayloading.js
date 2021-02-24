@@ -9,84 +9,108 @@ const botCommands = require('./botCommands');
 const { capitalize, retranslit } = require('./translits.js');
 const download = require('./saveFile');
 const fs = require('fs');
+const { monthsRP, contentPropertyNames, buttonColors, sceneNames } = require('./constants.js');
+const { Types } = require('mongoose');
 
 const DataBase = new DB(process.env.MONGODB_URI);
 const VK = new VK_API(process.env.VK_API_KEY, +config['GROUP_ID'], +config['ALBUM_ID']);
 
-const contentPropertyNames = {
-	to: 'Дата',
-	text: 'Текст',
-	lesson: 'Урок',
-	createdBy: 'Создал',
-};
-
-//Родительный падеж
-const monthsRP = [
-	'января',
-	'февраля',
-	'марта',
-	'апреля',
-	'мая',
-	'июня',
-	'июля',
-	'августа',
-	'сентября',
-	'октября',
-	'ноября',
-	'декабря',
-];
-
 const userOptions = [
 	{
 		label: botCommands.checkHomework,
-		payload: 'checkHomework',
-		color: 'primary',
+		payload: sceneNames.checkHomework,
+		color: buttonColors.primary,
+		needClass: true,
+		withoutClass: false,
 	},
 	{
 		label: botCommands.checkAnnouncements,
-		payload: 'checkAnnouncements',
-		color: 'primary',
+		payload: sceneNames.checkAnnouncements,
+		color: buttonColors.primary,
+		needClass: true,
+		withoutClass: false,
 	},
 	{
 		label: botCommands.checkSchedule,
-		payload: 'checkSchedule',
-		color: 'primary',
+		payload: sceneNames.checkSchedule,
+		color: buttonColors.primary,
+		needClass: true,
+		withoutClass: false,
 	},
 	{
 		label: botCommands.settings,
-		payload: 'settings',
-		color: 'primary',
+		payload: sceneNames.settings,
+		color: buttonColors.primary,
+		needClass: false,
+		withoutClass: false,
 	},
 	{
 		label: botCommands.giveFeedback,
-		payload: 'giveFeedback',
-		color: 'secondary',
+		payload: sceneNames.giveFeedback,
+		color: buttonColors.default,
+		needClass: false,
+		withoutClass: false,
 	},
 	{
 		label: botCommands.contributorPanel,
-		payload: 'contributorPanel',
-		color: 'primary',
+		payload: sceneNames.contributorPanel,
+		color: buttonColors.primary,
 		roles: [Roles.contributor, Roles.admin],
+		needClass: true,
+		withoutClass: false,
 	},
 	{
 		label: botCommands.adminPanel,
-		payload: 'adminPanel',
-		color: 'positive',
+		payload: sceneNames.adminPanel,
+		color: buttonColors.positive,
 		roles: [Roles.admin],
+		needClass: false,
+		withoutClass: false,
+	},
+	{
+		label: botCommands.pickSchoolAndClass,
+		payload: sceneNames.pickSchool,
+		color: buttonColors.default,
+		needClass: false,
+		withoutClass: true,
 	},
 ];
 
 const contributorOptions = [
-	{ label: botCommands.addHomework, payload: 'addHomework', color: 'default' },
-	{ label: botCommands.addAnnouncement, payload: 'addAnnouncement', color: 'default' },
-	{ label: botCommands.changeSchedule, payload: 'changeSchedule', color: 'default' },
-	{ label: botCommands.addRedactor, payload: 'addRedactor', color: 'default' },
+	{
+		label: botCommands.addHomework,
+		payload: sceneNames.addHomework,
+		color: buttonColors.default,
+	},
+	{
+		label: botCommands.addAnnouncement,
+		payload: sceneNames.addAnnouncement,
+		color: buttonColors.default,
+	},
+	{
+		label: botCommands.changeSchedule,
+		payload: sceneNames.changeSchedule,
+		color: buttonColors.default,
+	},
+	{
+		label: botCommands.addRedactor,
+		payload: sceneNames.addRedactor,
+		color: buttonColors.default,
+	},
 ];
 const adminOptions = [
-	{ label: botCommands.removeRedactor, payload: 'removeRedactor', color: 'default' },
-	{ label: botCommands.redactorsList, payload: 'redactorsList', color: 'default' },
-	{ label: botCommands.addClass, payload: 'addClass', color: 'default' },
-	{ label: botCommands.classList, payload: 'classList', color: 'default' },
+	{
+		label: botCommands.removeRedactor,
+		payload: sceneNames.removeRedactor,
+		color: buttonColors.default,
+	},
+	{
+		label: botCommands.redactorsList,
+		payload: sceneNames.redactorsList,
+		color: buttonColors.default,
+	},
+	{ label: botCommands.addClass, payload: sceneNames.addClass, color: buttonColors.default },
+	{ label: botCommands.classList, payload: sceneNames.classList, color: buttonColors.default },
 ];
 
 const mapListToMessage = (list, startIndex = 1) => {
@@ -105,7 +129,7 @@ const renderAdminMenu = () => {
 };
 const renderAdminMenuKeyboard = () => {
 	const buttons = adminOptions.reduce((acc, c) => {
-		const button = Markup.button(c.label, 'primary');
+		const button = Markup.button(c.label, buttonColors.primary);
 		if (acc.length === 0 || acc[acc.length - 1].length >= 2) {
 			acc.push([button]);
 		} else if (acc[acc.length - 1].length < 2) {
@@ -115,7 +139,7 @@ const renderAdminMenuKeyboard = () => {
 		return acc;
 	}, []);
 
-	buttons.push([Markup.button('Назад', 'negative', { button: 'back' })]);
+	buttons.push([Markup.button('Назад', buttonColors.negative, { button: 'back' })]);
 
 	return Markup.keyboard(buttons, { columns: 3 });
 };
@@ -130,10 +154,10 @@ const renderContributorMenu = () => {
 const renderContributorMenuKeyboard = () => {
 	try {
 		const buttons = contributorOptions.map((opt, i) => [
-			Markup.button(opt.label, 'default', { button: opt.payload }),
+			Markup.button(opt.label, buttonColors.default, { button: opt.payload }),
 		]);
 
-		buttons.push([Markup.button('Назад', 'negative', { button: 'back' })]);
+		buttons.push([Markup.button('Назад', buttonColors.negative, { button: 'back' })]);
 
 		return Markup.keyboard(buttons, { columns: 3 });
 	} catch (e) {
@@ -199,25 +223,60 @@ const parseAttachmentsToVKString = async (attachments) => {
 };
 
 const createDefaultMenu = async (user_id) => {
-	const role = await DataBase.getRole(user_id);
+	const Student = await DataBase.getStudentByVkId(user_id);
 
-	const trueOptions = userOptions.filter(({ roles }) => !roles || roles.includes(role));
+	if (Student) {
+		const { role, class: StudentsClass } = Student;
+		const usableOptions = userOptions.filter(
+			({ roles, needClass, withoutClass }) =>
+				(!roles || roles.includes(role)) &&
+				(!needClass || StudentsClass) &&
+				(!withoutClass || StudentsClass === null),
+		);
 
-	return formMessage('Меню:', ...trueOptions.map(({ label }, i) => `${i + 1}. ${label}`));
-};
-const createDefaultKeyboard = async (role, ctx) => {
-	try {
-		if (!role) {
-			role = await DataBase.getRole(ctx.message.user_id);
+		if (StudentsClass === null) {
 		}
 
-		return createDefaultKeyboardSync(role);
+		return formMessage('Меню:', ...usableOptions.map(({ label }, i) => `${i + 1}. ${label}`));
+	} else {
+		throw new Error('Can`t find user');
+	}
+};
+
+/**
+ * @param {{role: Roles, class: Types.ObjectId | null}?} studentInfo
+ * @param {any?} ctx
+ */
+const createDefaultKeyboard = async (studentInfo, ctx) => {
+	try {
+		let role, StudentsClass;
+
+		if (!studentInfo || studentInfo.role === undefined || studentInfo.class === undefined) {
+			const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
+
+			if (Student) {
+				role = Student.role;
+				StudentsClass = Student.class;
+			} else {
+				throw new Error('Can`t find user');
+			}
+		} else {
+			role = studentInfo.role;
+			StudentsClass = studentInfo.class;
+		}
+
+		return createDefaultKeyboardSync(role, StudentsClass);
 	} catch (e) {
 		console.error(e);
 	}
 };
-const createDefaultKeyboardSync = (role) => {
-	const trueOptions = userOptions.filter(({ roles }) => !roles || roles.includes(role));
+/**
+ *
+ * @param {Roles} role
+ * @param {Types.ObjectId | null} StudentsClass
+ */
+const createDefaultKeyboardSync = (role, StudentsClass) => {
+	const trueOptions = getUsableOptionsList(role, StudentsClass);
 
 	let buttons = trueOptions.map(({ label, payload, color }) =>
 		Markup.button(label, color, { button: payload }),
@@ -225,13 +284,30 @@ const createDefaultKeyboardSync = (role) => {
 
 	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
 };
+/**
+ *
+ * @param {Roles} role
+ * @param {Types.ObjectId | null} StudentsClass
+ */
+const getUsableOptionsList = (role, StudentsClass) => {
+	return userOptions.filter(
+		({ roles, needClass, withoutClass }) =>
+			(!roles || roles.includes(role)) &&
+			(!needClass || StudentsClass) &&
+			(!withoutClass || StudentsClass === null),
+	);
+};
 
 const createBackKeyboard = (existingButtons = [], columns = 4) => {
 	try {
 		if (existingButtons[0] instanceof Array) {
-			existingButtons.push([Markup.button(botCommands.back, 'negative', { button: 'back' })]);
+			existingButtons.push([
+				Markup.button(botCommands.back, buttonColors.negative, { button: 'back' }),
+			]);
 		} else {
-			existingButtons.push(Markup.button(botCommands.back, 'negative', { button: 'back' }));
+			existingButtons.push(
+				Markup.button(botCommands.back, buttonColors.negative, { button: 'back' }),
+			);
 		}
 
 		return Markup.keyboard(existingButtons, { columns });
@@ -243,13 +319,13 @@ const createBackKeyboard = (existingButtons = [], columns = 4) => {
 const createConfirmKeyboard = (existingButtons = [], columns = 4) => {
 	if (existingButtons[0] instanceof Array) {
 		existingButtons.unshift([
-			Markup.button(botCommands.no, 'negative'),
-			Markup.button(botCommands.yes, 'positive'),
+			Markup.button(botCommands.no, buttonColors.negative),
+			Markup.button(botCommands.yes, buttonColors.positive),
 		]);
 	} else {
 		existingButtons.unshift(
-			Markup.button(botCommands.no, 'negative'),
-			Markup.button(botCommands.yes, 'positive'),
+			Markup.button(botCommands.no, buttonColors.negative),
+			Markup.button(botCommands.yes, buttonColors.positive),
 		);
 	}
 
@@ -301,7 +377,7 @@ const notifyAllInClass = async (
 	const Class = await DataBase.getClassByName(className, schoolName);
 
 	if (Class) {
-		const { students } = await Class.populate('students').execPopulate();
+		const { students } = await DataBase.populate(Class);
 
 		setTimeout(() => {
 			botInstance.sendMessage(
@@ -333,6 +409,7 @@ module.exports = {
 	parseDateToStr,
 	createConfirmKeyboard,
 	createUserInfo,
+	getUsableOptionsList,
 	monthsRP,
 	userOptions,
 	contributorOptions,

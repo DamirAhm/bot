@@ -1,3 +1,5 @@
+const { sceneNames } = require('../utils/constants.js');
+
 //@ts-check
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createDefaultKeyboard, createBackKeyboard } = require('../utils/messagePayloading.js'),
@@ -7,7 +9,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	DataBase = new DB(process.env.MONGODB_URI);
 
 const removeRedactorScene = new Scene(
-	'removeRedactor',
+	sceneNames.removeRedactor,
 	(ctx) => {
 		ctx.reply(
 			'Введите id пользователя, которого хотите лишить должности редактора',
@@ -18,52 +20,62 @@ const removeRedactorScene = new Scene(
 	},
 	async (ctx) => {
 		try {
-			if (ctx.message.body.trim() === botCommands.back) {
-				ctx.scene.enter('default');
-			}
 			const {
 				message: { body },
-				scene: { leave, enter },
 			} = ctx;
-			const id = Number(body.trim());
 
-			if (!isNaN(id)) {
-				let Student = await DataBase.getStudentByVkId(id);
-
-				if (Student && Student.role === Roles.admin) {
-					ctx.reply(
-						'Пользователя нельзя понизить в роли, так как он является администратором',
-						null,
-						await createDefaultKeyboard(true, false),
-					);
-					ctx.scene.enter('default');
-					return;
-				} else if (!Student || Student.role === Roles.student) {
-					ctx.reply(
-						'Пользователь уже не является редактором',
-						null,
-						await createDefaultKeyboard(true, false),
-					);
-					ctx.scene.enter('default');
-					return;
-				}
-
-				Student.role = Roles.student;
-				await Student.save();
-
-				ctx.reply(
-					'Пользователь перестал быть редактором',
-					null,
-					await createDefaultKeyboard(true, false),
-				);
-				ctx.scene.enter('default');
+			if (body.trim() === botCommands.back) {
+				ctx.scene.enter(sceneNames.default);
 			} else {
-				ctx.reply('Неверный id');
-				ctx.scene.enter('removeRedactor');
+				const id = Number(body.trim());
+
+				if (!isNaN(id)) {
+					let Student = await DataBase.getStudentByVkId(id);
+
+					if (Student && Student.role === Roles.admin) {
+						ctx.reply(
+							'Пользователя нельзя понизить в роли, так как он является администратором',
+							null,
+							await createDefaultKeyboard(undefined, ctx),
+						);
+						ctx.scene.enter(sceneNames.default);
+						return;
+					} else if (Student.role === Roles.student) {
+						ctx.reply(
+							'Пользователь уже не является редактором',
+							null,
+							await createDefaultKeyboard(undefined, ctx),
+						);
+						ctx.scene.enter(sceneNames.default);
+						return;
+					} else {
+						ctx.reply(
+							'Такого пользователя не существует',
+							null,
+							await createDefaultKeyboard(undefined, ctx),
+						);
+					}
+
+					await DataBase.backStudentToInitialRole(Student);
+
+					ctx.reply(
+						'Пользователь перестал быть редактором',
+						null,
+						await createDefaultKeyboard(undefined, ctx),
+					);
+					ctx.scene.enter(sceneNames.default);
+				} else {
+					ctx.reply('Неверный id');
+					ctx.scene.enter(sceneNames.removeRedactor);
+				}
 			}
 		} catch (e) {
 			ctx.scene.leave();
-			ctx.reply('Простите произошла ошибка', null, await createDefaultKeyboard(true, false));
+			ctx.reply(
+				'Простите произошла ошибка',
+				null,
+				await createDefaultKeyboard(undefined, ctx),
+			);
 			console.error(e);
 		}
 	},

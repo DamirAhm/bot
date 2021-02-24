@@ -2,76 +2,24 @@
 const { mapHomeworkByLesson } = require('bot-database/build/utils/functions');
 const { DataBase: DB } = require('bot-database');
 const config = require('../config.js');
-const { Roles, Lessons } = require('bot-database');
+const { Lessons } = require('bot-database');
 const botCommands = require('./botCommands');
-const Markup = require('node-vk-bot-api/lib/markup');
 const {
 	isOneDay,
 	getDateWithOffset,
 	getTomorrowDate,
 	getDayMonthString,
-	isToday,
 } = require('./dateFunctions');
-
-//! Копировал из messagePayloading потому что не работает из за циклических зависимостей
-const userOptions = [
-	{
-		label: botCommands.checkHomework,
-		payload: 'checkHomework',
-		color: 'primary',
-	},
-	{
-		label: botCommands.checkAnnouncements,
-		payload: 'checkAnnouncements',
-		color: 'primary',
-	},
-	{
-		label: botCommands.checkSchedule,
-		payload: 'checkSchedule',
-		color: 'primary',
-	},
-	{
-		label: botCommands.settings,
-		payload: 'settings',
-		color: 'primary',
-	},
-	{
-		label: botCommands.giveFeedback,
-		payload: 'giveFeedback',
-		color: 'secondary',
-	},
-];
-const createDefaultKeyboardSync = (/** @type {Roles} */ role) => {
-	let buttons = userOptions.map(({ label, payload, color }) =>
-		Markup.button(label, color, { button: payload }),
-	);
-
-	if ([Roles.contributor, Roles.admin].includes(role)) {
-		buttons.push(
-			Markup.button(botCommands.contributorPanel, 'primary', {
-				button: 'contributorPanel',
-			}),
-		);
-	}
-	if (role === Roles.admin) {
-		buttons.push(
-			Markup.button(botCommands.adminPanel, 'positive', {
-				button: 'adminMenu',
-			}),
-		);
-	}
-
-	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
-};
+const { createDefaultKeyboard } = require('./messagePayloading.js');
 
 const DataBase = new DB(process.env.MONGODB_URI);
 
 async function notifyAboutReboot(botInstance) {
 	try {
-		const studentsIdsAndRoles = await DataBase.getAllStudents().then((students) =>
-			students.map(({ vkId, role }) => ({ vkId, role })),
+		const studentsInfos = await DataBase.getAllStudents().then((students) =>
+			students.map(({ vkId, role, class: _class }) => ({ vkId, role, class: _class })),
 		);
-		for (const { role, vkId } of studentsIdsAndRoles) {
+		for (const { role, vkId, class: StudentsClass } of studentsInfos) {
 			const res = await botInstance.execute('messages.getHistory', {
 				count: 1,
 				user_id: vkId,
@@ -85,7 +33,7 @@ async function notifyAboutReboot(botInstance) {
 							[vkId],
 							botCommands.botWasRebooted,
 							null,
-							createDefaultKeyboardSync(role),
+							await createDefaultKeyboard({ role, class: StudentsClass }),
 						),
 					50,
 				);
@@ -367,4 +315,10 @@ module.exports = {
 	isStudentOnDefaultScene,
 	notifyStudents,
 	sendHomeworkToClassStudents,
+	getTomorrowOrAfterTomorrowOrDateString,
+	getNotifiableIdsWithHomeworkForEach,
+	isReadyToNotificate,
+	sendHomework,
+	dayOffsetsToAddAccordingToPreferences,
+	getHomeworkPayload,
 };

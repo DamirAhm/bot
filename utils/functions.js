@@ -12,6 +12,7 @@ const {
 const { daysOfWeek } = require('bot-database/build/Models/utils');
 const { retranslit, translit } = require('./translits.js');
 const { getDateWeekBefore } = require('./dateFunctions.js');
+const { buttonColors } = require('./constants.js');
 
 const mapListToKeyboard = (
 	/** @type {any[]} */ list,
@@ -37,56 +38,6 @@ const mapListToKeyboard = (
 			columns: calculateColumnsAmount(list.length),
 		});
 	}
-};
-
-const userOptions = [
-	{
-		label: botCommands.checkHomework,
-		payload: 'checkHomework',
-		color: 'primary',
-	},
-	{
-		label: botCommands.checkAnnouncements,
-		payload: 'checkAnnouncements',
-		color: 'primary',
-	},
-	{
-		label: botCommands.checkSchedule,
-		payload: 'checkSchedule',
-		color: 'primary',
-	},
-	{
-		label: botCommands.settings,
-		payload: 'settings',
-		color: 'primary',
-	},
-	{
-		label: botCommands.giveFeedback,
-		payload: 'giveFeedback',
-		color: 'secondary',
-	},
-];
-const createDefaultKeyboardSync = (/** @type {Roles} */ role) => {
-	let buttons = userOptions.map(({ label, payload, color }) =>
-		Markup.button(label, color, { button: payload }),
-	);
-
-	if ([Roles.contributor, Roles.admin].includes(role)) {
-		buttons.push(
-			Markup.button(botCommands.contributorPanel, 'primary', {
-				button: 'contributorPanel',
-			}),
-		);
-	}
-	if (role === Roles.admin) {
-		buttons.push(
-			Markup.button(botCommands.adminPanel, 'positive', {
-				button: 'adminMenu',
-			}),
-		);
-	}
-
-	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
 };
 
 const DataBase = new DB(process.env.MONGODB_URI);
@@ -270,7 +221,7 @@ async function sendStudentInfo(ctx) {
 		message,
 		null,
 		//@ts-ignore
-		createBackKeyboard([[Markup.button(botCommands.changeSettings, 'primary')]]),
+		createBackKeyboard([[Markup.button(botCommands.changeSettings, buttonColors.primary)]]),
 	);
 }
 

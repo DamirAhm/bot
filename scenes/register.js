@@ -1,5 +1,6 @@
 //@ts-check
 const { isValidClassName } = require('bot-database/build/Models/utils');
+const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 const { translit } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
@@ -16,7 +17,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ mapListToKeyboard, getCityNames, getSchoolNumbers } = require('../utils/functions.js');
 
 const registerScene = new Scene(
-	'register',
+	sceneNames.register,
 	// async (ctx) => {
 	// 	ctx.scene.next();
 	// 	ctx.reply(
@@ -71,7 +72,7 @@ const registerScene = new Scene(
 			// }
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -160,7 +161,7 @@ const registerScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -190,7 +191,7 @@ const registerScene = new Scene(
 					.then((classes) => classes.map((Class) => (Class ? Class.name : null)))
 					.catch((err) => {
 						console.error(err);
-						ctx.scene.enter('error');
+						ctx.scene.enter(sceneNames.error);
 						return null;
 					});
 				console.log(classNames);
@@ -203,7 +204,7 @@ const registerScene = new Scene(
 						classNames.length <= 35
 							? mapListToKeyboard(classNames, {
 									trailingButtons: [
-										[Markup.button(botCommands.back, 'negative')],
+										[Markup.button(botCommands.back, buttonColors.negative)],
 									],
 							  })
 							: null,
@@ -250,7 +251,7 @@ const registerScene = new Scene(
 							null,
 							await createDefaultKeyboard(undefined, ctx),
 						);
-						ctx.scene.enter('default');
+						ctx.scene.enter(sceneNames.default);
 						cleanDataForSceneFromSession(ctx);
 					}
 				} else {
@@ -281,7 +282,7 @@ const registerScene = new Scene(
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 	async (ctx) => {
@@ -290,7 +291,7 @@ const registerScene = new Scene(
 
 			if (body.toLowerCase() === botCommands.yes.toLowerCase()) {
 				cleanDataForSceneFromSession(ctx);
-				ctx.scene.enter('changeSchedule');
+				ctx.scene.enter(sceneNames.changeSchedule);
 			} else if (body.toLowerCase() === botCommands.no.toLowerCase()) {
 				const { name: className } = await DataBase.getClassForStudent(ctx.message.user_id);
 
@@ -299,14 +300,14 @@ const registerScene = new Scene(
 					null,
 					await createDefaultKeyboard(undefined, ctx),
 				);
-				ctx.scene.enter('default');
+				ctx.scene.enter(sceneNames.default);
 				cleanDataForSceneFromSession(ctx);
 			} else {
 				ctx.reply(botCommands.notUnderstood);
 			}
 		} catch (e) {
 			console.error(e);
-			ctx.scene.enter('error');
+			ctx.scene.enter(sceneNames.error);
 		}
 	},
 );
