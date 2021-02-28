@@ -240,8 +240,7 @@ function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
 	const hoursNow = new Date().getHours();
 	const minsNow = new Date().getMinutes();
 
-	// return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
-	return true;
+	return hours <= hoursNow && mins <= minsNow && !isToday(lastHomeworkCheck);
 }
 
 /**
