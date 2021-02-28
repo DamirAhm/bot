@@ -9,6 +9,7 @@ const {
 	getDateWithOffset,
 	getTomorrowDate,
 	getDayMonthString,
+	isToday,
 } = require('./dateFunctions');
 const { createDefaultKeyboard } = require('./messagePayloading.js');
 
