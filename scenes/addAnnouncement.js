@@ -244,7 +244,7 @@ const addAnnouncementScene = new Scene(
 						await createDefaultKeyboard(undefined, ctx),
 					);
 
-					if (isToday(to)) {
+					if (isToday(to) && !isOnlyForUser) {
 						notifyAllInClass(
 							ctx,
 							className,
