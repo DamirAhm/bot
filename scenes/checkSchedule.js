@@ -44,7 +44,9 @@ const checkScheduleScene = new Scene(
 
 				if (body.toLowerCase() === botCommands.back.toLowerCase()) {
 					ctx.scene.enter(sceneNames.default);
+					return;
 				}
+				
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
