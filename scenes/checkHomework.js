@@ -101,6 +101,8 @@ const checkHomeworkScene = new Scene(
 				} else {
 					ctx.scene.enter(sceneNames.default);
 				}
+
+				return;
 			} else if (
 				body.toLowerCase() === botCommands.thisWeek.toLowerCase() ||
 				body.toLowerCase() === botCommands.nextWeek.toLowerCase()

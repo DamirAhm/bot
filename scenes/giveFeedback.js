@@ -30,6 +30,7 @@ const giveFeedback = new Scene(
 
 		if (body.trim().toLowerCase() === botCommands.back.toLowerCase()) {
 			ctx.scene.enter(sceneNames.default);
+			return;
 		} else {
 			fs.readFile(path.join(__dirname, '../Feedback'), { encoding: 'utf8' }, (err, text) => {
 				if (err) {

@@ -26,6 +26,7 @@ const removeRedactorScene = new Scene(
 
 			if (body.trim() === botCommands.back) {
 				ctx.scene.enter(sceneNames.default);
+				return;
 			} else {
 				const id = Number(body.trim());
 

@@ -17,6 +17,7 @@ const addClassScene = new Scene(
 		try {
 			if (ctx.message.body.trim() === botCommands.back) {
 				ctx.scene.enter(sceneNames.default);
+				return;
 			}
 			const {
 				message: { body },

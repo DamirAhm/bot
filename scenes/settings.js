@@ -83,6 +83,7 @@ const settingsScene = new Scene(
 				);
 			} else if (body === botCommands.back) {
 				ctx.scene.enter(sceneNames.default);
+				return;
 			} else {
 				ctx.reply(botCommands.notUnderstood);
 			}
