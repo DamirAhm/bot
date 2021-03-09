@@ -184,6 +184,8 @@ const changeScheduleScene = new Scene(
 			}
 
 			let indexes = body
+				.replace(/\s\s/g, ' ')
+				.replace(/\s/g, ',')
 				.split(',')
 				.map((s) => s.trim())
 				.filter(Boolean);

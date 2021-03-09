@@ -238,6 +238,7 @@ const addAnnouncementScene = new Scene(
 					// 	trigger: 'ON_ANNOUNCEMENT_ADDED',
 					// });
 
+					ctx.scene.enter(sceneNames.default);
 					ctx.reply(
 						'Объявление успешно создано',
 						null,
