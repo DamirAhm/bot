@@ -245,7 +245,7 @@ const addAnnouncementScene = new Scene(
 						await createDefaultKeyboard(undefined, ctx),
 					);
 
-					if (isToday(to) && !isOnlyForUser) {
+					if (isToday(to) && !isOnlyForUser && process.env.NODE_ENV === 'production') {
 						notifyAllInClass(
 							ctx,
 							className,

@@ -388,10 +388,20 @@ const notifyAllInClass = async (
 	}
 };
 
-const getLessonsList = (additionalLessons) =>
-	mapListToMessage([...new Set([...Lessons, ...additionalLessons])], 0);
+const nothingLesson = Lessons[0];
+const getLessonsList = (additionalLessons = []) => {
+	const lessonsList = [...new Set([...Lessons, ...additionalLessons])]
+		.sort()
+		.filter((les) => les != nothingLesson);
+	lessonsList.unshift(nothingLesson);
+
+	return lessonsList;
+};
+const getLessonsListMessage = (additionalLessons) =>
+	mapListToMessage(getLessonsList(additionalLessons), 0);
 
 module.exports = {
+	getLessonsList,
 	createDefaultKeyboardSync,
 	formMessage,
 	renderAdminMenu,
@@ -404,7 +414,7 @@ module.exports = {
 	renderContributorMenuKeyboard,
 	renderContributorMenu,
 	mapListToMessage,
-	getLessonsList,
+	getLessonsListMessage,
 	createContentDiscription,
 	parseDateToStr,
 	createConfirmKeyboard,

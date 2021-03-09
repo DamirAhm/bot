@@ -4,10 +4,11 @@ const { capitalize } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{
 		createDefaultKeyboard,
-		getLessonsList,
+		getLessonsListMessage,
 		mapListToMessage,
 		createConfirmKeyboard,
 		createBackKeyboard,
+		getLessonsList,
 	} = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
 	botCommands = require('../utils/botCommands.js'),
@@ -87,22 +88,24 @@ const changeScheduleScene = new Scene(
 				return;
 			}
 
+			const Class =
+				ctx.session.Class ||
+				(await DataBase.getStudentByVkId(ctx.message.user_id).then((u) =>
+					DataBase.getClassBy_Id(u.class),
+				));
+			const { schedule } = Class;
+			const additionalLessons = schedule.flat(2);
+			const lessonsList = getLessonsList(additionalLessons);
+			ctx.session.lessons = lessonsList;
+
 			if (
 				['заполнить всё', 'все', '0', 'всё', 'заполнить всё'].includes(body.toLowerCase())
 			) {
 				ctx.session.isFullFill = true;
 				ctx.session.changingDay = 1;
 
-				const Class =
-					ctx.session.Class ||
-					(await DataBase.getStudentByVkId(ctx.message.user_id).then((u) =>
-						DataBase.getClassBy_Id(u.class),
-					));
-				const { schedule } = Class;
-				const lessons = schedule.flat(2);
-
 				const message = `Введите новое расписание цифрами через запятую, выбирая из списка или вписывая свои предметы если их там нет\n
-				 ${getLessonsList(lessons)}\n Сначала на понедельник`;
+				 ${getLessonsListMessage(additionalLessons)}\n Сначала на понедельник`;
 
 				ctx.reply(
 					message,
@@ -120,16 +123,8 @@ const changeScheduleScene = new Scene(
 			) {
 				ctx.session.changingDay = +body;
 
-				const Class =
-					ctx.session.Class ||
-					(await DataBase.getStudentByVkId(ctx.message.user_id).then((u) =>
-						DataBase.getClassBy_Id(u.class),
-					));
-				const { schedule } = Class;
-				const lessons = schedule.flat(2);
-
-				const message = `Введите новое расписание цифрами через запятую, выбирая из этого списка или вписывая свои предметы если их нет в списке\n ${getLessonsList(
-					lessons,
+				const message = `Введите новое расписание цифрами через запятую, выбирая из этого списка или вписывая свои предметы если их нет в списке\n ${getLessonsListMessage(
+					additionalLessons,
 				)}`;
 
 				ctx.scene.next();
@@ -158,20 +153,12 @@ const changeScheduleScene = new Scene(
 			if (body === botCommands.leaveEmpty) {
 				body = '';
 			} else if (body.toLowerCase() === botCommands.back.toLowerCase()) {
-				const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
-
-				let { Class } = ctx.session;
-				if (!Class) Class = await DataBase.getClassBy_Id(Student.class);
-
-				ctx.session.Class = Class;
-				ctx.session.schedule = Class.schedule;
-
 				const days = Object.values(daysOfWeek);
 				const buttons = days.map((day, index) =>
-					Markup.button(index + 1, buttonColors.default, { button: day }),
+					Markup.button(day, buttonColors.default, { button: day }),
 				);
 
-				buttons.push(Markup.button('0', buttonColors.primary));
+				buttons.push(Markup.button('Заполнить всё', buttonColors.primary));
 
 				const message =
 					'Выберите день у которого хотите изменить расписание\n' +
@@ -179,7 +166,7 @@ const changeScheduleScene = new Scene(
 					'\n0. Заполнить всё';
 
 				ctx.scene.selectStep(1);
-				ctx.reply(message, null, createBackKeyboard(buttons));
+				ctx.reply(message, null, createBackKeyboard(buttons, 3));
 				return;
 			}
 
@@ -196,8 +183,10 @@ const changeScheduleScene = new Scene(
 						isNaN(index) ? true : index >= 0 && index < Lessons.length,
 					)
 				) {
+					const lessonsList = ctx.session.lessons;
+
 					const newLessons = indexes.map((i) => {
-						if (!isNaN(i)) return Lessons[+i];
+						if (!isNaN(i)) return lessonsList[+i];
 						else return capitalize(i);
 					});
 					ctx.session.schedule[ctx.session.changingDay - 1] = newLessons;
@@ -268,7 +257,14 @@ const changeScheduleScene = new Scene(
 					);
 				}
 			} else {
-				ctx.reply('Введите новое расписание');
+				ctx.reply(
+					'Введите новое расписание',
+					null,
+					createBackKeyboard(
+						[Markup.button(botCommands.leaveEmpty, buttonColors.primary)],
+						1,
+					),
+				);
 				ctx.scene.selectStep(2);
 			}
 
