@@ -33,7 +33,7 @@ const addClassScene = new Scene(
 					ctx.scene.enter(sceneNames.default);
 				} else {
 					ctx.reply('Создание класса не удалось');
-				} //TODO исправить (вынести в функцию\превратить старт в сцену\еще что то)
+				}
 			} else {
 				enter(sceneNames.addClass);
 				ctx.reply('Неправильный формат ввода (должна быть цифра и потом буква)');
