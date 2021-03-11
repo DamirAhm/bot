@@ -173,7 +173,7 @@ const registerScene = new Scene(
 			if (body.toLowerCase() === botCommands.back.toLowerCase()) {
 				const { cityNames, cityName } = ctx.session;
 
-				ctx.scene.selectStep(2);
+				ctx.scene.selectStep(1);
 				ctx.reply(
 					'Введите номер школы в которой вы учитесь',
 					null,
@@ -194,7 +194,7 @@ const registerScene = new Scene(
 						ctx.scene.enter(sceneNames.error);
 						return null;
 					});
-				console.log(classNames);
+
 				if (classNames.length > 0) {
 					ctx.session.classNames = classNames;
 
@@ -224,6 +224,7 @@ const registerScene = new Scene(
 			if (!isNaN(+body) && ctx.session.classNames)
 				spacelessClassName = ctx.session.classNames[+body - 1].toUpperCase();
 			else spacelessClassName = body.replace(/\s*/g, '').toUpperCase();
+
 			if (isValidClassName(spacelessClassName)) {
 				const Class = await DataBase.getClassByName(
 					spacelessClassName,
@@ -278,7 +279,7 @@ const registerScene = new Scene(
 					}
 				}
 			} else {
-				ctx.reply('Неверное имя класса');
+				ctx.reply('Неверный формат имени класса');
 			}
 		} catch (e) {
 			console.error(e);
