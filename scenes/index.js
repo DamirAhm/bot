@@ -20,3 +20,4 @@ module.exports.registerScene = require('./register');
 module.exports.removeRedactorScene = require('./removeRedactor');
 module.exports.settingsScene = require('./settings');
 module.exports.startScene = require('./start');
+module.exports.callsScene = require('./calls');

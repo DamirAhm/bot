@@ -323,7 +323,29 @@ function getTextsAndAttachmentsFromForwarded({ body = '', attachments = [], fwd_
 	};
 }
 
+/**
+ * @template T
+ * @param {([boolean, T, T?] | T)[]} origin
+ * @returns {T[]}
+ */
+function mapButtons(origin) {
+	return (
+		origin
+			//@ts-ignore
+			.reduce((acc, val) => {
+				if (!Array.isArray(val) || typeof val[0] !== 'boolean') {
+					return acc.concat([val]);
+				}
+				const [pred, value, last] = val;
+				if (pred) return acc.concat([value]);
+				else if (last) return acc.concat([last]);
+				else return acc;
+			}, [])
+	);
+}
+
 module.exports = {
+	mapButtons,
 	parseSchoolName,
 	findMaxPhotoResolution,
 	inRange,

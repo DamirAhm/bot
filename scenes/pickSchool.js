@@ -18,6 +18,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getCityNames,
 		getSchoolNumbers,
 		getSchoolName,
+		mapButtons,
 	} = require('../utils/functions.js');
 
 const pickSchoolScene = new Scene(
@@ -249,12 +250,14 @@ const pickSchoolScene = new Scene(
 				ctx.reply(
 					'Введите номер школы в которой вы учитесь',
 					null,
-					Markup.keyboard([
-						cityNames.includes(ctx.session.cityName.toLowerCase())
-							? [Markup.button(botCommands.checkExisting)]
-							: [],
-						[Markup.button(botCommands.back, buttonColors.negative)],
-					]),
+					createBackKeyboard(
+						mapButtons([
+							[
+								cityNames.includes(ctx.session.cityName.toLowerCase()),
+								[Markup.button(botCommands.checkExisting)],
+							],
+						]),
+					),
 				);
 				return;
 			}

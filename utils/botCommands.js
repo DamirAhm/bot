@@ -9,6 +9,7 @@ module.exports = {
 	class: 'Класс',
 	city: 'Город',
 	schoolNumber: 'Номер школы',
+	calls: 'Звонки',
 
 	changeClass: 'Сменить класс',
 	changeSchool: 'Сменить школу',
@@ -54,6 +55,9 @@ module.exports = {
 	pickSchoolAndClass: 'Выбрать школу и класс',
 
 	giveFeedback: 'Оставить отзыв',
+
+	checkCallSchedule: 'Расписание звонков',
+	checkTimeTillNextCall: 'Время до следущего звонка',
 
 	makeOnlyForMe: 'Сделать доступным только мне',
 	yesAndMakeOnlyForMe: 'Да и сделать доступным только мне',

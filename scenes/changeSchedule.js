@@ -1,4 +1,5 @@
 //@ts-check
+const config = require('../config.js');
 const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { capitalize } = require('../utils/translits.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
@@ -18,7 +19,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ isAdmin } = require('../utils/roleChecks.js'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
-const isNeedToPickClass = false;
+const { isNeedToPickClass } = config;
 
 const changeScheduleScene = new Scene(
 	sceneNames.changeSchedule,

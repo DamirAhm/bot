@@ -45,6 +45,13 @@ const userOptions = [
 		withoutClass: false,
 	},
 	{
+		label: botCommands.calls,
+		payload: sceneNames.calls,
+		color: buttonColors.primary,
+		needClass: true,
+		withoutClass: false,
+	},
+	{
 		label: botCommands.giveFeedback,
 		payload: sceneNames.giveFeedback,
 		color: buttonColors.default,
@@ -54,7 +61,7 @@ const userOptions = [
 	{
 		label: botCommands.contributorPanel,
 		payload: sceneNames.contributorPanel,
-		color: buttonColors.primary,
+		color: buttonColors.negative,
 		roles: [Roles.contributor, Roles.admin],
 		needClass: true,
 		withoutClass: false,

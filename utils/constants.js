@@ -52,6 +52,7 @@ const sceneNames = {
 	removeRedactor: 'removeRedactor',
 	settings: 'settings',
 	start: 'start',
+	calls: 'calls',
 };
 
 module.exports = {

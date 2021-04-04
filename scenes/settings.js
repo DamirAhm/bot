@@ -6,7 +6,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ sendStudentInfo, getSchoolName } = require('../utils/functions.js');
+	{ sendStudentInfo, getSchoolName, mapButtons } = require('../utils/functions.js');
 const {
 	disableNotificationsAction,
 	enableNotificationsAction,
@@ -58,9 +58,11 @@ const settingsScene = new Scene(
 				ctx.reply(
 					'Что вы хотите изменить?',
 					null,
-					createBackKeyboard([
-						ctx.session.Student.settings.notificationsEnabled
-							? [
+					createBackKeyboard(
+						mapButtons([
+							[
+								ctx.session.Student.settings.notificationsEnabled,
+								[
 									Markup.button(
 										botCommands.disableNotifications,
 										buttonColors.primary,
@@ -69,17 +71,24 @@ const settingsScene = new Scene(
 										botCommands.changeNotificationTime,
 										buttonColors.primary,
 									),
-							  ]
-							: [Markup.button(botCommands.enbleNotifications, buttonColors.primary)],
-						[
-							Markup.button(botCommands.changeClass, buttonColors.primary),
-							Markup.button(
-								botCommands.changeDaysForNotification,
-								buttonColors.primary,
-							),
-						],
-						[Markup.button(botCommands.changeSchool, buttonColors.primary)],
-					]),
+								],
+								[
+									Markup.button(
+										botCommands.enbleNotifications,
+										buttonColors.primary,
+									),
+								],
+							],
+							[
+								Markup.button(botCommands.changeClass, buttonColors.primary),
+								Markup.button(
+									botCommands.changeDaysForNotification,
+									buttonColors.primary,
+								),
+							],
+							[Markup.button(botCommands.changeSchool, buttonColors.primary)],
+						]),
+					),
 				);
 			} else if (body === botCommands.back) {
 				ctx.scene.enter(sceneNames.default);

@@ -14,7 +14,12 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	botCommands = require('../utils/botCommands.js'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ mapListToKeyboard, getCityNames, getSchoolNumbers } = require('../utils/functions.js');
+	{
+		mapListToKeyboard,
+		getCityNames,
+		getSchoolNumbers,
+		mapButtons,
+	} = require('../utils/functions.js');
 
 const registerScene = new Scene(
 	sceneNames.register,
@@ -87,9 +92,10 @@ const registerScene = new Scene(
 					'Введите номер школы в которой вы учитесь',
 					null,
 					createBackKeyboard(
-						cityNames.includes(cityName)
-							? [[Markup.button(botCommands.checkExisting)]]
-							: [],
+						mapButtons([
+							cityNames.includes(cityName),
+							[[Markup.button(botCommands.checkExisting)]],
+						]),
 					),
 				);
 
@@ -178,9 +184,10 @@ const registerScene = new Scene(
 					'Введите номер школы в которой вы учитесь',
 					null,
 					createBackKeyboard(
-						cityNames.includes(cityName)
-							? [[Markup.button(botCommands.checkExisting)]]
-							: [],
+						mapButtons([
+							cityNames.includes(cityName),
+							[[Markup.button(botCommands.checkExisting)]],
+						]),
 					),
 				);
 				return;

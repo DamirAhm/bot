@@ -1,5 +1,6 @@
 //@ts-check
 
+const config = require('../config.js');
 const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { parseDate, getDateWithOffset } = require('../utils/dateFunctions.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
@@ -28,7 +29,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
-const isNeedToPickClass = false;
+const { isNeedToPickClass } = config;
 
 const addHomeworkScene = new Scene(
 	sceneNames.addHomework,

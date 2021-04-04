@@ -27,7 +27,7 @@ async function notifyAboutReboot(botInstance) {
 				extended: 1,
 			});
 
-			if (!res || (res.items[0] && !isStudentOnDefaultScene(res))) {
+			if (res && res.items[0] && !isStudentOnDefaultScene(res)) {
 				setTimeout(
 					async () =>
 						botInstance.sendMessage(

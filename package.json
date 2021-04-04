@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "rm -rf ./uploads && mkdir -p ./uploads && touch Feedback",
-    "start:dev": "NODE_ENV=development supervisor index -n -w .",
-    "start": "NODE_ENV=production node index",
+    "start:dev": "NODE_ENV=development supervisor -n -w index",
+    "start": "NODE_ENV=production node index.js",
     "logs": "heroku logs --tail",
     "start:debug": "NODE_ENV=development supervisor --inspect index -i",
     "deploy": "rsync -e \"sshpass -p $(cat ~/.ssh/damirahm.ru_password) ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no\" --archive --compress --progress --delete . root@damirahm.ru:/root/bot"
@@ -25,7 +25,7 @@
     "@vk-io/session": "^2.0.0",
     "axios": "^0.21.1",
     "body-parser": "^1.19.0",
-    "bot-database": "^3.2.1-4-ts-2",
+    "bot-database": "^3.4.3-2",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "form-data": "^3.0.0",

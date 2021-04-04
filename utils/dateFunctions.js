@@ -51,16 +51,62 @@ function parseDate(body) {
 		.map((/** @type {any} */ n) => (isNaN(Number(n)) ? undefined : Number(n)));
 }
 /**
- * @param {string} body
+ * @param {string} timeString
  */
-function parseTime(body) {
-	return body
-		.match(/([0-9]+):([0-9]+)/)
-		.slice(1)
-		.map((/** @type {any} */ n) => (isNaN(Number(n)) ? undefined : Number(n)));
+function parseTime(timeString) {
+	if (timeRegExp.test(timeString)) {
+		return timeString
+			.match(timeRegExp)
+			.slice(1)
+			.map((e) => parseInt(e));
+	} else {
+		throw new Error('Time string does not match format 00:00, got: ' + timeString);
+	}
+}
+const timeRegExp = /([0-9]{2}):([0-9]{2})/;
+
+function isTomorrowSunday() {
+	const curDayOfWeek = new Date().getDay();
+
+	return curDayOfWeek !== 6;
+}
+function isTodaySunday() {
+	const curDayOfWeek = new Date().getDay();
+
+	return curDayOfWeek === 0;
+}
+
+function getDiffBetweenTimesInMinutes(timeStringA, timeStringB) {
+	const [hoursA, minutesA] = parseTime(timeStringA);
+	const [hoursB, minutesB] = parseTime(timeStringB);
+
+	let res = 0;
+
+	if (timeStringA > timeStringB) {
+		res += (hoursA - hoursB) * 60;
+		res += minutesA - minutesB;
+	} else {
+		res += (hoursB - hoursA) * 60;
+		res += minutesB - minutesA;
+	}
+
+	return res;
+}
+
+/**
+ * @param {Date} date
+ */
+function getTimeFromDate(date) {
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	return `${hours}:${minutes}`;
 }
 
 module.exports = {
+	getTimeFromDate,
+	getDiffBetweenTimesInMinutes,
+	isTomorrowSunday,
+	isTodaySunday,
 	getDateWeekBefore,
 	getDateWithOffset,
 	getTomorrowDate,

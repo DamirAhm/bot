@@ -1,5 +1,6 @@
 //@ts-check
 
+const config = require('../config.js');
 const { buttonColors, sceneNames } = require('../utils/constants.js');
 const { getDayMonthString, getTomorrowDate, parseDate } = require('../utils/dateFunctions.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
@@ -15,13 +16,13 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{ isAdmin } = require('../utils/roleChecks.js'),
 	{ getHomeworkPayload } = require('../utils/studentsNotification'),
-	{ getLengthOfHomeworkWeek } = require('../utils/functions'),
+	{ getLengthOfHomeworkWeek, mapButtons } = require('../utils/functions'),
 	{ validateDate } = require('../utils/validators'),
 	{ sendHomework } = require('../utils/studentsNotification'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners'),
 	{ pickSchoolAndClassAction } = require('../utils/actions');
 
-const isNeedToPickClass = false;
+const { isNeedToPickClass } = config;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
@@ -63,17 +64,16 @@ const checkHomeworkScene = new Scene(
 						ctx.reply(
 							'На какую дату вы хотите узнать задание? (в формате ДД.ММ)',
 							null,
-							createBackKeyboard([
-								[Markup.button(botCommands.onTomorrow, buttonColors.positive)],
-								[
-									Markup.button(
-										new Date().getDay() >= 5
-											? botCommands.nextWeek
-											: botCommands.thisWeek,
-										buttonColors.primary,
-									),
-								],
-							]),
+							createBackKeyboard(
+								...mapButtons([
+									[Markup.button(botCommands.onTomorrow, buttonColors.positive)],
+									[
+										new Date().getDay() >= 5,
+										[Markup.button(botCommands.nextWeek, buttonColors.primary)],
+										[Markup.button(botCommands.thisWeek, buttonColors.primary)],
+									],
+								]),
+							),
 						);
 					} else {
 						ctx.scene.enter(sceneNames.register);

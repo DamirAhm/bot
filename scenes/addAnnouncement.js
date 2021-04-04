@@ -1,5 +1,6 @@
 //@ts-check
 
+const config = require('../config.js');
 const { buttonColors, sceneNames } = require('../utils/constants.js');
 const {
 	getTomorrowDate,
@@ -23,12 +24,13 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getSchoolName,
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
+		mapButtons,
 	} = require('../utils/functions.js'),
 	{ isAdmin, isContributor } = require('../utils/roleChecks'),
 	{ validateDate } = require('../utils/validators'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
-const isNeedToPickClass = false;
+const { isNeedToPickClass } = config;
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
@@ -165,9 +167,10 @@ const addAnnouncementScene = new Scene(
 					)}`,
 					ctx.session.newAnnouncement.attachments.map(({ value }) => value),
 					createConfirmKeyboard(
-						isUserContributor
-							? [[Markup.button(botCommands.yesAndMakeOnlyForMe, sceneNames.default)]]
-							: undefined,
+						mapButtons([
+							isUserContributor,
+							[Markup.button(botCommands.yesAndMakeOnlyForMe, sceneNames.default)],
+						]),
 					),
 				);
 			} else {

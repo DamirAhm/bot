@@ -1,6 +1,8 @@
 //@ts-check
 
+const config = require('../config.js');
 const { buttonColors, sceneNames } = require('../utils/constants.js');
+const { isTomorrowSunday } = require('../utils/dateFunctions.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
@@ -9,11 +11,11 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{ isAdmin } = require('../utils/roleChecks.js'),
-	{ getDayScheduleString, getScheduleString } = require('../utils/functions.js'),
+	{ getDayScheduleString, getScheduleString, mapButtons } = require('../utils/functions.js'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js'),
 	{ pickSchoolAndClassAction } = require('../utils/actions');
 
-const isNeedToPickClass = false;
+const { isNeedToPickClass } = config;
 
 const checkScheduleScene = new Scene(
 	sceneNames.checkSchedule,
@@ -23,10 +25,13 @@ const checkScheduleScene = new Scene(
 			'Как вы хотите получить расписание?',
 			null,
 			createBackKeyboard([
-				[
+				mapButtons([
 					Markup.button(botCommands.onToday, buttonColors.primary),
-					Markup.button(botCommands.onTomorrow, buttonColors.primary),
-				],
+					[
+						isTomorrowSunday(),
+						Markup.button(botCommands.onTomorrow, buttonColors.primary),
+					],
+				]),
 				[Markup.button(botCommands.onAllWeek, buttonColors.positive)],
 			]),
 		);
@@ -46,7 +51,7 @@ const checkScheduleScene = new Scene(
 					ctx.scene.enter(sceneNames.default);
 					return;
 				}
-				
+
 				const Student = await DataBase.getStudentByVkId(
 					ctx.session.userId || ctx.message.user_id,
 				);
