@@ -15,6 +15,7 @@ const {
 	getDiffBetweenTimesInMinutes,
 } = require('../utils/dateFunctions');
 const { mapButtons } = require('../utils/functions');
+const { cleanDataForSceneFromSession } = require('../utils/sessionCleaners');
 
 const DataBase = new DB(process.env.MONGODB_URI);
 
@@ -22,7 +23,21 @@ const { button } = Markup;
 
 const callsScene = new Scene(
 	sceneNames.calls,
-	(ctx) => {
+	async (ctx) => {
+		const School = await DataBase.getSchoolForStudent(ctx.message.user_id);
+
+		if (School.callSchedule.defaultSchedule.length === 0) {
+			ctx.reply(
+				'Расписание звонков в вашей школе пока не заполнено',
+				null,
+				await createDefaultKeyboard(undefined, ctx),
+			);
+			ctx.scene.enter(sceneNames.default);
+			return;
+		}
+
+		ctx.session.School = School;
+
 		ctx.reply(
 			'Что вы хотите узнать?',
 			null,
@@ -47,17 +62,14 @@ const callsScene = new Scene(
 				return;
 			}
 			case botCommands.checkCallSchedule.toLowerCase(): {
-				const Class = await DataBase.getClassForStudent(ctx.message.user_id);
+				const { School } = ctx.session;
 				let callSchedule;
 
 				if (isTodaySunday()) {
-					const callScheduleData = await DataBase.getCallSchedule(Class.schoolName);
+					const callScheduleData = await DataBase.getCallSchedule(School);
 					callSchedule = callScheduleData.defaultSchedule;
 				} else {
-					callSchedule = await DataBase.getCallCheduleForDay(
-						Class.schoolName,
-						new Date().getDay(),
-					);
+					callSchedule = await DataBase.getCallCheduleForDay(School, new Date().getDay());
 				}
 
 				const callScheduleStrings = callSchedule.map(
@@ -74,9 +86,9 @@ const callsScene = new Scene(
 			}
 			case botCommands.checkTimeTillNextCall.toLowerCase(): {
 				if (!isTodaySunday()) {
-					const Class = await DataBase.getClassForStudent(ctx.message.user_id);
+					const { School } = ctx.session;
 					const callSchedule = await DataBase.getCallCheduleForDay(
-						Class.schoolName,
+						School,
 						new Date().getDay(),
 					);
 
@@ -111,6 +123,8 @@ const callsScene = new Scene(
 				ctx.reply(botCommands.notUnderstood);
 			}
 		}
+
+		cleanDataForSceneFromSession(ctx);
 	},
 );
 

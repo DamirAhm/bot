@@ -3,6 +3,7 @@
 const sceneInfoInSession = ['nextScene', 'pickFor', 'backScene', 'step', 'backStep'];
 const userDataInSession = ['role', 'userId', 'fullName', 'firstScene', 'secondScene'];
 const dataForSceneInSession = [
+	'School',
 	'Class',
 	'Student',
 	'newHomework',
