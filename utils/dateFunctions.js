@@ -68,7 +68,7 @@ const timeRegExp = /([0-9]{2}):([0-9]{2})/;
 function isTomorrowSunday() {
 	const curDayOfWeek = new Date().getDay();
 
-	return curDayOfWeek !== 6;
+	return curDayOfWeek === 6;
 }
 function isTodaySunday() {
 	const curDayOfWeek = new Date().getDay();

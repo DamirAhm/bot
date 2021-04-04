@@ -20,21 +20,32 @@ const { isNeedToPickClass } = config;
 const checkScheduleScene = new Scene(
 	sceneNames.checkSchedule,
 	(ctx) => {
-		ctx.scene.next();
-		ctx.reply(
-			'Как вы хотите получить расписание?',
-			null,
-			createBackKeyboard([
-				mapButtons([
-					[!isTodaySunday(), Markup.button(botCommands.onToday, buttonColors.primary)],
+		try {
+			console.log(isTodaySunday(), isTomorrowSunday());
+			ctx.reply(
+				'Как вы хотите получить расписание?',
+				null,
+				createBackKeyboard(
 					[
-						!isTomorrowSunday(),
-						Markup.button(botCommands.onTomorrow, buttonColors.primary),
-					],
-				]),
-				[Markup.button(botCommands.onAllWeek, buttonColors.positive)],
-			]),
-		);
+						mapButtons([
+							[
+								!isTodaySunday(),
+								Markup.button(botCommands.onToday, buttonColors.primary),
+							],
+							[
+								!isTomorrowSunday(),
+								Markup.button(botCommands.onTomorrow, buttonColors.primary),
+							],
+						]),
+						[Markup.button(botCommands.onAllWeek, buttonColors.positive)],
+					].filter((arr) => arr.length > 0),
+				),
+			);
+			ctx.scene.next();
+		} catch (e) {
+			console.error(e);
+			ctx.scene.enter(sceneNames.error);
+		}
 	},
 	async (ctx) => {
 		try {
