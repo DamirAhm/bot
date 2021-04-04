@@ -2,7 +2,7 @@
 
 const config = require('../config.js');
 const { buttonColors, sceneNames } = require('../utils/constants.js');
-const { isTomorrowSunday } = require('../utils/dateFunctions.js');
+const { isTomorrowSunday, isTodaySunday } = require('../utils/dateFunctions.js');
 const Scene = require('node-vk-bot-api/lib/scene'),
 	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
 	{ DataBase: DB } = require('bot-database'),
@@ -26,9 +26,9 @@ const checkScheduleScene = new Scene(
 			null,
 			createBackKeyboard([
 				mapButtons([
-					Markup.button(botCommands.onToday, buttonColors.primary),
+					[!isTodaySunday(), Markup.button(botCommands.onToday, buttonColors.primary)],
 					[
-						isTomorrowSunday(),
+						!isTomorrowSunday(),
 						Markup.button(botCommands.onTomorrow, buttonColors.primary),
 					],
 				]),
