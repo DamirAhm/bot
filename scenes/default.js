@@ -59,6 +59,7 @@ const defaultScene = new Scene(
 				}
 				case botCommands.calls: {
 					ctx.scene.enter(sceneNames.calls);
+					break;
 				}
 				case botCommands.giveFeedback: {
 					ctx.scene.enter(sceneNames.giveFeedback);
