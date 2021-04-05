@@ -63,17 +63,12 @@ const callsScene = new Scene(
 			}
 			case botCommands.checkCallSchedule.toLowerCase(): {
 				const { School } = ctx.session;
-				let callSchedule;
+				const currentWeekDay = new Date().getDay() === 0 ? 7 : new Date().getDay();
 
-				if (isTodaySunday()) {
-					const callScheduleData = await DataBase.getCallSchedule(School);
-					callSchedule = callScheduleData.defaultSchedule;
-				} else {
-					callSchedule = await DataBase.getCallCheduleForDay(School, new Date().getDay());
-				}
+				let callSchedule = await DataBase.getCallCheduleForDay(School, currentWeekDay);
 
 				const callScheduleStrings = callSchedule.map(
-					({ start, end }, i) => `${start} - ${end}`,
+					({ start, end }) => `${start} - ${end}`,
 				);
 
 				ctx.reply(
@@ -87,9 +82,10 @@ const callsScene = new Scene(
 			case botCommands.checkTimeTillNextCall.toLowerCase(): {
 				if (!isTodaySunday()) {
 					const { School } = ctx.session;
+					const currentWeekDay = new Date().getDay();
 					const callSchedule = await DataBase.getCallCheduleForDay(
 						School,
-						new Date().getDay(),
+						currentWeekDay,
 					);
 
 					const nextCallTimeString = DataBase.getNextCallTime(callSchedule, new Date());
@@ -114,8 +110,9 @@ const callsScene = new Scene(
 						);
 					}
 				} else {
-					ctx.reply('Сегодня воскресенье, никаких уроков, только чилл');
+					ctx.reply('Сегодня воскресенье, какие звонки? Только чилл');
 				}
+
 				ctx.scene.enter(sceneNames.default);
 				break;
 			}
