@@ -1,5 +1,4 @@
 //@ts-check
-
 const { monthsRP } = require('./messagePayloading');
 
 function getDateWeekBefore() {

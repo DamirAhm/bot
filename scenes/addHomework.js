@@ -22,9 +22,10 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		getTextsAndAttachmentsFromForwarded,
 		mapAttachmentsToObject,
 		getPossibleLessonsAndSetInSession,
+		mapButtons,
 	} = require('../utils/functions.js'),
 	{ isAdmin, isContributor } = require('../utils/roleChecks'),
-	{ validateDate } = require('../utils/validators'),
+	{ isValidDateString } = require('../utils/validators'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
 const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
@@ -182,19 +183,15 @@ const addHomeworkScene = new Scene(
 				);
 
 				ctx.session.newHomework.to = datePrediction;
-			} else if (dateRegExp.test(body)) {
+			} else if (isValidDateString(body)) {
 				const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-				if (validateDate(month, day, year)) {
-					const date = new Date(year, month - 1, day);
+				const date = new Date(year, month - 1, day);
 
-					if (date.getTime() >= getDateWithOffset(0).getTime()) {
-						ctx.session.newHomework.to = date;
-					} else {
-						ctx.reply('Дата не может быть в прошлом');
-					}
+				if (date.getTime() >= getDateWithOffset(0).getTime()) {
+					ctx.session.newHomework.to = date;
 				} else {
-					ctx.reply('Проверьте правильность введенной даты');
+					ctx.reply('Дата не может быть в прошлом');
 				}
 			} else {
 				ctx.reply('Дата должна быть в формате ДД.ММ');
@@ -217,9 +214,17 @@ const addHomeworkScene = new Scene(
                 `,
 					ctx.session.newHomework.attachments.map(({ value }) => value),
 					createConfirmKeyboard(
-						isUserContributor
-							? [[Markup.button(botCommands.yesAndMakeOnlyForMe, sceneNames.default)]]
-							: undefined,
+						mapButtons([
+							[
+								isUserContributor,
+								[
+									Markup.button(
+										botCommands.yesAndMakeOnlyForMe,
+										sceneNames.default,
+									),
+								],
+							],
+						]),
 					),
 				);
 			} else {

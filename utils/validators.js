@@ -28,22 +28,31 @@ function isValidSchoolNumber(number) {
 		return +number >= 0 && +number % 1 === 0;
 	} else return false;
 }
+
+const dateRegExp = /([0-9]{1,2})\.([0-9]{1,2})(\.[0-9]{2,4})?/;
 /**
- * @param {number} month
- * @param {any} day
- * @param {number} year
+ * @param {string} date
  */
-function validateDate(month, day, year) {
-	return (
-		inRange(month, 1, 12) &&
-		inRange(day, 1, maxDatesPerMonth[month - 1]) &&
-		year >= new Date().getFullYear()
-	);
+function isValidDateString(date) {
+	if (dateRegExp.test(date)) {
+		const [day, month, year] = date.match(dateRegExp).slice(1).map(Number);
+
+		if (
+			month &&
+			inRange(month, 1, 12) &&
+			day &&
+			inRange(day, 1, maxDatesPerMonth[month - 1]) &&
+			(isNaN(year) || year >= new Date().getFullYear())
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 module.exports = {
+	isValidDateString,
 	isValidClassName,
 	isValidCityName,
 	isValidSchoolNumber,
-	validateDate,
 };

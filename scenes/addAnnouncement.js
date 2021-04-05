@@ -27,12 +27,10 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 		mapButtons,
 	} = require('../utils/functions.js'),
 	{ isAdmin, isContributor } = require('../utils/roleChecks'),
-	{ validateDate } = require('../utils/validators'),
+	{ isValidDateString } = require('../utils/validators'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js');
 
 const { isNeedToPickClass } = config;
-
-const dateRegExp = /[0-9]+\.[0-9]+(\.[0-9])?/;
 
 const addAnnouncementScene = new Scene(
 	sceneNames.addAnnouncement,
@@ -137,19 +135,15 @@ const addAnnouncementScene = new Scene(
 				ctx.session.newAnnouncement.to = new Date();
 			} else if (body === botCommands.onTomorrow) {
 				ctx.session.newAnnouncement.to = getTomorrowDate();
-			} else if (dateRegExp.test(body)) {
+			} else if (isValidDateString(body)) {
 				const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-				if (validateDate(month, day, year)) {
-					const date = new Date(year, month - 1, day);
+				const date = new Date(year, month - 1, day);
 
-					if (date.getTime() >= getDateWithOffset(0).getTime()) {
-						ctx.session.newAnnouncement.to = date;
-					} else {
-						ctx.reply('Дата не может быть в прошлом');
-					}
+				if (date.getTime() >= getDateWithOffset(0).getTime()) {
+					ctx.session.newAnnouncement.to = date;
 				} else {
-					ctx.reply('Проверьте правильность введенной даты');
+					ctx.reply('Дата не может быть в прошлом');
 				}
 			} else {
 				ctx.reply('Дата должна быть в формате ДД.ММ');
@@ -160,19 +154,26 @@ const addAnnouncementScene = new Scene(
 				const { Student } = ctx.session;
 				const isUserContributor = await isContributor(Student);
 
-				ctx.scene.next();
 				ctx.reply(
-					`Вы уверены что хотите создать такое объявление? \n ${createContentDiscription(
+					`Вы уверены что хотите создать такое объявление? ${createContentDiscription(
 						ctx.session.newAnnouncement,
 					)}`,
 					ctx.session.newAnnouncement.attachments.map(({ value }) => value),
 					createConfirmKeyboard(
 						mapButtons([
-							isUserContributor,
-							[Markup.button(botCommands.yesAndMakeOnlyForMe, sceneNames.default)],
+							[
+								isUserContributor,
+								[
+									Markup.button(
+										botCommands.yesAndMakeOnlyForMe,
+										sceneNames.default,
+									),
+								],
+							],
 						]),
 					),
 				);
+				ctx.scene.next();
 			} else {
 				throw new Error("There's no to prop in new announcement");
 			}
@@ -225,22 +226,6 @@ const addAnnouncementScene = new Scene(
 				);
 
 				if (res) {
-					// axios.post(process.env.UPDATE_NOTIFICATION_URL, {
-					// 	data: {
-					// 		onAnnouncementAdded: {
-					// 			text,
-					// 			attachments,
-					// 			to,
-					// 			student_id: ctx.message.user_id,
-					// 			_id: res,
-					// 			pinned: false,
-					// 			className,
-					// 			schoolName: ctx.session.Class.schoolName,
-					// 		},
-					// 	},
-					// 	trigger: 'ON_ANNOUNCEMENT_ADDED',
-					// });
-
 					ctx.scene.enter(sceneNames.default);
 					ctx.reply(
 						'Объявление успешно создано',

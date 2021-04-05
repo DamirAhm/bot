@@ -17,7 +17,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	{ isAdmin } = require('../utils/roleChecks.js'),
 	{ getHomeworkPayload } = require('../utils/studentsNotification'),
 	{ getLengthOfHomeworkWeek, mapButtons } = require('../utils/functions'),
-	{ validateDate } = require('../utils/validators'),
+	{ isValidDateString } = require('../utils/validators'),
 	{ sendHomework } = require('../utils/studentsNotification'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners'),
 	{ pickSchoolAndClassAction } = require('../utils/actions');
@@ -65,7 +65,7 @@ const checkHomeworkScene = new Scene(
 							'На какую дату вы хотите узнать задание? (в формате ДД.ММ)',
 							null,
 							createBackKeyboard(
-								...mapButtons([
+								mapButtons([
 									[Markup.button(botCommands.onTomorrow, buttonColors.positive)],
 									[
 										new Date().getDay() >= 5,
@@ -193,15 +193,10 @@ const checkHomeworkScene = new Scene(
 
 				if (body === botCommands.onTomorrow) {
 					date = getTomorrowDate();
-				} else if (dateRegExp.test(body)) {
+				} else if (isValidDateString(body)) {
 					const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-					if (validateDate(month, day, year)) {
-						date = new Date(year, month - 1, day);
-					} else {
-						ctx.reply('Проверьте правильность введенной даты');
-						return;
-					}
+					date = new Date(year, month - 1, day);
 				} else {
 					ctx.reply('Дата должна быть в формате ДД.ММ');
 					return;

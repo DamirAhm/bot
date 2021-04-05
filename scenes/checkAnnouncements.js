@@ -10,7 +10,7 @@ const Scene = require('node-vk-bot-api/lib/scene'),
 	Markup = require('node-vk-bot-api/lib/markup'),
 	DataBase = new DB(process.env.MONGODB_URI),
 	{ isAdmin } = require('../utils/roleChecks.js'),
-	{ validateDate } = require('../utils/validators'),
+	{ isValidDateString } = require('../utils/validators'),
 	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners'),
 	{ pickSchoolAndClassAction } = require('../utils/actions');
 
@@ -101,15 +101,10 @@ const checkAnnouncementsScene = new Scene(
 				date = new Date();
 			} else if (body === botCommands.onTomorrow) {
 				date = getTomorrowDate();
-			} else if (dateRegExp.test(body)) {
+			} else if (isValidDateString(body)) {
 				const [day, month, year = new Date().getFullYear()] = parseDate(body);
 
-				if (validateDate(month, day, year)) {
-					date = new Date(year, month - 1, day);
-				} else {
-					ctx.reply('Проверьте правильность введенной даты');
-					return;
-				}
+				date = new Date(year, month - 1, day);
 			} else {
 				ctx.reply('Дата должна быть в формате ДД.ММ');
 				return;
