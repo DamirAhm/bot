@@ -116,7 +116,11 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 					const {
 						studentsWithoutPreferences,
 						homeworkForEachStudent,
-					} = getNotifiableIdsWithHomeworkForEach(studentsOnDayOffset, dayHomework);
+					} = getNotifiableIdsWithHomeworkForEach(
+						studentsOnDayOffset,
+						dayHomework,
+						dayOffset,
+					);
 					notified = notified.concat([...new Set([...studentsWithoutPreferences])]);
 
 					let delayAfterStudentWithPreferences = 0;
@@ -177,8 +181,9 @@ function getTomorrowOrAfterTomorrowOrDateString(date) {
 /**
  * @param {import("bot-database/build/types").StudentDocument[]} students
  * @param {import("bot-database/build/types").IHomework[]} homework
+ * @param {number} dayOffset
  */
-function getNotifiableIdsWithHomeworkForEach(students, homework) {
+function getNotifiableIdsWithHomeworkForEach(students, homework, dayOffset) {
 	/**
 	 * @type {{[key: number]: import("bot-database/build/types").IHomework[]}} homeworkForEachStudent
 	 */
@@ -188,7 +193,7 @@ function getNotifiableIdsWithHomeworkForEach(students, homework) {
 	for (const {
 		lastHomeworkCheck,
 		vkId,
-		settings: { notificationsEnabled, notificationTime },
+		settings: { notificationsEnabled, notificationTime, daysForNotification },
 	} of students) {
 		if (homework.every((hw) => hw.userPreferences[vkId] === undefined)) {
 			if (notificationsEnabled) {
@@ -211,7 +216,12 @@ function getNotifiableIdsWithHomeworkForEach(students, homework) {
 				}
 
 				if (hw.onlyFor.length === 0 || hw.onlyFor.includes(vkId)) {
-					if (studentNotificationsEnabled) {
+					if (
+						studentNotificationsEnabled &&
+						(daysForNotification.includes(dayOffset) ||
+							(hw.userPreferences[vkId]?.daysForNotification &&
+								hw.userPreferences[vkId].daysForNotification.includes(dayOffset)))
+					) {
 						const [_, hours, mins] = studentNotificationTime
 							.match(/([0-9]+):([0-9]+)/)
 							.map(Number);
