@@ -40,14 +40,22 @@ function isToday(date) {
 function getDayMonthString(date) {
 	return `${date.getDate()} ${monthsRP[date.getMonth()]}`;
 }
+
+const dateRegExp = /^([0-9]{1,2})\.([0-9]{1,2})\.?([0-9]{2}|[0-9]{4})?$/;
 /**
  * @param {string} body
  */
 function parseDate(body) {
-	return body
-		.match(/([0-9]+)\.([0-9]+)\.?([0-9]+)?/)
-		.slice(1)
-		.map((/** @type {any} */ n) => (isNaN(Number(n)) ? undefined : Number(n)));
+	const parsedDate = body
+		.match(dateRegExp)
+		.slice(1, 4)
+		.map((n) => (isNaN(Number(n)) ? undefined : Number(n)));
+
+	if (parsedDate?.[2] <= 99) {
+		parsedDate[2] += 2000;
+	}
+
+	return parsedDate;
 }
 /**
  * @param {string} timeString
@@ -56,7 +64,7 @@ function parseTime(timeString) {
 	if (timeRegExp.test(timeString)) {
 		return timeString
 			.match(timeRegExp)
-			.slice(1)
+			.slice(1, 3)
 			.map((e) => parseInt(e));
 	} else {
 		throw new Error('Time string does not match format 00:00, got: ' + timeString);
