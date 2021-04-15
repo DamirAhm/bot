@@ -207,20 +207,21 @@ function getNotifiableIdsWithHomeworkForEach(students, homework, dayOffset) {
 			const homeworkForStudent = homework.filter((hw) => {
 				let studentNotificationTime;
 				let studentNotificationsEnabled;
+				let studentDaysForNotification;
 
 				if (hw.userPreferences[vkId] !== undefined) {
 					studentNotificationTime =
 						hw.userPreferences[vkId].notificationTime ?? notificationTime;
 					studentNotificationsEnabled =
 						hw.userPreferences[vkId].notificationEnabled ?? notificationsEnabled;
+					studentDaysForNotification =
+						hw.userPreferences[vkId].daysForNotification ?? daysForNotification;
 				}
 
 				if (hw.onlyFor.length === 0 || hw.onlyFor.includes(vkId)) {
 					if (
 						studentNotificationsEnabled &&
-						(daysForNotification.includes(dayOffset) ||
-							(hw.userPreferences[vkId]?.daysForNotification &&
-								hw.userPreferences[vkId].daysForNotification.includes(dayOffset)))
+						studentDaysForNotification.includes(dayOffset)
 					) {
 						const [_, hours, mins] = studentNotificationTime
 							.match(/([0-9]+):([0-9]+)/)
