@@ -27,7 +27,7 @@ const changables = {
 	school: 'school',
 	city: 'city',
 };
-const timeRegExp = /[0-9]+:[0-9]+/;
+const timeRegExp = /([0-9]{1,2}):([0-9]{2})/;
 
 const settingsScene = new Scene(
 	sceneNames.settings,

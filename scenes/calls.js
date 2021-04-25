@@ -88,8 +88,8 @@ const callsScene = new Scene(
 						currentWeekDay,
 					);
 
-					const nextCallTimeString = DataBase.getNextCallTime(callSchedule, new Date());
-					const currentTimeString = getTimeFromDate(new Date());
+					const nextCallTimeString = DataBase.getNextCallTime(callSchedule, new Date()).padStart(5, '0');
+					const currentTimeString = getTimeFromDate(new Date()).padStart(5, '0');
 
 					if (currentTimeString > nextCallTimeString) {
 						ctx.reply(

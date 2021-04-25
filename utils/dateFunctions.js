@@ -70,7 +70,7 @@ function parseTime(timeString) {
 		throw new Error('Time string does not match format 00:00, got: ' + timeString);
 	}
 }
-const timeRegExp = /([0-9]{2}):([0-9]{2})/;
+const timeRegExp = /([0-9]{1,2}):([0-9]{2})/;
 
 function isTomorrowSunday() {
 	const curDayOfWeek = new Date().getDay();
