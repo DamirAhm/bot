@@ -1,27 +1,32 @@
 //@ts-check
-const { mapHomeworkByLesson } = require('bot-database/build/utils/functions');
-const { DataBase: DB } = require('bot-database');
-const config = require('../config.js');
-const { Lessons } = require('bot-database');
-const botCommands = require('./botCommands');
+const { mapHomeworkByLesson } = require("bot-database/build/utils/functions");
+const { DataBase: DB } = require("bot-database");
+const config = require("../config.js");
+const { Lessons } = require("bot-database");
+const botCommands = require("./botCommands");
 const {
 	isOneDay,
 	getDateWithOffset,
 	getTomorrowDate,
 	getDayMonthString,
 	isToday,
-} = require('./dateFunctions');
-const { createDefaultKeyboard } = require('./messagePayloading.js');
+	parseTime,
+} = require("./dateFunctions");
+const { createDefaultKeyboard } = require("./messagePayloading.js");
 
 const DataBase = new DB(process.env.MONGODB_URI);
 
 async function notifyAboutReboot(botInstance) {
 	try {
 		const studentsInfos = await DataBase.getAllStudents().then((students) =>
-			students.map(({ vkId, role, class: _class }) => ({ vkId, role, class: _class })),
+			students.map(({ vkId, role, class: _class }) => ({
+				vkId,
+				role,
+				class: _class,
+			}))
 		);
 		for (const { role, vkId, class: StudentsClass } of studentsInfos) {
-			const res = await botInstance.execute('messages.getHistory', {
+			const res = await botInstance.execute("messages.getHistory", {
 				count: 1,
 				user_id: vkId,
 				extended: 1,
@@ -34,9 +39,9 @@ async function notifyAboutReboot(botInstance) {
 							[vkId],
 							botCommands.botWasRebooted,
 							null,
-							await createDefaultKeyboard({ role, class: StudentsClass }),
+							await createDefaultKeyboard({ role, class: StudentsClass })
 						),
-					50,
+					50
 				);
 			}
 		}
@@ -54,11 +59,14 @@ function isStudentOnDefaultScene(res) {
 	text = text.toLowerCase().trim();
 
 	const messageMatches =
-		text.startsWith('меню') ||
+		text.startsWith("меню") ||
 		text === botCommands.botWasRebooted.toLowerCase() ||
-		text.startsWith('задание на') ||
-		new RegExp(`^(${Lessons.map((l) => l.toLowerCase()).join('|')}):`, 'i').test(text);
-	const messageIsFromBot = -from_id === +config['GROUP_ID'];
+		text.startsWith("задание на") ||
+		new RegExp(
+			`^(${Lessons.map((l) => l.toLowerCase()).join("|")}):`,
+			"i"
+		).test(text);
+	const messageIsFromBot = -from_id === +config["GROUP_ID"];
 
 	return messageMatches && messageIsFromBot;
 }
@@ -75,7 +83,7 @@ async function notifyStudents(botInstance) {
 				await sendHomeworkToClassStudents(Class, botInstance);
 			}
 		} else {
-			console.error('Cant access classes from database');
+			console.error("Cant access classes from database");
 		}
 	} catch (e) {
 		console.error(e);
@@ -91,7 +99,9 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 		const { students } = await DataBase.populate(Class);
 
 		if (students?.length) {
-			const additionalDayOffsets = dayOffsetsToAddAccordingToPreferences(Class.homework);
+			const additionalDayOffsets = dayOffsetsToAddAccordingToPreferences(
+				Class.homework
+			);
 			const daysOffsets = new Set([
 				...students.map(({ settings }) => settings.daysForNotification).flat(),
 				...Object.keys(additionalDayOffsets).map(Number),
@@ -103,13 +113,13 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 				const studentsOnDayOffset = students.filter(
 					({ settings, vkId }) =>
 						settings.daysForNotification.includes(dayOffset) ||
-						additionalDayOffsets[dayOffset]?.includes(vkId.toString()),
+						additionalDayOffsets[dayOffset]?.includes(vkId.toString())
 				);
 
 				const dateWithOffset = getDateWithOffset(dayOffset);
 				const dayHomework = await DataBase.getHomeworkByDate(
 					{ classNameOrInstance: Class, schoolName: Class.schoolName },
-					dateWithOffset,
+					dateWithOffset
 				);
 
 				if (dayHomework.length > 0) {
@@ -119,9 +129,11 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 					} = getNotifiableIdsWithHomeworkForEach(
 						studentsOnDayOffset,
 						dayHomework,
-						dayOffset,
+						dayOffset
 					);
-					notified = notified.concat([...new Set([...studentsWithoutPreferences])]);
+					notified = notified.concat([
+						...new Set([...studentsWithoutPreferences]),
+					]);
 
 					let delayAfterStudentWithPreferences = 0;
 
@@ -135,7 +147,7 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 
 							setTimeout(() => {
 								let message = `Задание на ${getTomorrowOrAfterTomorrowOrDateString(
-									dateWithOffset,
+									dateWithOffset
 								)}\n`;
 								botInstance.sendMessage([+vkId], message);
 							}, (homeworkForStudent.length + 1) * 50);
@@ -143,18 +155,27 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 						}
 					}
 
-					setTimeout(() => {
-						const commonHomework = dayHomework.filter((hw) => hw.onlyFor.length === 0);
+					setTimeout(async () => {
+						const commonHomework = dayHomework.filter(
+							(hw) => hw.onlyFor.length === 0
+						);
 						const parsedHomework = mapHomeworkByLesson(commonHomework);
-						if (commonHomework.length > 0 && studentsWithoutPreferences.length > 0) {
-							sendHomework(parsedHomework, botInstance, studentsWithoutPreferences);
+						if (
+							commonHomework.length > 0 &&
+							studentsWithoutPreferences.length > 0
+						) {
+							await sendHomework(
+								parsedHomework,
+								botInstance,
+								studentsWithoutPreferences
+							);
 
 							setTimeout(() => {
 								let message = `Задание на ${getTomorrowOrAfterTomorrowOrDateString(
-									dateWithOffset,
+									dateWithOffset
 								)}\n`;
 								botInstance.sendMessage(studentsWithoutPreferences, message);
-							}, (dayHomework.length + 1) * 50);
+							}, (commonHomework.length + 1) * 50);
 						}
 					}, (delayAfterStudentWithPreferences + 1) * 50);
 				}
@@ -173,8 +194,8 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
  * @param {Date} date
  */
 function getTomorrowOrAfterTomorrowOrDateString(date) {
-	if (isOneDay(date, getTomorrowDate())) return 'завтра';
-	else if (isOneDay(date, getDateWithOffset(2))) return 'послезавтра';
+	if (isOneDay(date, getTomorrowDate())) return "завтра";
+	else if (isOneDay(date, getDateWithOffset(2))) return "послезавтра";
 	else return getDayMonthString(date);
 }
 
@@ -190,14 +211,25 @@ function getNotifiableIdsWithHomeworkForEach(students, homework, dayOffset) {
 	const homeworkForEachStudent = {};
 	const studentsWithoutPreferences = [];
 
+	const studentsWithPreferences = [
+		...homework.reduce((acc, { userPreferences, onlyFor }) => {
+			const studentsForThisHomework = new Set([
+				...Object.keys(userPreferences),
+				...onlyFor.map(String),
+			]);
+
+			return new Set([...acc, ...studentsForThisHomework]);
+		}, new Set()),
+	];
+
 	for (const {
 		lastHomeworkCheck,
 		vkId,
 		settings: { notificationsEnabled, notificationTime, daysForNotification },
 	} of students) {
-		if (homework.every((hw) => hw.userPreferences[vkId] === undefined)) {
-			if (notificationsEnabled) {
-				const [_, hours, mins] = notificationTime.match(/([0-9]+):([0-9]+)/).map(Number);
+		if (!studentsWithPreferences.includes(vkId.toString())) {
+			if (notificationsEnabled && daysForNotification.includes(dayOffset)) {
+				const [_, hours, mins] = parseTime(notificationTime);
 
 				if (isReadyToNotificate(hours, mins, lastHomeworkCheck)) {
 					studentsWithoutPreferences.push(vkId);
@@ -205,28 +237,21 @@ function getNotifiableIdsWithHomeworkForEach(students, homework, dayOffset) {
 			}
 		} else {
 			const homeworkForStudent = homework.filter((hw) => {
-				let studentNotificationTime;
-				let studentNotificationsEnabled;
-				let studentDaysForNotification;
-
-				if (hw.userPreferences[vkId] !== undefined) {
-					studentNotificationTime =
-						hw.userPreferences[vkId].notificationTime ?? notificationTime;
-					studentNotificationsEnabled =
-						hw.userPreferences[vkId].notificationEnabled ?? notificationsEnabled;
-					studentDaysForNotification =
-						hw.userPreferences[vkId].daysForNotification ?? daysForNotification;
-				}
+				let studentNotificationTime =
+					hw.userPreferences[vkId]?.notificationTime ?? notificationTime;
+				let studentNotificationsEnabled =
+					hw.userPreferences[vkId]?.notificationEnabled ?? notificationsEnabled;
+				let studentDaysForNotification =
+					hw.userPreferences[vkId]?.daysForNotification ?? daysForNotification;
 
 				if (hw.onlyFor.length === 0 || hw.onlyFor.includes(vkId)) {
 					if (
 						studentNotificationsEnabled &&
 						studentDaysForNotification.includes(dayOffset)
 					) {
-						const [_, hours, mins] = studentNotificationTime
-							.match(/([0-9]+):([0-9]+)/)
-							.map(Number);
+						const [_, hours, mins] = parseTime(studentNotificationTime);
 
+						//!TODO remove
 						return isReadyToNotificate(hours, mins, lastHomeworkCheck);
 					}
 				}
@@ -261,19 +286,27 @@ function isReadyToNotificate(hours, mins, lastHomeworkCheck) {
  * @param {number[]} notifiableIds
  */
 function sendHomework(parsedHomework, botInstance, notifiableIds) {
-	if (notifiableIds.length > 0) {
-		let index = 1;
+	return new Promise(async (res) => {
+		if (notifiableIds.length > 0) {
+			let index = 1;
 
-		for (const [lesson, homework] of parsedHomework) {
-			//Отфильтровать дз с onlyFor и отдельно оповещать тех, у кого есть такое дз
+			for (const [lesson, homework] of parsedHomework) {
+				//Отфильтровать дз с onlyFor и отдельно оповещать тех, у кого есть такое дз
 
-			let { homeworkMessage, attachments } = getHomeworkPayload(lesson, homework);
+				let { homeworkMessage, attachments } = getHomeworkPayload(
+					lesson,
+					homework
+				);
 
-			setTimeout(() => {
-				botInstance.sendMessage(notifiableIds, homeworkMessage, attachments);
-			}, index++ * 15);
+				setTimeout(() => {
+					botInstance.sendMessage(notifiableIds, homeworkMessage, attachments);
+					if (index === parsedHomework.size) {
+						res();
+					}
+				}, index++ * 50);
+			}
 		}
-	}
+	});
 }
 /**
  * @param {import("bot-database/build/types").IHomework[]} homework
@@ -283,7 +316,9 @@ function dayOffsetsToAddAccordingToPreferences(homework) {
 	 * @type {{[key: number]: string[]}}
 	 */
 	let dayOffsets = {};
-	const userPreferences = homework.map(({ userPreferences }) => userPreferences);
+	const userPreferences = homework.map(
+		({ userPreferences }) => userPreferences
+	);
 
 	for (const preference of userPreferences) {
 		if (Object.keys(preference).length > 0) {
@@ -296,7 +331,7 @@ function dayOffsetsToAddAccordingToPreferences(homework) {
 					preference[vkId].daysForNotification.forEach((dayOffset) =>
 						dayOffsets[dayOffset]
 							? dayOffsets[dayOffset].push(vkId)
-							: (dayOffsets[dayOffset] = [vkId]),
+							: (dayOffsets[dayOffset] = [vkId])
 					);
 				}
 			}
@@ -315,7 +350,7 @@ function getHomeworkPayload(lesson, homework) {
 
 	for (let i = 0; i < homework.length; i++) {
 		const hw = homework[i];
-		homeworkMessage += hw.text ? `${i + 1}: ${hw.text}\n` : '';
+		homeworkMessage += hw.text ? `${i + 1}: ${hw.text}\n` : "";
 		attachments = attachments.concat(hw.attachments?.map(({ value }) => value));
 	}
 	return { homeworkMessage, attachments };
