@@ -123,14 +123,12 @@ async function sendHomeworkToClassStudents(Class, botInstance) {
 				);
 
 				if (dayHomework.length > 0) {
-					const {
-						studentsWithoutPreferences,
-						homeworkForEachStudent,
-					} = getNotifiableIdsWithHomeworkForEach(
-						studentsOnDayOffset,
-						dayHomework,
-						dayOffset
-					);
+					const { studentsWithoutPreferences, homeworkForEachStudent } =
+						getNotifiableIdsWithHomeworkForEach(
+							studentsOnDayOffset,
+							dayHomework,
+							dayOffset
+						);
 					notified = notified.concat([
 						...new Set([...studentsWithoutPreferences]),
 					]);
@@ -229,7 +227,7 @@ function getNotifiableIdsWithHomeworkForEach(students, homework, dayOffset) {
 	} of students) {
 		if (!studentsWithPreferences.includes(vkId.toString())) {
 			if (notificationsEnabled && daysForNotification.includes(dayOffset)) {
-				const [_, hours, mins] = parseTime(notificationTime);
+				const [hours, mins] = parseTime(notificationTime);
 
 				if (isReadyToNotificate(hours, mins, lastHomeworkCheck)) {
 					studentsWithoutPreferences.push(vkId);
@@ -249,9 +247,8 @@ function getNotifiableIdsWithHomeworkForEach(students, homework, dayOffset) {
 						studentNotificationsEnabled &&
 						studentDaysForNotification.includes(dayOffset)
 					) {
-						const [_, hours, mins] = parseTime(studentNotificationTime);
+						const [hours, mins] = parseTime(studentNotificationTime);
 
-						//!TODO remove
 						return isReadyToNotificate(hours, mins, lastHomeworkCheck);
 					}
 				}
