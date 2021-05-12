@@ -1,19 +1,26 @@
 //@ts-check
 
-const config = require('../config.js');
-const { buttonColors, sceneNames } = require('../utils/constants.js');
-const { isTomorrowSunday, isTodaySunday } = require('../utils/dateFunctions.js');
-const Scene = require('node-vk-bot-api/lib/scene'),
-	{ createBackKeyboard } = require('../utils/messagePayloading.js'),
-	{ DataBase: DB } = require('bot-database'),
-	botCommands = require('../utils/botCommands.js'),
-	{ daysOfWeek } = require('bot-database/build/Models/utils.js'),
-	Markup = require('node-vk-bot-api/lib/markup'),
+const config = require("../config.js");
+const { buttonColors, sceneNames } = require("../utils/constants.js");
+const {
+	isTomorrowSunday,
+	isTodaySunday,
+} = require("../utils/dateFunctions.js");
+const Scene = require("node-vk-bot-api/lib/scene"),
+	{ createBackKeyboard } = require("../utils/messagePayloading.js"),
+	{ DataBase: DB } = require("bot-database"),
+	botCommands = require("../utils/botCommands.js"),
+	{ daysOfWeek } = require("bot-database/build/Models/utils.js"),
+	Markup = require("node-vk-bot-api/lib/markup"),
 	DataBase = new DB(process.env.MONGODB_URI),
-	{ isAdmin } = require('../utils/roleChecks.js'),
-	{ getDayScheduleString, getScheduleString, mapButtons } = require('../utils/functions.js'),
-	{ cleanDataForSceneFromSession } = require('../utils/sessionCleaners.js'),
-	{ pickSchoolAndClassAction } = require('../utils/actions');
+	{ isAdmin } = require("../utils/roleChecks.js"),
+	{
+		getDayScheduleString,
+		getScheduleString,
+		mapButtons,
+	} = require("../utils/functions.js"),
+	{ cleanDataForSceneFromSession } = require("../utils/sessionCleaners.js"),
+	{ pickSchoolAndClassAction } = require("../utils/actions");
 
 const { isNeedToPickClass } = config;
 
@@ -21,9 +28,8 @@ const checkScheduleScene = new Scene(
 	sceneNames.checkSchedule,
 	(ctx) => {
 		try {
-			console.log(isTodaySunday(), isTomorrowSunday());
 			ctx.reply(
-				'Как вы хотите получить расписание?',
+				"Как вы хотите получить расписание?",
 				null,
 				createBackKeyboard(
 					[
@@ -38,8 +44,8 @@ const checkScheduleScene = new Scene(
 							],
 						]),
 						[Markup.button(botCommands.onAllWeek, buttonColors.positive)],
-					].filter((arr) => arr.length > 0),
-				),
+					].filter((arr) => arr.length > 0)
+				)
 			);
 			ctx.scene.next();
 		} catch (e) {
@@ -53,7 +59,8 @@ const checkScheduleScene = new Scene(
 
 			if (needToPickClass && !ctx.session.Class) {
 				ctx.session.nextScene = sceneNames.checkSchedule;
-				ctx.session.pickFor = 'Выберите класс у которого хотите посмотреть расписание \n';
+				ctx.session.pickFor =
+					"Выберите класс у которого хотите посмотреть расписание \n";
 				ctx.scene.enter(sceneNames.pickClass);
 			} else {
 				const { body } = ctx.message;
@@ -64,16 +71,16 @@ const checkScheduleScene = new Scene(
 				}
 
 				const Student = await DataBase.getStudentByVkId(
-					ctx.session.userId || ctx.message.user_id,
+					ctx.session.userId || ctx.message.user_id
 				);
 
 				if (Student) {
 					if (Student.registered) {
 						if (Student.class === null) {
 							ctx.reply(
-								'Для использования данной функции необходимо войти в класс, для начала введите номер своей школы',
+								"Для использования данной функции необходимо войти в класс, для начала введите номер своей школы",
 								null,
-								createBackKeyboard([[Markup.button(botCommands.checkExisting)]]),
+								createBackKeyboard([[Markup.button(botCommands.checkExisting)]])
 							);
 
 							pickSchoolAndClassAction(ctx, {
@@ -94,18 +101,20 @@ const checkScheduleScene = new Scene(
 							].includes(body.toLowerCase())
 						) {
 							const dayOffset =
-								body.toLowerCase() === botCommands.onToday.toLowerCase() ? -1 : 0;
+								body.toLowerCase() === botCommands.onToday.toLowerCase()
+									? -1
+									: 0;
 
 							const message = getDayScheduleString(
 								Class.schedule[new Date().getDay() + dayOffset],
-								daysOfWeek[new Date().getDay() + dayOffset],
+								daysOfWeek[new Date().getDay() + dayOffset]
 							);
 
-							if (message.trim() === '') {
+							if (message.trim() === "") {
 								ctx.reply(
 									`Для данного класса пока что не существует расписания на ${
 										daysOfWeek[new Date().getDay() - 1]
-									}`,
+									}`
 								);
 								setTimeout(() => {
 									ctx.scene.enter(sceneNames.default);
@@ -116,11 +125,15 @@ const checkScheduleScene = new Scene(
 									ctx.scene.enter(sceneNames.default);
 								}, 50);
 							}
-						} else if (body.toLowerCase() === botCommands.onAllWeek.toLowerCase()) {
+						} else if (
+							body.toLowerCase() === botCommands.onAllWeek.toLowerCase()
+						) {
 							const message = getScheduleString(Class);
 
-							if (message.trim() === '') {
-								ctx.reply('Для данного класса пока что не существует расписания');
+							if (message.trim() === "") {
+								ctx.reply(
+									"Для данного класса пока что не существует расписания"
+								);
 								setTimeout(() => {
 									ctx.scene.enter(sceneNames.default);
 								}, 50);
@@ -137,7 +150,7 @@ const checkScheduleScene = new Scene(
 					} else {
 						ctx.scene.enter(sceneNames.register);
 						ctx.reply(
-							'Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь',
+							"Сначала вам необходимо зарегестрироваться, введите имя класса в котором вы учитесь"
 						);
 					}
 				} else {
@@ -148,7 +161,7 @@ const checkScheduleScene = new Scene(
 			console.error(e);
 			ctx.scene.enter(sceneNames.error);
 		}
-	},
+	}
 );
 
 module.exports = checkScheduleScene;

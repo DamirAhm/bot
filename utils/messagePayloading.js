@@ -1,19 +1,28 @@
 //@ts-check
-const path = require('path');
-const { Lessons, Roles } = require('bot-database/build/Models/utils');
-const config = require('../config.js');
-const Markup = require('node-vk-bot-api/lib/markup');
-const { DataBase: DB } = require('bot-database');
-const VK_API = require('bot-database/build/VkAPI/VK_API').default;
-const botCommands = require('./botCommands');
-const { capitalize, retranslit } = require('./translits.js');
-const download = require('./saveFile');
-const fs = require('fs');
-const { monthsRP, contentPropertyNames, buttonColors, sceneNames } = require('./constants.js');
-const { Types } = require('mongoose');
+const path = require("path");
+const { Lessons, Roles } = require("bot-database/build/Models/utils");
+const config = require("../config.js");
+const Markup = require("node-vk-bot-api/lib/markup");
+const { DataBase: DB } = require("bot-database");
+const VK_API = require("bot-database/build/VkAPI/VK_API").default;
+const botCommands = require("./botCommands");
+const { capitalize, retranslit } = require("./translits.js");
+const download = require("./saveFile");
+const fs = require("fs");
+const {
+	monthsRP,
+	contentPropertyNames,
+	buttonColors,
+	sceneNames,
+} = require("./constants.js");
+const { Types } = require("mongoose");
 
 const DataBase = new DB(process.env.MONGODB_URI);
-const VK = new VK_API(process.env.VK_API_KEY, +config['GROUP_ID'], +config['ALBUM_ID']);
+const VK = new VK_API(
+	process.env.VK_API_KEY,
+	+config["GROUP_ID"],
+	+config["ALBUM_ID"]
+);
 
 const userOptions = [
 	{
@@ -26,6 +35,22 @@ const userOptions = [
 	{
 		label: botCommands.checkAnnouncements,
 		payload: sceneNames.checkAnnouncements,
+		color: buttonColors.primary,
+		needClass: true,
+		withoutClass: false,
+	},
+	{
+		label: botCommands.addHomework,
+		payload: sceneNames.addHomework,
+		color: buttonColors.primary,
+		roles: [Roles.student],
+		needClass: true,
+		withoutClass: false,
+	},
+	{
+		label: botCommands.addAnnouncement,
+		payload: sceneNames.addAnnouncement,
+		roles: [Roles.student],
 		color: buttonColors.primary,
 		needClass: true,
 		withoutClass: false,
@@ -116,22 +141,30 @@ const adminOptions = [
 		payload: sceneNames.redactorsList,
 		color: buttonColors.default,
 	},
-	{ label: botCommands.addClass, payload: sceneNames.addClass, color: buttonColors.default },
-	{ label: botCommands.classList, payload: sceneNames.classList, color: buttonColors.default },
+	{
+		label: botCommands.addClass,
+		payload: sceneNames.addClass,
+		color: buttonColors.default,
+	},
+	{
+		label: botCommands.classList,
+		payload: sceneNames.classList,
+		color: buttonColors.default,
+	},
 ];
 
 const mapListToMessage = (list, startIndex = 1) => {
-	return list.map((e, i) => `${i + startIndex}. ${e}`).join('\n');
+	return list.map((e, i) => `${i + startIndex}. ${e}`).join("\n");
 };
 const formMessage = (...messageSections) => {
-	return messageSections.join('\n');
+	return messageSections.join("\n");
 };
 
 const renderAdminMenu = () => {
 	return formMessage(
-		'Админское меню\n',
+		"Админское меню\n",
 		...adminOptions.map(({ label }, i) => `${i + 1}. ${label}`),
-		'0: Назад',
+		"0: Назад"
 	);
 };
 const renderAdminMenuKeyboard = () => {
@@ -146,16 +179,18 @@ const renderAdminMenuKeyboard = () => {
 		return acc;
 	}, []);
 
-	buttons.push([Markup.button('Назад', buttonColors.negative, { button: 'back' })]);
+	buttons.push([
+		Markup.button("Назад", buttonColors.negative, { button: "back" }),
+	]);
 
 	return Markup.keyboard(buttons, { columns: 3 });
 };
 
 const renderContributorMenu = () => {
 	return formMessage(
-		'Меню редактора\n',
+		"Меню редактора\n",
 		...contributorOptions.map(({ label }, i) => `${i + 1}. ${label}`),
-		'0: Назад',
+		"0: Назад"
 	);
 };
 const renderContributorMenuKeyboard = () => {
@@ -164,7 +199,9 @@ const renderContributorMenuKeyboard = () => {
 			Markup.button(opt.label, buttonColors.default, { button: opt.payload }),
 		]);
 
-		buttons.push([Markup.button('Назад', buttonColors.negative, { button: 'back' })]);
+		buttons.push([
+			Markup.button("Назад", buttonColors.negative, { button: "back" }),
+		]);
 
 		return Markup.keyboard(buttons, { columns: 3 });
 	} catch (e) {
@@ -178,30 +215,37 @@ const getFileName = (href) => href.match(filenameRegExp)?.[1];
 const findMaxResolution = (photo) => {
 	const maxRes = Math.max(
 		...Object.keys(photo)
-			.filter((key) => key.startsWith('photo'))
+			.filter((key) => key.startsWith("photo"))
 			.map((key) => key.match(/^photo_(\d*)/)[1])
-			.map(Number),
+			.map(Number)
 	);
 
-	return photo['photo_' + maxRes];
+	return photo["photo_" + maxRes];
 };
 
 const parseAttachmentsToVKString = async (attachments) => {
 	try {
 		if (
 			Array.isArray(attachments) &&
-			attachments.every((att) => att.type && att[att.type] && att.type === 'photo')
+			attachments.every(
+				(att) => att.type && att[att.type] && att.type === "photo"
+			)
 		) {
 			const parsedAttachments = [];
 
 			for (const att of attachments) {
 				const maxResHref = findMaxResolution(att.photo);
-				const filename = path.join(__dirname, '../', 'uploads', getFileName(maxResHref));
+				const filename = path.join(
+					__dirname,
+					"../",
+					"uploads",
+					getFileName(maxResHref)
+				);
 				await download(maxResHref, filename);
 
-				const photo = await VK.uploadPhotoToAlbum(fs.createReadStream(filename)).then(
-					(photos) => photos[0],
-				);
+				const photo = await VK.uploadPhotoToAlbum(
+					fs.createReadStream(filename)
+				).then((photos) => photos[0]);
 
 				parsedAttachments.push(`photo${photo.owner_id}_${photo.id}`);
 			}
@@ -211,21 +255,21 @@ const parseAttachmentsToVKString = async (attachments) => {
 			const maxResHref = findMaxResolution(attachments.photo);
 
 			const filename = getFileName(maxResHref);
-			const pathname = path.join(__dirname, '../', 'uploads', filename);
+			const pathname = path.join(__dirname, "../", "uploads", filename);
 
 			await download(maxResHref, pathname);
 
-			const photo = await VK.uploadPhotoToAlbum(fs.createReadStream(pathname)).then(
-				(photos) => photos[0],
-			);
+			const photo = await VK.uploadPhotoToAlbum(
+				fs.createReadStream(pathname)
+			).then((photos) => photos[0]);
 
 			return `photo${photo.owner_id}_${photo.id}`;
 		} else {
-			throw new TypeError('Wrong attachments type');
+			throw new TypeError("Wrong attachments type");
 		}
 	} catch (e) {
 		console.error(e);
-		console.error('Cant load file');
+		console.error("Cant load file");
 	}
 };
 
@@ -238,15 +282,18 @@ const createDefaultMenu = async (user_id) => {
 			({ roles, needClass, withoutClass }) =>
 				(!roles || roles.includes(role)) &&
 				(!needClass || StudentsClass) &&
-				(!withoutClass || StudentsClass === null),
+				(!withoutClass || StudentsClass === null)
 		);
 
 		if (StudentsClass === null) {
 		}
 
-		return formMessage('Меню:', ...usableOptions.map(({ label }, i) => `${i + 1}. ${label}`));
+		return formMessage(
+			"Меню:",
+			...usableOptions.map(({ label }, i) => `${i + 1}. ${label}`)
+		);
 	} else {
-		throw new Error('Can`t find user');
+		throw new Error("Can`t find user");
 	}
 };
 
@@ -258,14 +305,18 @@ const createDefaultKeyboard = async (studentInfo, ctx) => {
 	try {
 		let role, StudentsClass;
 
-		if (!studentInfo || studentInfo.role === undefined || studentInfo.class === undefined) {
+		if (
+			!studentInfo ||
+			studentInfo.role === undefined ||
+			studentInfo.class === undefined
+		) {
 			const Student = await DataBase.getStudentByVkId(ctx.message.user_id);
 
 			if (Student) {
 				role = Student.role;
 				StudentsClass = Student.class;
 			} else {
-				throw new Error('Can`t find user');
+				throw new Error("Can`t find user");
 			}
 		} else {
 			role = studentInfo.role;
@@ -286,7 +337,7 @@ const createDefaultKeyboardSync = (role, StudentsClass) => {
 	const trueOptions = getUsableOptionsList(role, StudentsClass);
 
 	let buttons = trueOptions.map(({ label, payload, color }) =>
-		Markup.button(label, color, { button: payload }),
+		Markup.button(label, color, { button: payload })
 	);
 
 	return Markup.keyboard(buttons, { columns: buttons.length > 2 ? 2 : 1 });
@@ -301,7 +352,7 @@ const getUsableOptionsList = (role, StudentsClass) => {
 		({ roles, needClass, withoutClass }) =>
 			(!roles || roles.includes(role)) &&
 			(!needClass || StudentsClass) &&
-			(!withoutClass || StudentsClass === null),
+			(!withoutClass || StudentsClass === null)
 	);
 };
 
@@ -309,11 +360,15 @@ const createBackKeyboard = (existingButtons = [], columns = 4) => {
 	try {
 		if (existingButtons[0] instanceof Array) {
 			existingButtons.push([
-				Markup.button(botCommands.back, buttonColors.negative, { button: 'back' }),
+				Markup.button(botCommands.back, buttonColors.negative, {
+					button: "back",
+				}),
 			]);
 		} else {
 			existingButtons.push(
-				Markup.button(botCommands.back, buttonColors.negative, { button: 'back' }),
+				Markup.button(botCommands.back, buttonColors.negative, {
+					button: "back",
+				})
 			);
 		}
 
@@ -332,20 +387,21 @@ const createConfirmKeyboard = (existingButtons = [], columns = 4) => {
 	} else {
 		existingButtons.unshift(
 			Markup.button(botCommands.no, buttonColors.negative),
-			Markup.button(botCommands.yes, buttonColors.positive),
+			Markup.button(botCommands.yes, buttonColors.positive)
 		);
 	}
 
 	return Markup.keyboard(existingButtons, { columns });
 };
 
-const parseDateToStr = (Date) => `${Date.getDate()} ${monthsRP[Date.getMonth()]}`;
+const parseDateToStr = (Date) =>
+	`${Date.getDate()} ${monthsRP[Date.getMonth()]}`;
 
 const createContentDiscription = ({ to, lesson, text }, creatorFullName) => {
-	return `${creatorFullName ? creatorFullName : ''}
-        ${lesson ? `${contentPropertyNames.lesson}: ${lesson}\n` : ''}
+	return `${creatorFullName ? creatorFullName : ""}
+        ${lesson ? `${contentPropertyNames.lesson}: ${lesson}\n` : ""}
         ${contentPropertyNames.text}: ${text}\n
-        ${to ? `${contentPropertyNames.to}: ${parseDateToStr(to)}\n` : ''}`;
+        ${to ? `${contentPropertyNames.to}: ${parseDateToStr(to)}\n` : ""}`;
 };
 const createUserInfo = ({
 	role,
@@ -361,18 +417,24 @@ const createUserInfo = ({
     ${botCommands.class}: ${className}
     ${botCommands.role}: ${botCommands[role.toLowerCase()]}
     ${botCommands.settings}:
-        ${botCommands.notificationsEnabled}: ${botCommands[notificationsEnabled]}
-        ${notificationsEnabled ? `${botCommands.notificationTime}: ${notificationTime}` : ''}
-		${botCommands.daysForNotification}: ${daysForNotification.join(', ')} ${getDayWord(
-		daysForNotification[daysForNotification.length - 1],
-	)}
+        ${botCommands.notificationsEnabled}: ${
+		botCommands[notificationsEnabled]
+	}
+        ${
+					notificationsEnabled
+						? `${botCommands.notificationTime}: ${notificationTime}`
+						: ""
+				}
+		${botCommands.daysForNotification}: ${daysForNotification.join(
+		", "
+	)} ${getDayWord(daysForNotification[daysForNotification.length - 1])}
     `;
 };
 function getDayWord(dayIndexFrom0To9) {
-	if (dayIndexFrom0To9 === 0) return 'дней';
-	else if (dayIndexFrom0To9 === 1) return 'день';
+	if (dayIndexFrom0To9 === 0) return "дней";
+	else if (dayIndexFrom0To9 === 1) return "день";
 
-	return dayIndexFrom0To9 > 4 ? 'дней' : 'дня';
+	return dayIndexFrom0To9 > 4 ? "дней" : "дня";
 }
 
 const notifyAllInClass = async (
@@ -389,7 +451,7 @@ const notifyAllInClass = async (
 		setTimeout(() => {
 			botInstance.sendMessage(
 				students.filter(({ vkId }) => vkId !== user_id).map(({ vkId }) => vkId),
-				...messagePayload,
+				...messagePayload
 			);
 		}, 50);
 	}
