@@ -1,34 +1,47 @@
 //@ts-check
 ///<reference path="./node-vk-bot-api.d.ts"/>
 
-const path = require('path');
-require('dotenv').config({
+const path = require("path");
+require("dotenv").config({
 	path: path.resolve(
 		__dirname,
-		process.env.NODE_ENV === 'development' ? '.env.development' : '.env',
+		process.env.NODE_ENV === "development" ? ".env.development" : ".env"
 	),
 });
-const VkBot = require('node-vk-bot-api'),
-	Session = require('node-vk-bot-api/lib/session'),
-	Stage = require('node-vk-bot-api/lib/stage'),
-	{ GROUP_ID } = require('./config.js'),
-	{ Roles, DataBase: DB, VK_API } = require('bot-database'),
-	Scenes = require('./scenes/index'),
-	botCommands = require('./utils/botCommands.js'),
-	http = require('http'),
-	{ removeOldHomework } = require('./utils/functions'),
-	{ userOptions, contributorOptions, adminOptions } = require('./utils/messagePayloading');
-const config = require('./config.js');
-const { notifyAboutReboot, notifyStudents } = require('./utils/studentsNotification.js');
-const { sceneNames } = require('./utils/constants.js');
-const { pickSchoolAndClassAction } = require('./utils/actions.js');
+const VkBot = require("node-vk-bot-api"),
+	Session = require("node-vk-bot-api/lib/session"),
+	Stage = require("node-vk-bot-api/lib/stage"),
+	{ GROUP_ID } = require("./config.js"),
+	{ Roles, DataBase: DB, VK_API } = require("bot-database"),
+	Scenes = require("./scenes/index"),
+	botCommands = require("./utils/botCommands.js"),
+	http = require("http"),
+	{ removeOldHomework } = require("./utils/functions"),
+	{
+		userOptions,
+		contributorOptions,
+		adminOptions,
+	} = require("./utils/messagePayloading");
+const config = require("./config.js");
+const {
+	notifyAboutReboot,
+	notifyStudents,
+} = require("./utils/studentsNotification.js");
+const { sceneNames } = require("./utils/constants.js");
+const { pickSchoolAndClassAction } = require("./utils/actions.js");
 
 const userOptionsMessageTexts = userOptions.map(({ label }) => label);
-const contributorOptionsMessageTexts = contributorOptions.map(({ label }) => label);
+const contributorOptionsMessageTexts = contributorOptions.map(
+	({ label }) => label
+);
 const adminOptionsMessageTexts = adminOptions.map(({ label }) => label);
 
 const DataBase = new DB(process.env.MONGODB_URI);
-const vk = new VK_API(process.env.VK_API_KEY, +config['GROUP_ID'], +config['ALBUM_ID']);
+const vk = new VK_API(
+	process.env.VK_API_KEY,
+	+config["GROUP_ID"],
+	+config["ALBUM_ID"]
+);
 const server = http.createServer(requestListener);
 
 const bot = new VkBot({
@@ -43,7 +56,7 @@ DataBase.connect(
 		useCreateIndex: true,
 	},
 	async () => {
-		console.log('Mongoose connected');
+		console.log("Mongoose connected");
 		server.listen(process.env.PORT || 1337);
 		bot.startPolling();
 
@@ -54,7 +67,7 @@ DataBase.connect(
 
 		removeOldHomework();
 		setInterval(() => removeOldHomework(), 24 * 60 * 60 * 1000);
-	},
+	}
 );
 
 const session = new Session();
@@ -68,7 +81,7 @@ bot.command(/.*/, async (ctx, next) => {
 	if (Student) next();
 	else {
 		const { first_name: first_name, last_name: last_name } = await vk.getUser(
-			ctx.message.user_id,
+			ctx.message.user_id
 		);
 
 		ctx.session.userId = ctx.message.user_id;
@@ -100,7 +113,9 @@ bot.command(/.+/, async (ctx) => {
 		contributorOptionsMessageTexts.includes(ctx.message.body) &&
 		[Roles.contributor, Roles.admin].includes(role)
 	) {
-		const option = contributorOptions.find(({ label }) => label === ctx.message.body);
+		const option = contributorOptions.find(
+			({ label }) => label === ctx.message.body
+		);
 		if (option) {
 			ctx.scene.enter(option.payload);
 			return;
@@ -119,8 +134,3 @@ bot.command(/.+/, async (ctx) => {
 
 	ctx.reply(botCommands.notUnderstood);
 });
-
-function requestListener(req, res) {
-	res.writeHead(200);
-	res.end('Hello, World!');
-}

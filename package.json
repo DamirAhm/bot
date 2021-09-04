@@ -1,43 +1,29 @@
 {
-  "name": "project_bot",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "postinstall": "rm -rf ./uploads && mkdir -p ./uploads && touch Feedback",
-    "start:dev": "NODE_ENV=development supervisor -n -w index",
-    "start": "NODE_ENV=production node index.js",
-    "logs": "heroku logs --tail",
-    "start:debug": "NODE_ENV=development supervisor --inspect index -i",
-    "deploy": "rsync -e \"sshpass -p $(cat ~/.ssh/damirahm.ru_password) ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no\" --archive --compress --progress --delete . root@damirahm.ru:/root/bot"
-  },
-  "engines": {
-    "npm": "6.x",
-    "node": "14.x"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@types/jest": "^25.2.1",
-    "@types/node-fetch": "^2.5.7",
-    "@vk-io/hear": "^1.0.2",
-    "@vk-io/scenes": "^1.0.0",
-    "@vk-io/session": "^2.0.0",
-    "axios": "^0.21.1",
-    "body-parser": "^1.19.0",
-    "bot-database": "^3.4.5",
-    "dotenv": "^8.2.0",
-    "express": "^4.17.1",
-    "form-data": "^3.0.0",
-    "jest": "^25.3.0",
-    "mongoose": "^5.9.4",
-    "mongoose-autopopulate": "^0.12.0",
-    "node-cron": "^2.0.3",
-    "node-fetch": "^2.6.0",
-    "node-vk-bot-api": "^3.3.3",
-    "superagent": "^6.1.0",
-    "supervisor": "^0.12.0",
-    "uuid4": "^1.1.4",
-    "vk-io": "^4.0.3"
-  }
+	"name": "project_bot",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"postinstall": "rm -rf ./uploads && mkdir -p ./uploads && touch Feedback",
+		"start:dev": "NODE_ENV=development supervisor -n -w index",
+		"start": "NODE_ENV=production node index.js",
+		"logs": "heroku logs --tail",
+		"start:debug": "NODE_ENV=development supervisor --inspect index -i",
+		"deploy": "rsync -e \"sshpass -p $(cat ~/.ssh/damirahm.ru_password) ssh -i $HOME/.ssh/key -o StrictHostKeyChecking=no\" --archive --compress --progress --delete . root@damirahm.ru:/root/bot"
+	},
+	"engines": {
+		"npm": "6.x",
+		"node": "14.x"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@types/node-fetch": "^2.5.7",
+		"body-parser": "^1.19.0",
+		"bot-database": "^3.4.5",
+		"dotenv": "^8.2.0",
+		"mongoose": "^5.9.4",
+		"node-vk-bot-api": "^3.3.3",
+		"superagent": "^6.1.0"
+	}
 }
