@@ -9,7 +9,7 @@ But from all of my classmates which used bot i received only good reviews.
 
 ### Technologies
 
-I made this bot with nodejs as a more well known back-end technology for me. I used [node-vk-bot-api](<(https://github.com/node-vk-bot-api/node-vk-bot-api)>) library as an abstraction above vk api and superagent as a http library. As a database i used mongodb because i've already used it a couple of times before.
+I made this bot with nodejs as a more well known back-end technology for me. I used [node-vk-bot-api](https://github.com/node-vk-bot-api/node-vk-bot-api) library as an abstraction above vk api and superagent as a http library. As a database i used mongodb because i've already used it a couple of times before.
 
 ## How to use it with your vk group?
 
