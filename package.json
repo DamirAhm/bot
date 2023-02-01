@@ -22,7 +22,7 @@
 		"body-parser": "^1.19.0",
 		"bot-database": "^3.4.5",
 		"dotenv": "^8.2.0",
-		"mongoose": "^5.9.4",
+		"mongoose": "^5.13.15",
 		"node-vk-bot-api": "^3.3.3",
 		"superagent": "^6.1.0"
 	}
